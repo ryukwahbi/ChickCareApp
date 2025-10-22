@@ -1,3 +1,5 @@
+import androidx.compose.foundation.layout.add
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -41,6 +43,20 @@ android {
     buildFeatures {
         compose = true
     }
+
+    aaptOptions {
+        noCompress("tflite")
+    }
+
+    packaging {
+        jniLibs {
+            excludes.add("META-INF/services/javax.annotation.processing.Processor")
+            useLegacyPackaging = true
+        }
+        resources {
+            excludes.add("META-INF/services/javax.annotation.processing.Processor")
+        }
+    }
 }
 
 dependencies {
@@ -75,6 +91,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.guava)
+
+    implementation(libs.tensorflow.lite.support)
+    implementation(libs.tensorflow.lite.task.vision)
+    implementation(libs.tensorflow.lite.gpu.delegate.plugin)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
