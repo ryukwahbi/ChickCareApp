@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "782683773231",
+    "project_id": "chickcare-ab7bc",
+    "storage_bucket": "chickcare-ab7bc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:782683773231:android:ad2ec9aa82c118d8d729da",
+        "android_client_info": {
+          "package_name": "com.bisu.chickcare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBR-gwZc2g-4Dp-hWBWhdoUN9hZWkmUuZI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
