@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -56,6 +55,8 @@ import com.bisu.chickcare.backend.repository.AccountManager
 import com.bisu.chickcare.backend.repository.SavedAccount
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,7 +71,25 @@ fun ManageProfilesScreen(navController: NavController) {
     var showRemoveDialog by remember { mutableStateOf(false) }
     var showClearAllDialog by remember { mutableStateOf(false) }
     
+    // Sync account info from Firestore when screen loads to get latest profile pictures
     LaunchedEffect(Unit) {
+        // First load from SharedPreferences
+        accounts = accountManager.getSavedAccounts()
+        
+        // Capture accounts list before entering coroutine
+        val accountsToSync = accounts
+        
+        // Then sync all accounts with Firestore to get updated profile pictures
+        withContext(Dispatchers.IO) {
+            accountsToSync.forEach { account ->
+                try {
+                    accountManager.updateAccountInfo(account.userId)
+                } catch (_: Exception) {
+                    // Silent fail - continue with next account
+                }
+            }
+        }
+        // Reload accounts after syncing (back on main dispatcher)
         accounts = accountManager.getSavedAccounts()
     }
     
@@ -259,14 +278,6 @@ fun ProfileItem(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            
-            // Arrow icon
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                contentDescription = "View Profile",
-                tint = Color.Gray,
-                modifier = Modifier.size(24.dp)
-            )
         }
     }
 }
@@ -289,7 +300,7 @@ fun RemoveProfileDialog(
             }
         },
         text = {
-            Text("Learn more about why you see this profile and what it means to remove it.")
+            Text("Are you sure you want to remove this profile? This action cannot be undone. You will be signed out if this is your current account.")
         },
         confirmButton = {
             Card(
