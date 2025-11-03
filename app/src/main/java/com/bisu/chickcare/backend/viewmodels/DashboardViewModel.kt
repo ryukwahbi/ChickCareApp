@@ -740,7 +740,13 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         if (context == null) return uriString
         
         return try {
-            val uri = uriString.toUri()
+            // Decode URL-encoded URI if needed (navigation encodes URIs)
+            val decodedUriString = try {
+                java.net.URLDecoder.decode(uriString, "UTF-8")
+            } catch (e: Exception) {
+                uriString // Use original if decoding fails
+            }
+            val uri = decodedUriString.toUri()
             // Take persistable permission for all content URIs (not just picker URIs)
             // This ensures we can access the URI later, even after the app restarts
             if (uri.scheme == "content") {
@@ -750,15 +756,15 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         uri,
                         android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
-                    android.util.Log.d("DashboardViewModel", "Taken persistable URI permission for: $uriString")
+                    android.util.Log.d("DashboardViewModel", "Taken persistable URI permission for: $decodedUriString")
                 } catch (e: SecurityException) {
-                    android.util.Log.w("DashboardViewModel", "Cannot take persistable permission for URI (may already be taken or not support persistable): $uriString - ${e.message}")
+                    android.util.Log.w("DashboardViewModel", "Cannot take persistable permission for URI (may already be taken or not support persistable): $decodedUriString - ${e.message}")
                     // Continue anyway - permission might already be taken or URI might not support persistable
                 } catch (e: Exception) {
                     android.util.Log.w("DashboardViewModel", "Error taking persistable permission: ${e.message}")
                 }
             }
-            uriString
+            uriString // Return original (possibly encoded) string
         } catch (e: Exception) {
             android.util.Log.w("DashboardViewModel", "Error parsing URI for permission: $uriString", e)
             uriString

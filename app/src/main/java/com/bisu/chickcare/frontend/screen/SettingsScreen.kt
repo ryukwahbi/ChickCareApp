@@ -3,6 +3,7 @@ package com.bisu.chickcare.frontend.screen
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -32,8 +33,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.data.SettingOption
@@ -56,15 +59,25 @@ fun SettingsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold) },
+                title = { 
+                    Text(
+                        "Settings",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    ) 
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = Color(0xFF231C16)
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                    containerColor = Color.White,
+                    titleContentColor = Color(0xFF231C16)
                 )
             )
         }
@@ -74,6 +87,7 @@ fun SettingsScreen(navController: NavController) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp),
+            contentPadding = PaddingValues(top = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(settingsOptions) { option ->
@@ -107,8 +121,8 @@ fun SettingItem(option: SettingOption, onClick: () -> Unit) {
             .fillMaxWidth()
             .clickable(onClick = onClick),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-            contentColor = MaterialTheme.colorScheme.onSurface
+            containerColor = Color.White,
+            contentColor = Color.Black
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -123,19 +137,19 @@ fun SettingItem(option: SettingOption, onClick: () -> Unit) {
             Icon(
                 imageVector = option.icon,
                 contentDescription = option.title,
-                tint = if (option.isLogout) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                tint = if (option.isLogout) MaterialTheme.colorScheme.error else Color.Black
             )
             Column(modifier = Modifier.padding(horizontal = 16.dp).weight(1f)) {
                 Text(
                     text = option.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Medium,
-                    color = if (option.isLogout) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                    color = if (option.isLogout) MaterialTheme.colorScheme.error else Color.Black
                 )
                 Text(
                     text = option.subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = Color.Black
                 )
             }
             if (option.title == "Theme") {

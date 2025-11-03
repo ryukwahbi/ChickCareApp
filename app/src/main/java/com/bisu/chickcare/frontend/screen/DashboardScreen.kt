@@ -387,7 +387,7 @@ fun DashboardTopAppBar(
         },
         navigationIcon = {
             IconButton(onClick = onDrawerClick) {
-                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color(0xFF8B4513))
+                Icon(Icons.Default.Menu, contentDescription = "Menu", tint = Color(0xFFDA8041))
             }
         },
         actions = {

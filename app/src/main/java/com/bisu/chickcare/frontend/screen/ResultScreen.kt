@@ -51,7 +51,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -85,18 +84,18 @@ fun ResultScreen(
     
     // Take persistable URI permissions immediately when screen loads (before displaying images)
     LaunchedEffect(imageUri, audioUri) {
-        // Take permissions for image URI if it's a picker URI
+        // Take permissions for image URI for ALL content URIs (not just picker URIs)
         imageUri?.let { uriString ->
             try {
                 // Decode URL encoding first (navigation may encode URIs)
                 val decodedUriString = try {
                     java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     uriString // Use original if decoding fails
                 }
-                
                 val uri = decodedUriString.toUri()
-                if (uri.scheme == "content" && decodedUriString.contains("picker", ignoreCase = true)) {
+                // Take persistable permission for all content URIs
+                if (uri.scheme == "content") {
                     try {
                         context.contentResolver.takePersistableUriPermission(
                             uri,
@@ -114,18 +113,19 @@ fun ResultScreen(
             }
         }
         
-        // Take permissions for audio URI if it's a picker URI
+        // Take permissions for audio URI for ALL content URIs (not just picker URIs)
         audioUri?.let { uriString ->
             try {
                 // Decode URL encoding first (navigation may encode URIs)
                 val decodedUriString = try {
                     java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     uriString // Use original if decoding fails
                 }
                 
                 val uri = decodedUriString.toUri()
-                if (uri.scheme == "content" && decodedUriString.contains("picker", ignoreCase = true)) {
+                // Take persistable permission for all content URIs
+                if (uri.scheme == "content") {
                     try {
                         context.contentResolver.takePersistableUriPermission(
                             uri,
@@ -321,13 +321,13 @@ fun ResultScreen(
                                 val decodedImageUriString = try {
                                     java.net.URLDecoder.decode(imageUri, "UTF-8")
                                 } catch (e: Exception) {
-                                    android.util.Log.w("ResultScreen", "Failed to decode image URI: ${e.message}, using original")
+                                    Log.w("ResultScreen", "Failed to decode image URI: ${e.message}, using original")
                                     imageUri
                                 }
                                 val imageUriObj = try {
                                     decodedImageUriString.toUri()
                                 } catch (e: Exception) {
-                                    android.util.Log.w("ResultScreen", "Failed to parse image URI: ${e.message}")
+                                    Log.w("ResultScreen", "Failed to parse image URI: ${e.message}")
                                     null
                                 }
                                 
@@ -340,10 +340,10 @@ fun ResultScreen(
                                             .clip(RoundedCornerShape(12.dp)),
                                         contentScale = ContentScale.Crop,
                                         onError = {
-                                            android.util.Log.e("ResultScreen", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
+                                            Log.e("ResultScreen", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
                                         },
                                         onSuccess = {
-                                            android.util.Log.d("ResultScreen", "Successfully loaded detection image: $decodedImageUriString")
+                                            Log.d("ResultScreen", "Successfully loaded detection image: $decodedImageUriString")
                                         }
                                     )
                                 } else {
@@ -796,7 +796,7 @@ fun ResultScreen(
                                     try {
                                         val decoded = java.net.URLDecoder.decode(suggestion, "UTF-8")
                                         decoded.replace("✅", "").replace("✔", "").trim()
-                                    } catch (e: Exception) {
+                                    } catch (_: Exception) {
                                         suggestion.replace("✅", "").replace("✔", "").trim()
                                     }
                                 }
@@ -845,6 +845,32 @@ fun ResultScreen(
                                 }
                             }
                         }
+                    }
+                }
+
+                // --- Done Button ---
+                item {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Button(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF4CAF50)
+                        )
+                    ) {
+                        Text(
+                            text = "Done - Back to Dashboard",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
                     }
                 }
 

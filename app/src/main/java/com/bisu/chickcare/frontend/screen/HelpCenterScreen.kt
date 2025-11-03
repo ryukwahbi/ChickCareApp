@@ -86,6 +86,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -178,6 +179,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                             }
                         }
 
+                        @Suppress("Deprecation")
                         override fun onError(utteranceId: String?) {
                             // Speech error - update state on main thread
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -362,25 +364,16 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.Help,
-                            contentDescription = null,
-                            tint = Color(0xFF231C16),
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "Help Center",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = Color(0xFF231C16)
-                        )
-                    }
+                    Text(
+                        text = "Help Center",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = Color(0xFF8B4513)
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = Color(0xFF8B4513)
                 )
             )
         }
@@ -403,7 +396,8 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding = PaddingValues(top = 0.dp)
             ) {
                 // Personalized Greeting
                 item {
@@ -742,6 +736,16 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                     )
                 }
 
+                // Divider before Support & Contact
+                item {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    HorizontalDivider(
+                        color = Color(0xFF8B4513).copy(alpha = 0.5f),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+
                 // Support & Contact
                 item(key = "contact_section") {
                     Card(
@@ -753,7 +757,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                     ) {
                         Column(
                             modifier = Modifier.padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = "Need more assistance?",
@@ -763,26 +767,25 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 ),
                                 color = Color.Black
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = "Our support team is ready to help.",
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontStyle = FontStyle.Italic,
-                                    fontWeight = FontWeight.Medium
+                                    fontWeight = FontWeight.Normal
                                 ),
                                 color = Color.Black
                             )
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(5.dp))
                             HorizontalDivider(color = Color.Black.copy(alpha = 0.3f))
-                            Spacer(modifier = Modifier.height(16.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             // Facebook Contact
-                            // Note: Add facebook_logo.png to res/drawable folder
                             ContactInfoRowWithLogo(
                                 label = "ChickCare Support Team",
                                 value = "Facebook",
                                 labelColor = Color(0xFF064575),
                                 valueColor = Color.Black,
-                                logoResId = null, // Change to R.drawable.facebook_logo when image is added
+                                logoResId = R.drawable.facebook_logo,
                                 onClick = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
@@ -791,15 +794,14 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     context.startActivity(intent)
                                 }
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             // Gmail Contact
-                            // Note: Add gmail_logo.png to res/drawable folder
                             ContactInfoRowWithLogo(
-                                label = "ChickCare Support Team",
-                                value = "chickcaresupp0rt@gmail.com",
-                                labelColor = Color(0xFF064575),
-                                valueColor = Color.Red,
-                                logoResId = null,
+                                label = "chickcaresupp0rt@gmail.com",
+                                value = "Gmail",
+                                labelColor = Color(0xFFAB2626),
+                                valueColor = Color.Black,
+                                logoResId = R.drawable.gmail_log,
                                 onClick = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
