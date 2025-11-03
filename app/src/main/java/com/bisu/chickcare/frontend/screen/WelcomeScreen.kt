@@ -117,7 +117,6 @@ fun WelcomeScreen(navController: NavController) {
                 .drawWithCache {
                     onDrawWithContent {
                         drawContent()
-                        // Subtle animated overlay (e.g., faint chicken silhouette effect)
                         drawCircle(
                             color = Color.Black.copy(alpha = 0.05f),
                             radius = size.minDimension / 4,
@@ -138,21 +137,23 @@ fun WelcomeScreen(navController: NavController) {
 
             Spacer(modifier = Modifier.size(32.dp))
 
+            val shimmer by animateFloatAsState(
+                targetValue = 1f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(durationMillis = 2000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "shimmer"
+            )
+
             AnimatedVisibility(
                 visible = isVisible,
                 enter = fadeIn(animationSpec = tween(durationMillis = 2000, delayMillis = 1000))
             ) {
-                val shimmer = animateFloatAsState(
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 2000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    )
-                )
                 Text(
                     text = "ChickCare",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.secondary.copy(alpha = shimmer.value),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color(0xFF2F1801),
                     textAlign = TextAlign.Center
                 )
             }
@@ -163,17 +164,10 @@ fun WelcomeScreen(navController: NavController) {
                 visible = isVisible,
                 enter = fadeIn(animationSpec = tween(durationMillis = 2000, delayMillis = 2000))
             ) {
-                val shimmer = animateFloatAsState(
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 2000, easing = LinearEasing),
-                        repeatMode = RepeatMode.Reverse
-                    )
-                )
                 Text(
-                    text = "Empowering Poultry Health with AI",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = shimmer.value),
+                    text = "Catch Problems Before They Spread",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = shimmer),
                     textAlign = TextAlign.Center
                 )
             }
@@ -182,12 +176,12 @@ fun WelcomeScreen(navController: NavController) {
 
             // Animated Progress Ring
             CircularProgressIndicator(
-            progress = { progress.value },
-            modifier = Modifier.size(36.dp),
-            color = MaterialTheme.colorScheme.onPrimary,
-            strokeWidth = 4.dp,
-            trackColor = ProgressIndicatorDefaults.circularIndeterminateTrackColor,
-            strokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap,
+                progress = { progress.value },
+                modifier = Modifier.size(36.dp),
+                color = MaterialTheme.colorScheme.onPrimary,
+                strokeWidth = 4.dp,
+                trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.2f),
+                strokeCap = ProgressIndicatorDefaults.CircularDeterminateStrokeCap
             )
         }
     }

@@ -98,25 +98,28 @@ fun ResetPasswordScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
-                .padding(top = 64.dp), // Adjusted to move content upward
-            horizontalAlignment = Alignment.CenterHorizontally,
+                .padding(10.dp)
+                .padding(top = 68.dp),
+            horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Top
         ) {
-            // Back button sa top
             IconButton(
                 onClick = { navController.popBackStack() },
                 modifier = Modifier.align(Alignment.Start)
             ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
+                Icon(Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
             }
 
-            Spacer(modifier = Modifier.height(16.dp)) // Reduced spacing for tighter placement
+            Spacer(modifier = Modifier.height(24.dp))
 
             Text(
                 text = "Reset Password",
                 style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold, // Added boldness
+                fontWeight = FontWeight.ExtraBold,
                 color = Color.White
             )
 
@@ -127,7 +130,7 @@ fun ResetPasswordScreen(navController: NavController) {
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Normal,
                 color = Color.White.copy(alpha = 0.8f),
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Start
             )
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -226,7 +229,7 @@ fun ResetPasswordScreen(navController: NavController) {
                         MessageType.NONE -> Color.Transparent
                     },
                     style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Center,
+                    textAlign = TextAlign.Start,
                     fontWeight = FontWeight.Medium
                 )
             }

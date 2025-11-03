@@ -406,7 +406,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 FirebaseFirestore.getInstance()
                     .collection("users")
                     .document(userId)
-                    .update("lastActive", System.currentTimeMillis())
+                    .set(hashMapOf("lastActive" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
                     .await()
             } catch (_: Exception) {
                 // Silent fail - not critical
