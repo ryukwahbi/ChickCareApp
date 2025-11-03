@@ -137,7 +137,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 
                 // Call detection service - it's wrapped in NonCancellable so it will always return
                 detectionResult = try {
-                    detectionService.detectIB(userId, imageUri, audioUri)
+                    detectionService.detectIB(imageUri, audioUri)
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     android.util.Log.e("DashboardViewModel", "Detection service was cancelled (unexpected): ${e.message}", e)
                     throw e // Re-throw to be caught by outer handler
@@ -430,49 +430,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         }
     }
     
-    fun deleteAllDetections() {
-        val userId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            try {
-                detectionRepository.deleteAllDetections(userId)
-                // History will update automatically via Firestore listener
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error deleting all detections", e)
-            }
-        }
-    }
-    
-    fun deleteSelectedDetections(detectionIds: List<String>) {
-        val userId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            try {
-                detectionIds.forEach { id ->
-                    detectionRepository.deleteDetection(userId, id)
-                }
-                // History will update automatically via Firestore listener
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error deleting selected detections", e)
-            }
-        }
-    }
-    
-    fun updateDetection(
-        detectionId: String,
-        result: String,
-        isHealthy: Boolean,
-        confidence: Float
-    ) {
-        val userId = auth.currentUser?.uid ?: return
-        viewModelScope.launch {
-            try {
-                detectionRepository.updateDetection(userId, detectionId, result, isHealthy, confidence)
-                // History will update automatically via Firestore listener
-            } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error updating detection", e)
-            }
-        }
-    }
-    
     fun markAllDetectionsAsRead() {
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
@@ -743,7 +700,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             // Decode URL-encoded URI if needed (navigation encodes URIs)
             val decodedUriString = try {
                 java.net.URLDecoder.decode(uriString, "UTF-8")
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 uriString // Use original if decoding fails
             }
             val uri = decodedUriString.toUri()

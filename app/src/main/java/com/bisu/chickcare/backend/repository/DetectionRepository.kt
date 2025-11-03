@@ -58,7 +58,7 @@ class DetectionRepository {
         try {
             usersCollection.document(userId).collection("detections").add(detectionData).await()
             Log.d("DetectionRepository", "Detection saved successfully")
-        } catch (e: java.net.UnknownHostException) {
+        } catch (_: java.net.UnknownHostException) {
             Log.w("DetectionRepository", "Network unavailable - detection will be saved when online (offline persistence enabled)")
             // With offline persistence enabled, Firestore will queue this write
             // and sync when connection is restored
@@ -150,7 +150,7 @@ class DetectionRepository {
                                                 // Decode URL-encoded recommendations (spaces might be encoded as +)
                                                 try {
                                                     java.net.URLDecoder.decode(str, "UTF-8")
-                                                } catch (e: Exception) {
+                                                } catch (_: Exception) {
                                                     str // Return original if decoding fails
                                                 }
                                             } ?: emptyList(),
@@ -282,7 +282,7 @@ class DetectionRepository {
             }
 
             Pair(totalChickens, alerts)
-        } catch (e: java.net.UnknownHostException) {
+        } catch (_: java.net.UnknownHostException) {
             Log.w("DetectionRepository", "Network unavailable - returning cached stats if available")
             // Return default values when offline - with persistence, cached data might be available
             Pair(0, 0)
@@ -320,23 +320,6 @@ class DetectionRepository {
             .document(detectionId)
             .delete()
             .await()
-    }
-
-    suspend fun deleteAllDetections(userId: String) {
-        val snapshot = usersCollection.document(userId)
-            .collection("detections")
-            .whereEqualTo("isDeleted", false)
-            .get()
-            .await()
-
-        snapshot.documents.forEach { doc ->
-            doc.reference.update(
-                mapOf(
-                    "isDeleted" to true,
-                    "deletedTimestamp" to System.currentTimeMillis()
-                )
-            ).await()
-        }
     }
 
     // Get recently deleted items
@@ -657,26 +640,6 @@ class DetectionRepository {
                 throw e // Re-throw if it's not an index error
             }
         }
-    }
-    
-    suspend fun updateDetection(
-        userId: String,
-        detectionId: String,
-        result: String,
-        isHealthy: Boolean,
-        confidence: Float
-    ) {
-        usersCollection.document(userId)
-            .collection("detections")
-            .document(detectionId)
-            .update(
-                mapOf(
-                    "result" to result,
-                    "isHealthy" to isHealthy,
-                    "confidence" to confidence
-                )
-            )
-            .await()
     }
     
     // Mark all unread detections as read

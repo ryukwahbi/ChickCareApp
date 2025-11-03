@@ -18,14 +18,14 @@ class DetectionService(
     private val fusionClassifier by lazy { FusionClassifier(context) }
     private val audioConverter by lazy { AudioSpectrogramConverter(context) }
 
-    suspend fun detectIB(userId: String, imageUri: String?, audioUri: String?): Pair<Boolean, String> {
+    suspend fun detectIB(imageUri: String?, audioUri: String?): Pair<Boolean, String> {
         // Use NonCancellable at the top level to ensure we always return a result
-        return kotlinx.coroutines.withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
-            detectIBInternal(userId, imageUri, audioUri)
+        return withContext(Dispatchers.IO + kotlinx.coroutines.NonCancellable) {
+            detectIBInternal(imageUri, audioUri)
         }
     }
     
-    private suspend fun detectIBInternal(userId: String, imageUri: String?, audioUri: String?): Pair<Boolean, String> = withContext(Dispatchers.IO) {
+    private suspend fun detectIBInternal(imageUri: String?, audioUri: String?): Pair<Boolean, String> = withContext(Dispatchers.IO) {
         // Determine which type of detection to perform
         val isImageDetection = imageUri != null
         val isAudioDetection = audioUri != null
@@ -47,7 +47,7 @@ class DetectionService(
                 // This ensures the process completes even if viewModelScope is cancelled
                 var fusionResult: Pair<Boolean, String>? = null
                 try {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    withContext(kotlinx.coroutines.NonCancellable) {
                         android.util.Log.d("DetectionService", "Step 1: Loading image bitmap...")
                         // Load image bitmap
                         val decodedImageUri = imageUri.toUri()
@@ -77,7 +77,7 @@ class DetectionService(
                             } else {
                                 null
                             }
-                        } catch (e: Exception) {
+                        } catch (_: Exception) {
                             null
                         }
                         
@@ -326,7 +326,7 @@ class DetectionService(
                             status.equals("Sick", ignoreCase = true) ||
                             status.equals("Sick_chicken", ignoreCase = true) ||
                             status.equals("Unhealthy", ignoreCase = true)
-            val isHealthy = !isInfected
+            !isInfected
 
             val resultString = "$status (${String.format(Locale.US, "%.1f", score * 100)}%)"
             if (detectedType.isNotEmpty()) {
@@ -343,10 +343,6 @@ class DetectionService(
             android.util.Log.e("DetectionService", "Detection failed: ${e.message}", e)
             return@withContext false to "Analysis Failed: ${e.message}"
         }
-    }
-
-    private suspend fun saveDetection(userId: String, result: String, isHealthy: Boolean, confidence: Float, imageUri: String?, audioUri: String?) {
-        detectionRepository.saveDetection(userId, result, isHealthy, confidence, imageUri, audioUri)
     }
 
     suspend fun getRemedySuggestions(isInfected: Boolean): List<String> = withContext(Dispatchers.IO) {

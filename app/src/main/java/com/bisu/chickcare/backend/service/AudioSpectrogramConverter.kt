@@ -7,7 +7,6 @@ import android.media.MediaMetadataRetriever
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
