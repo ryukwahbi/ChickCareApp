@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Internal cache directory - for ProfileScreen temp images -->
+    <cache-path name="my_images" path="." />
+    
+    <!-- External cache directory - for CameraScreen captured images -->
+    <external-cache-path name="external_images" path="." />
+    
+    <!-- External files directory - for other file operations -->
+    <external-files-path name="external_files" path="." />
+</paths>

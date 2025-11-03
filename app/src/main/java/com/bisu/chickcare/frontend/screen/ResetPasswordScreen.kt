@@ -1,6 +1,5 @@
 package com.bisu.chickcare.frontend.screen
 
-import android.util.Patterns
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -26,6 +26,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,6 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.utils.Validators
+import kotlinx.coroutines.delay
+
+private enum class MessageType {
+    NONE, SUCCESS, ERROR
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,8 +55,10 @@ fun ResetPasswordScreen(navController: NavController) {
     val viewModel: AuthViewModel = viewModel()
     var email by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
+    var messageType by remember { mutableStateOf(MessageType.NONE) }
     var isLoading by remember { mutableStateOf(false) }
     var isEmailError by remember { mutableStateOf(false) }
+    var isSuccess by remember { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.Black,
@@ -128,13 +137,16 @@ fun ResetPasswordScreen(navController: NavController) {
                 onValueChange = {
                     email = it
                     isEmailError = false
+                    message = ""
+                    messageType = MessageType.NONE
                 },
                 label = { Text("Email Address") },
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Email),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 isError = isEmailError,
                 colors = textFieldColors,
+                enabled = !isSuccess,
                 supportingText = {
                     if (isEmailError) {
                         Text("Please enter a valid email address", color = Color.Red)
@@ -146,23 +158,33 @@ fun ResetPasswordScreen(navController: NavController) {
 
             Button(
                 onClick = {
-                    if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+                    val trimmedEmail = email.trim()
+                    if (!Validators.isValidEmail(trimmedEmail)) {
                         isEmailError = true
-                        message = "Invalid email format"
+                        message = "Please enter a valid email address"
+                        messageType = MessageType.ERROR
                         return@Button
                     }
+                    
                     isLoading = true
                     message = ""
-                    viewModel.resetPassword(email) { success, msg ->
+                    messageType = MessageType.NONE
+                    isEmailError = false
+                    
+                    viewModel.resetPassword(trimmedEmail) { success, msg ->
                         isLoading = false
                         message = msg
+                        messageType = if (success) MessageType.SUCCESS else MessageType.ERROR
                         if (success) {
                             isEmailError = false
+                            isSuccess = true
+                        } else {
+                            isEmailError = true
                         }
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && email.isNotEmpty(),
+                enabled = !isLoading && !isSuccess && email.trim().isNotEmpty(),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD27D2D),
@@ -177,22 +199,44 @@ fun ResetPasswordScreen(navController: NavController) {
                 )
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = Color.White,
+                        strokeWidth = 2.dp
+                    )
                 } else {
-                    Text("Send Reset Link")
+                    Text(
+                        text = if (isSuccess) "Reset Link Sent!" else "Send Reset Link",
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (message.isNotEmpty()) {
+            if (message.isNotEmpty() && messageType != MessageType.NONE) {
                 Text(
                     text = message,
-                    modifier = Modifier.padding(top = 8.dp),
-                    color = if (message.contains("success")) Color.Green else Color.Red,
-                    style = MaterialTheme.typography.bodySmall,
-                    textAlign = TextAlign.Center
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                    color = when (messageType) {
+                        MessageType.SUCCESS -> Color(0xFF4CAF50)
+                        MessageType.ERROR -> Color(0xFFEF5350)
+                        MessageType.NONE -> Color.Transparent
+                    },
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
                 )
+            }
+            
+            // Auto-navigate back after successful reset (optional)
+            if (isSuccess) {
+                LaunchedEffect(Unit) {
+                    delay(3000) // Wait 3 seconds
+                    navController.popBackStack()
+                }
             }
         }
     }

@@ -19,3 +19,19 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Suppress warnings from Google Play Services
+-dontwarn com.google.android.gms.**
+-dontwarn com.google.firebase.**
+
+# Keep Google Play Services classes
+-keep class com.google.android.gms.** { *; }
+-keep class com.google.firebase.** { *; }
+
+# Suppress ProviderInstaller warnings
+-dontwarn com.google.android.gms.security.ProviderInstaller**
+
+# Suppress reflection warnings for Google Play Services
+-keepclassmembers class * {
+    @androidx.annotation.Keep *;
+}

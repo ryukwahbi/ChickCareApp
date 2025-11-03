@@ -1,6 +1,5 @@
 package com.bisu.chickcare.frontend.screen
 
-import android.util.Patterns
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -87,6 +86,7 @@ import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.data.COUNTRIES
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.utils.Validators
 import com.phucynwa.profanity.filter.AndroidProfanityFilter
 import com.phucynwa.profanity.filter.dictionary.PlainDictionary
 import kotlinx.coroutines.launch
@@ -718,7 +718,7 @@ fun SignupScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = {
-                                isEmailError = !(Patterns.EMAIL_ADDRESS.matcher(email).matches() && isValidProvider(email))
+                                isEmailError = !(Validators.isValidEmail(email) && isValidProvider(email))
                                 if (!isEmailError) {
                                     step = 6
                                 }

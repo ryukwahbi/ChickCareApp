@@ -1,5 +1,3 @@
-// In C:/Users/PC-1/ChickCare-Thesis/ChickCare/settings.gradle.kts
-
 pluginManagement {
     repositories {google {
         content {

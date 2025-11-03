@@ -53,6 +53,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -64,10 +65,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.utils.Validators
 
 @Composable
 fun LoginScreen(navController: NavController) {
     val viewModel: AuthViewModel = viewModel()
+    val context = LocalContext.current
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
@@ -118,21 +121,6 @@ fun LoginScreen(navController: NavController) {
                 )
         )
 
-        // --- SETTINGS ICON AT TOP RIGHT (adjusted position and size) ---
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 42.dp, end = 20.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color(0xFF363230),
-                modifier = Modifier.size(32.dp)
-            )
-        }
-
-        // --- LAYER 3: LOGIN FORM ---
         Surface(
             color = Color.Transparent,
             modifier = Modifier.fillMaxSize()
@@ -178,9 +166,9 @@ fun LoginScreen(navController: NavController) {
                     label = { Text("Mobile number or email") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    isError = email.isNotEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches(),
+                    isError = email.isNotEmpty() && !Validators.isValidEmail(email),
                     supportingText = {
-                        if (email.isNotEmpty() && !android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches())
+                        if (email.isNotEmpty() && !Validators.isValidEmail(email))
                             Text("Invalid email format", color = MaterialTheme.colorScheme.error)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
@@ -256,7 +244,7 @@ fun LoginScreen(navController: NavController) {
                 ElevatedButton(
                     onClick = {
                         isLoading = true
-                        viewModel.login(email, password) { success, msg ->
+                        viewModel.login(email, password, context = context) { success, msg ->
                             isLoading = false
                             message = msg
                             if (success) {
@@ -306,6 +294,21 @@ fun LoginScreen(navController: NavController) {
                     )
                 }
             }
+        }
+
+        // --- SETTINGS ICON (rendered last so it's on top and clickable) ---
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = 42.dp, end = 20.dp)
+                .clickable { navController.navigate("manage_profiles") }
+        ) {
+            Icon(
+                imageVector = Icons.Default.Settings,
+                contentDescription = "Settings",
+                tint = Color(0xFF363230),
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }

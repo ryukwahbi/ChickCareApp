@@ -1,0 +1,273 @@
+package com.bisu.chickcare.frontend.screen
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.bisu.chickcare.R
+import com.bisu.chickcare.backend.repository.FriendSuggestion
+import com.bisu.chickcare.backend.viewmodels.FriendViewModel
+import com.bisu.chickcare.frontend.components.ActiveStatusIndicator
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FriendSuggestionsScreen(navController: NavController) {
+    val viewModel: FriendViewModel = viewModel()
+    val suggestions by viewModel.suggestions.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
+    
+    // Track request status for each user (userId -> status: "pending", "accepted", "declined", or null)
+    val requestStatusMap = remember { mutableStateMapOf<String, String?>() }
+    
+    // Load suggestions and check request status for each
+    LaunchedEffect(Unit) {
+        viewModel.loadFriendSuggestions()
+    }
+    
+    // Check request status for all suggestions whenever suggestions change
+    LaunchedEffect(suggestions) {
+        suggestions.forEach { suggestion ->
+            if (!requestStatusMap.containsKey(suggestion.userId)) {
+                viewModel.checkRequestStatus(suggestion.userId) { status ->
+                    requestStatusMap[suggestion.userId] = status
+                }
+            }
+        }
+    }
+    
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("New friend suggestion") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.Black
+                )
+            )
+        }
+    ) { innerPadding ->
+        if (isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        } else if (suggestions.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "No friend suggestions available",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.Gray
+                )
+            }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(suggestions) { suggestion ->
+                    FriendSuggestionItem(
+                        suggestion = suggestion,
+                        requestStatus = requestStatusMap[suggestion.userId],
+                        onAddFriend = {
+                            viewModel.sendFriendRequest(
+                                suggestion.userId,
+                                suggestion.fullName
+                            ) { success, message ->
+                                if (success) {
+                                    // Update status to pending immediately
+                                    requestStatusMap[suggestion.userId] = "pending"
+                                    // Refresh suggestions to remove this user if needed
+                                    viewModel.loadFriendSuggestions()
+                                }
+                            }
+                        },
+                        onStatusRefresh = {
+                            // Refresh status for this specific user
+                            viewModel.checkRequestStatus(suggestion.userId) { status ->
+                                requestStatusMap[suggestion.userId] = status
+                                // If declined or accepted, refresh suggestions
+                                if (status == "declined" || status == "accepted") {
+                                    viewModel.loadFriendSuggestions()
+                                }
+                            }
+                        },
+                        onViewProfile = {
+                            navController.navigate("view_profile?userId=${suggestion.userId}")
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FriendSuggestionItem(
+    suggestion: FriendSuggestion,
+    requestStatus: String?,
+    onAddFriend: () -> Unit,
+    onStatusRefresh: () -> Unit,
+    onViewProfile: () -> Unit
+) {
+    // Refresh status periodically to check for changes (accepted/declined) while pending
+    LaunchedEffect(suggestion.userId, requestStatus) {
+        if (requestStatus == "pending") {
+            // Poll every 3 seconds while pending
+            repeat(Int.MAX_VALUE) {
+                kotlinx.coroutines.delay(3000)
+                // Check status again - if no longer pending, LaunchedEffect will restart with new key
+                onStatusRefresh()
+            }
+        }
+    }
+    
+    val buttonText = when (requestStatus) {
+        "pending" -> "Requested"
+        "declined" -> "Add"
+        "accepted" -> "Friends" // Optional: show if they became friends
+        else -> "Add"
+    }
+    
+    val buttonColor = when (requestStatus) {
+        "pending" -> Color.Gray
+        "declined" -> Color(0xFF4CAF50) // Green
+        "accepted" -> Color.Blue // Optional: different color for friends
+        else -> Color(0xFF4CAF50) // Green
+    }
+    
+    val isButtonEnabled = requestStatus != "pending" && requestStatus != "accepted"
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // Profile Picture with Active Status - Clickable to view profile
+            Box(
+                modifier = Modifier.clickable(onClick = onViewProfile)
+            ) {
+                AsyncImage(
+                    model = suggestion.photoUrl ?: R.drawable.chicken_icon,
+                    contentDescription = "Profile",
+                    modifier = Modifier
+                        .size(64.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop
+                )
+                ActiveStatusIndicator(
+                    lastActiveTimestamp = suggestion.lastActive,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(2.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            // Name and mutual friends - Clickable to view profile
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(onClick = onViewProfile)
+            ) {
+                Text(
+                    text = suggestion.fullName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                if (suggestion.mutualFriendsCount > 0) {
+                    Text(
+                        text = "${suggestion.mutualFriendsCount} mutual friend${if (suggestion.mutualFriendsCount > 1) "s" else ""}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            
+            // Add Friend Button
+            Button(
+                onClick = onAddFriend,
+                enabled = isButtonEnabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = buttonColor,
+                    disabledContainerColor = buttonColor.copy(alpha = 0.6f)
+                ),
+                shape = RoundedCornerShape(20.dp)
+            ) {
+                Text(
+                    text = buttonText, 
+                    color = Color.White,
+                    fontWeight = if (requestStatus == "pending") FontWeight.Medium else FontWeight.Normal
+                )
+            }
+        }
+    }
+}
+

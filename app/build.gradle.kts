@@ -1,5 +1,3 @@
-import androidx.compose.foundation.layout.add
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -44,24 +42,32 @@ android {
         compose = true
     }
 
-    aaptOptions {
-        noCompress("tflite")
-    }
-
     packaging {
         jniLibs {
+            useLegacyPackaging = false
             excludes.add("META-INF/services/javax.annotation.processing.Processor")
-            useLegacyPackaging = true
+            useLegacyPackaging = false
         }
         resources {
             excludes.add("META-INF/services/javax.annotation.processing.Processor")
         }
+    }
+    androidResources {
+        noCompress.add("tflite")
+    }
+}
+
+configurations.all {
+    exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    resolutionStrategy {
+        force("org.tensorflow:tensorflow-lite-support-api:0.4.4")
     }
 }
 
 dependencies {
 
     implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.material3)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
@@ -70,12 +76,16 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidprofanityfilter)
     implementation(libs.okhttp)
+    implementation(libs.gson)
+    implementation(libs.ucrop)
+    implementation(libs.play.services.location)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     implementation(libs.androidx.compose.animation)
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.messaging)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
@@ -91,11 +101,24 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.guava)
-
-    implementation(libs.tensorflow.lite.support)
-    implementation(libs.tensorflow.lite.task.vision)
-    implementation(libs.tensorflow.lite.gpu.delegate.plugin)
-
+    implementation(libs.tensorflow.lite) {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.tensorflow.lite.gpu) {
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.tensorflow.lite.task.vision) {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-api")
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.tensorflow.lite.support) {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite-support-api")
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
+    implementation(libs.tensorflow.lite.gpu.delegate.plugin) {
+        exclude(group = "org.tensorflow", module = "tensorflow-lite")
+        exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
+    }
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

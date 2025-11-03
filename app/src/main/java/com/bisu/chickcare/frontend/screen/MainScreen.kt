@@ -107,7 +107,9 @@ fun CustomTabBar(navController: NavController) {
                     BadgedBox(
                         badge = {
                             if (tab.route == "detection_history" && newHistoryCount > 0) {
-                                Badge(containerColor = Color.Red) { Text("$newHistoryCount") }
+                                Badge(containerColor = Color.Red) { 
+                                    Text("$newHistoryCount", color = Color.White) 
+                                }
                             }
                         }
                     ) {
