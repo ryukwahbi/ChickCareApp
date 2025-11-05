@@ -119,7 +119,10 @@ fun DashboardTopAppBar(
                 ) {
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Announcements") },
-                        onClick = { onExpandedChange(false) }
+                        onClick = {
+                            onExpandedChange(false)
+                            navController.navigate("announcements")
+                        }
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
@@ -127,7 +130,10 @@ fun DashboardTopAppBar(
                     )
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Tips & Tricks") },
-                        onClick = { onExpandedChange(false) }
+                        onClick = {
+                            onExpandedChange(false)
+                            navController.navigate("farm_tips")
+                        }
                     )
                     HorizontalDivider(
                         thickness = 1.dp,

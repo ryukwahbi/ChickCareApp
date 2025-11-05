@@ -58,6 +58,7 @@ import com.bisu.chickcare.frontend.screen.BreedingRecordsScreen
 import com.bisu.chickcare.frontend.screen.ReportsAnalyticsScreen
 import com.bisu.chickcare.frontend.screen.RecentActivityScreen
 import com.bisu.chickcare.frontend.screen.FarmInsightsScreen
+import com.bisu.chickcare.frontend.screen.AnnouncementsScreen
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -217,6 +218,7 @@ class MainActivity : ComponentActivity() {
                         }
                         composable("recent_activity") { RecentActivityScreen(navController) }
                         composable("farm_insights") { FarmInsightsScreen(navController) }
+                        composable("announcements") { AnnouncementsScreen(navController) }
 
                         composable(
                             route = "last_detection_detail" +

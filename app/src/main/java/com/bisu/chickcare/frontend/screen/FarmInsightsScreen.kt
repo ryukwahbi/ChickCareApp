@@ -85,7 +85,7 @@ fun FarmInsightsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(Color(0xFFFFF0DB))
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

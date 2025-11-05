@@ -1,7 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,10 +12,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Campaign
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,33 +27,61 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+data class Announcement(
+    val id: String,
+    val title: String,
+    val content: String,
+    val date: Long,
+    val priority: String = "normal"
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun RecentActivityScreen(navController: NavController) {
-    val dashboardViewModel: DashboardViewModel = viewModel()
-    val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
-    
-    // Get recent detections (last 50)
-    val recentActivity = detectionHistory.take(50)
+fun AnnouncementsScreen(navController: NavController) {
+    val announcements = remember {
+        listOf(
+            Announcement(
+                id = "1",
+                title = "Welcome to ChickCare!",
+                content = "Thank you for using ChickCare! We're here to help you monitor and care for your chickens. Stay tuned for updates and new features.",
+                date = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000), 
+                priority = "high"
+            ),
+            Announcement(
+                id = "2",
+                title = "New Feature: Health Trend Analysis",
+                content = "Check out the new Health Trend Analysis feature in your dashboard. Track your chickens' health over the last 5 days with detailed confidence metrics.",
+                date = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000), // 3 days ago
+                priority = "normal"
+            ),
+            Announcement(
+                id = "3",
+                title = "Tips for Better Detection",
+                content = "For best detection results, ensure good lighting and clear audio when using the image and audio detection features. Keep your chickens calm during the detection process.",
+                date = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000), // 14 days ago
+                priority = "normal"
+            )
+        )
+    }
     
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "Recent Activity",
+                        "Announcements",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF231C16)
@@ -82,10 +111,10 @@ fun RecentActivityScreen(navController: NavController) {
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                contentPadding = PaddingValues(vertical = 16.dp, horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                if (recentActivity.isEmpty()) {
+                if (announcements.isEmpty()) {
                     item {
                         Box(
                             modifier = Modifier
@@ -98,13 +127,13 @@ fun RecentActivityScreen(navController: NavController) {
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(
-                                    Icons.Default.BarChart,
+                                    Icons.Default.Campaign,
                                     contentDescription = null,
                                     modifier = Modifier.padding(bottom = 8.dp),
                                     tint = Color.Gray
                                 )
                                 Text(
-                                    text = "No recent activity found.",
+                                    text = "No announcements available.",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = Color.Gray
                                 )
@@ -112,13 +141,8 @@ fun RecentActivityScreen(navController: NavController) {
                         }
                     }
                 } else {
-                    items(recentActivity.size) { index ->
-                        val entry = recentActivity[index]
-                        RecentActivityItem(
-                            entry = entry,
-                            index = index + 1,
-                            navController = navController
-                        )
+                    items(announcements.size) { index ->
+                        AnnouncementItem(announcement = announcements[index])
                     }
                 }
             }
@@ -127,39 +151,21 @@ fun RecentActivityScreen(navController: NavController) {
 }
 
 @Composable
-fun RecentActivityItem(
-    entry: com.bisu.chickcare.backend.repository.DetectionEntry,
-    index: Int,
-    navController: NavController
-) {
-    androidx.compose.material3.Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable {
-                val entryId = entry.id
-                val timestamp = entry.timestamp
-                val location = entry.location?.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) } ?: ""
-                val imageUri = entry.imageUri?.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) } ?: ""
-                val result = entry.result.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) }
-                val isHealthy = entry.isHealthy
-                val confidence = entry.confidence
-
-                navController.navigate(
-                    "last_detection_detail?entryId=$entryId" +
-                            "&timestamp=$timestamp" +
-                            "&location=$location" +
-                            "&imageUri=$imageUri" +
-                            "&result=$result" +
-                            "&isHealthy=$isHealthy" +
-                            "&confidence=$confidence"
-                )
-            },
-        colors = androidx.compose.material3.CardDefaults.cardColors(
+fun AnnouncementItem(announcement: Announcement) {
+    val priorityColor = when (announcement.priority) {
+        "high" -> Color(0xFFE1615A)
+        "normal" -> Color(0xFF589CDA)
+        "low" -> Color(0xFF689169)
+        else -> Color.Gray
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
             containerColor = Color.White
         ),
-        shape = RoundedCornerShape(8.dp),
-        elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp)
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(
             modifier = Modifier
@@ -172,26 +178,36 @@ fun RecentActivityItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "#$index",
-                    style = MaterialTheme.typography.bodySmall,
+                    text = announcement.title,
+                    style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Gray
+                    color = Color(0xFF231C16)
                 )
-                Text(
-                    text = if (entry.isHealthy) "Healthy" else "Infected",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
-                )
+                if (announcement.priority == "high") {
+                    Box(
+                        modifier = Modifier
+                            .background(priorityColor, CircleShape)
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "Important",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 10.sp
+                        )
+                    }
+                }
             }
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Confidence: ${(entry.confidence * 100).toInt()}%",
-                style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                text = announcement.content,
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color(0xFF464644)
             )
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.timestamp)),
+                text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(announcement.date)),
                 style = MaterialTheme.typography.bodySmall,
                 color = Color.Gray
             )
