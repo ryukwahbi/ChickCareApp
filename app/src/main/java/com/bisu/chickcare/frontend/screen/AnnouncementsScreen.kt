@@ -56,7 +56,7 @@ fun AnnouncementsScreen(navController: NavController) {
                 id = "1",
                 title = "Welcome to ChickCare!",
                 content = "Thank you for using ChickCare! We're here to help you monitor and care for your chickens. Stay tuned for updates and new features.",
-                date = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000), 
+                date = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000),
                 priority = "high"
             ),
             Announcement(
