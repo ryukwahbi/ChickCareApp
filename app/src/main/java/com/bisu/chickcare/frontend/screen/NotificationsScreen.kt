@@ -60,7 +60,6 @@ import com.bisu.chickcare.backend.repository.NotificationEntry
 import com.bisu.chickcare.backend.repository.NotificationType
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.backend.viewmodels.FriendViewModel
-import com.google.firebase.auth.FirebaseAuth
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
