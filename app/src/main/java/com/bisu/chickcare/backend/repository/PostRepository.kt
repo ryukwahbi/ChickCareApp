@@ -84,6 +84,7 @@ class PostRepository {
         return docRef.id
     }
 
+    @Suppress("UNUSED")
     fun getUserTimelinePosts(userId: String, includePrivate: Boolean = true): Flow<List<TimelinePost>> = flow {
         val query = if (!includePrivate) {
             // If not including private, filter to public only
@@ -104,6 +105,7 @@ class PostRepository {
         emit(posts)
     }
 
+    @Suppress("UNUSED")
     suspend fun deletePost(userId: String, postId: String) {
         usersCollection.document(userId)
             .collection("timelinePosts")

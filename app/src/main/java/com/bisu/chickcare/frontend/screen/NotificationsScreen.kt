@@ -71,7 +71,6 @@ fun NotificationsScreen(navController: NavController) {
     val viewModel: DashboardViewModel = viewModel()
     val friendViewModel: FriendViewModel = viewModel()
     val notifications by viewModel.notifications.collectAsState()
-    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {

@@ -347,15 +347,9 @@ fun ResultScreen(
                                 
                                 if (imageUriObj != null) {
                                     // Create ImageRequest with permission flags for content URIs
+                                    // Coil automatically handles content URIs with proper permissions
                                     val imageRequest = ImageRequest.Builder(context)
                                         .data(imageUriObj)
-                                        .apply {
-                                            // For content URIs, ensure we have read permission
-                                            if (imageUriObj.scheme == "content") {
-                                                // Coil will use ContentResolver which should have permission
-                                                // from takePersistableUriPermission or the original intent
-                                            }
-                                        }
                                         .build()
                                     
                                     AsyncImage(

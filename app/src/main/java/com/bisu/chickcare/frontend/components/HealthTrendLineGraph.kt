@@ -68,7 +68,6 @@ fun HealthTrendLineGraph(
                     val graphWidth = size.width - (padding * 2)
                     val graphHeight = size.height - (padding * 2)
                     val maxValue = 100.0f
-                    val minValue = 0.0f
                     val gridLines = 5
                     for (i in 0..gridLines) {
                         val y = padding + (graphHeight * i / gridLines)
