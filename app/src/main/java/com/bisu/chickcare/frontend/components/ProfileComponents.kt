@@ -21,9 +21,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PostAdd
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.RadioButtonChecked
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.AlertDialog
@@ -46,6 +48,8 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +68,7 @@ import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.data.UserProfile
 import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.bisu.chickcare.backend.repository.PostRepository
+import com.bisu.chickcare.backend.repository.TimelinePost
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
 
@@ -125,9 +130,9 @@ fun CoverPhotoSection(
                 contentDescription = if (coverPhotoUrl != null) "Change cover photo" else "Add cover photo",
                 tint = Color.White,
                 modifier = Modifier
-                    .size(36.dp)
+                    .size(40.dp)
                     .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .padding(8.dp)
+                    .padding(6.dp)
             )
         }
     }
@@ -171,7 +176,7 @@ fun ProfilePictureAndNameSection(
                     )
                 }
             }
-            
+
             if (isUploading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(140.dp),
@@ -179,12 +184,12 @@ fun ProfilePictureAndNameSection(
                     strokeWidth = 4.dp
                 )
             }
-            
+
             IconButton(
                 onClick = onProfilePhotoClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(44.dp)
+                    .size(48.dp)
                     .background(Color.White, CircleShape)
                     .border(2.dp, Color(0xFF3A3939), CircleShape)
             ) {
@@ -192,7 +197,7 @@ fun ProfilePictureAndNameSection(
                     Icons.Default.CameraAlt,
                     contentDescription = if (userProfile.photoUrl != null) "Change photo" else "Add photo",
                     tint = Color(0xFF2F2E2E),
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
@@ -231,7 +236,7 @@ fun FriendSuggestionsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Suggestions",
+                    text = "Friend Suggested",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF26201C)
@@ -239,7 +244,9 @@ fun FriendSuggestionsSection(
                 if (suggestionCount > 0) {
                     BadgedBox(
                         badge = {
-                            Badge {
+                            Badge(
+                                containerColor = Color.Red
+                            ) {
                                 Text(
                                     text = suggestionCount.toString(),
                                     color = Color.White,
@@ -261,7 +268,7 @@ fun FriendSuggestionsSection(
                 )
             } else {
                 Text(
-                    text = "$suggestionCount new friend suggestions available",
+                    text = "$suggestionCount new friend is suggested for you.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF464644)
                 )
@@ -281,6 +288,11 @@ fun PostsSection(
     val postRepository = remember { PostRepository() }
     val authViewModel: AuthViewModel = viewModel()
     val auth = authViewModel.auth
+    val userId = auth.currentUser?.uid ?: ""
+    val timelinePostsFlow = remember(userId) {
+        postRepository.getUserTimelinePosts(userId, includePrivate = true)
+    }
+    val timelinePosts by timelinePostsFlow.collectAsState(initial = emptyList())
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -392,7 +404,7 @@ fun PostsSection(
                         modifier = Modifier.heightIn(min = 40.dp),
                         enabled = postText.trim().isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFAF7E5B),
+                            containerColor = Color(0xFFD4B48C),
                             disabledContainerColor = Color(0xFFDA9969).copy(alpha = 0.5f)
                         ),
                         elevation = ButtonDefaults.buttonElevation(
@@ -411,12 +423,32 @@ fun PostsSection(
             }
         }
         
-        Text(
-            text = "No posts yet. Create your first post!",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray,
-            modifier = Modifier.padding(vertical = 8.dp)
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = 8.dp),
+            color = Color.Gray.copy(alpha = 0.3f),
+            thickness = 1.dp
         )
+        
+        if (timelinePosts.isEmpty()) {
+            Text(
+                text = "No posts yet. Create your first post!",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.Gray,
+                modifier = Modifier.padding(vertical = 8.dp)
+            )
+        } else {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+                timelinePosts.forEach { post ->
+                    TimelinePostItem(post = post)
+                }
+            }
+        }
+    }
+    
+    LaunchedEffect(Unit) {
     }
     
     if (showAudienceDialog) {
@@ -542,6 +574,125 @@ fun AudienceSelectionDialog(
             }
         }
     )
+}
+
+@Composable
+fun TimelinePostItem(
+    post: TimelinePost
+) {
+    val dateFormat = remember { java.text.SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", java.util.Locale.getDefault()) }
+    val dateString = remember(post.timestamp) {
+        dateFormat.format(java.util.Date(post.timestamp))
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.White
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE1E0E0))
+                ) {
+                    if (post.userPhotoUrl != null && post.userPhotoUrl.isNotEmpty()) {
+                        AsyncImage(
+                            model = post.userPhotoUrl,
+                            contentDescription = post.userName,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Person,
+                            contentDescription = post.userName,
+                            tint = Color(0xFF464343),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(8.dp)
+                        )
+                    }
+                }
+                
+                Column(modifier = Modifier.weight(1f)) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = post.userName,
+                            style = MaterialTheme.typography.titleSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.Black
+                        )
+                        Icon(
+                            imageVector = if (post.visibility == "public") Icons.Default.Public else Icons.Default.Lock,
+                            contentDescription = post.visibility,
+                            tint = Color.Gray,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = dateString,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+            }
+            
+            if (post.content.isNotEmpty()) {
+                Text(
+                    text = post.content,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.Black
+                )
+            }
+            
+            if (post.detectionResult.isNotEmpty()) {
+                Text(
+                    text = post.detectionResult,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = if (post.isHealthy) Color(0xFF4CAF50) else Color(0xFFEF5350),
+                    fontWeight = FontWeight.Medium
+                )
+                
+                if (post.confidence > 0f) {
+                    Text(
+                        text = "Confidence: ${(post.confidence * 100).toInt()}%",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
+                }
+                
+                if (post.imageUri != null && post.imageUri.isNotEmpty()) {
+                    AsyncImage(
+                        model = post.imageUri,
+                        contentDescription = "Detection image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -711,7 +862,7 @@ fun InfoRow(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Privacy settings",
-                        tint = Color(0xFF6B7280),
+                        tint = Color.Black,
                         modifier = Modifier.size(20.dp)
                     )
                 }

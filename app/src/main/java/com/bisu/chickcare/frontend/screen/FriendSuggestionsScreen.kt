@@ -43,6 +43,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -57,16 +58,28 @@ fun FriendSuggestionsScreen(navController: NavController) {
     val viewModel: FriendViewModel = viewModel()
     val suggestions by viewModel.suggestions.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
-    
-    // Track request status for each user (userId -> status: "pending", "accepted", "declined", or null)
+    val pendingRequests by viewModel.pendingRequests.collectAsState()
     val requestStatusMap = remember { mutableStateMapOf<String, String?>() }
     
-    // Load suggestions and check request status for each
     LaunchedEffect(Unit) {
         viewModel.loadFriendSuggestions()
+        viewModel.loadPendingFriendRequests()
+        // Use callback version to ensure it's called
+        viewModel.getPendingFriendRequests { success, requests, message ->
+            if (success) {
+                android.util.Log.d("FriendSuggestionsScreen", "Loaded ${requests.size} pending friend requests via callback")
+            }
+        }
     }
     
-    // Check request status for all suggestions whenever suggestions change
+    // Reload suggestions when pending requests change
+    LaunchedEffect(pendingRequests.size) {
+        if (pendingRequests.isNotEmpty()) {
+            android.util.Log.d("FriendSuggestionsScreen", "Pending requests updated: ${pendingRequests.size}")
+            // Refresh suggestions when pending requests change
+            viewModel.loadFriendSuggestions()
+        }
+    }
     LaunchedEffect(suggestions) {
         suggestions.forEach { suggestion ->
             if (!requestStatusMap.containsKey(suggestion.userId)) {
@@ -80,7 +93,20 @@ fun FriendSuggestionsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("New friend suggestion") },
+                title = { 
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("Friend Suggestion")
+                        if (pendingRequests.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "(${pendingRequests.size} pending)",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Normal
+                            )
+                        }
+                    }
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -133,18 +159,14 @@ fun FriendSuggestionsScreen(navController: NavController) {
                                 suggestion.fullName
                             ) { success, message ->
                                 if (success) {
-                                    // Update status to pending immediately
                                     requestStatusMap[suggestion.userId] = "pending"
-                                    // Refresh suggestions to remove this user if needed
                                     viewModel.loadFriendSuggestions()
                                 }
                             }
                         },
                         onStatusRefresh = {
-                            // Refresh status for this specific user
                             viewModel.checkRequestStatus(suggestion.userId) { status ->
                                 requestStatusMap[suggestion.userId] = status
-                                // If declined or accepted, refresh suggestions
                                 if (status == "declined" || status == "accepted") {
                                     viewModel.loadFriendSuggestions()
                                 }
@@ -168,13 +190,11 @@ fun FriendSuggestionItem(
     onStatusRefresh: () -> Unit,
     onViewProfile: () -> Unit
 ) {
-    // Refresh status periodically to check for changes (accepted/declined) while pending
     LaunchedEffect(suggestion.userId, requestStatus) {
         if (requestStatus == "pending") {
             // Poll every 3 seconds while pending
             repeat(Int.MAX_VALUE) {
                 kotlinx.coroutines.delay(3000)
-                // Check status again - if no longer pending, LaunchedEffect will restart with new key
                 onStatusRefresh()
             }
         }
@@ -183,15 +203,15 @@ fun FriendSuggestionItem(
     val buttonText = when (requestStatus) {
         "pending" -> "Requested"
         "declined" -> "Add"
-        "accepted" -> "Friends" // Optional: show if they became friends
+        "accepted" -> "Friends"
         else -> "Add"
     }
     
     val buttonColor = when (requestStatus) {
         "pending" -> Color.Gray
-        "declined" -> Color(0xFF4CAF50) // Green
-        "accepted" -> Color.Blue // Optional: different color for friends
-        else -> Color(0xFF4CAF50) // Green
+        "declined" -> Color(0xFF4CAF50)
+        "accepted" -> Color.Blue
+        else -> Color(0xFF4CAF50)
     }
     
     val isButtonEnabled = requestStatus != "pending" && requestStatus != "accepted"
@@ -209,7 +229,6 @@ fun FriendSuggestionItem(
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Profile Picture with Active Status - Clickable to view profile
             Box(
                 modifier = Modifier.clickable(onClick = onViewProfile)
             ) {
@@ -231,7 +250,6 @@ fun FriendSuggestionItem(
             
             Spacer(modifier = Modifier.width(16.dp))
             
-            // Name and mutual friends - Clickable to view profile
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -251,7 +269,6 @@ fun FriendSuggestionItem(
                 }
             }
             
-            // Add Friend Button
             Button(
                 onClick = onAddFriend,
                 enabled = isButtonEnabled,

@@ -3,6 +3,7 @@ package com.bisu.chickcare.backend.viewmodels
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bisu.chickcare.backend.repository.FriendRepository
+import com.bisu.chickcare.backend.repository.FriendRequest
 import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,6 +23,9 @@ class FriendViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading = _isLoading.asStateFlow()
     
+    private val _pendingRequests = MutableStateFlow<List<FriendRequest>>(emptyList())
+    val pendingRequests = _pendingRequests.asStateFlow()
+
     fun loadFriendSuggestions() {
         val userId = auth.currentUser?.uid ?: return
         _isLoading.value = true
@@ -54,7 +58,11 @@ class FriendViewModel : ViewModel() {
         }
     }
     
-    fun sendFriendRequest(toUserId: String, toUserName: String, callback: (Boolean, String) -> Unit) {
+    fun sendFriendRequest(
+        toUserId: String, 
+        toUserName: String, 
+        callback: (Boolean, String) -> Unit
+    ) {
         val fromUserId = auth.currentUser?.uid ?: run {
             callback(false, "User not logged in")
             return
@@ -63,10 +71,18 @@ class FriendViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
-                friendRepository.sendFriendRequest(fromUserId, fromUserName, toUserId)
-                callback(true, "Friend request sent")
+                val notificationRepository = com.bisu.chickcare.backend.repository.NotificationRepository()
+                friendRepository.sendFriendRequest(
+                    fromUserId = fromUserId, 
+                    fromUserName = fromUserName, 
+                    toUserId = toUserId,
+                    notificationRepository = notificationRepository
+                )
+                // Reload pending requests after sending (to update if user sent request to someone)
+                loadPendingFriendRequests()
+                callback(true, "Friend request sent to $toUserName")
             } catch (e: Exception) {
-                callback(false, "Failed to send friend request: ${e.message}")
+                callback(false, "Failed to send friend request to $toUserName: ${e.message}")
             }
         }
     }
@@ -96,6 +112,8 @@ class FriendViewModel : ViewModel() {
                 loadFriends()
                 // Reload suggestions to update the list
                 loadFriendSuggestions()
+                // Reload pending requests to update the list
+                loadPendingFriendRequests()
                 callback(true, "Friend request accepted")
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error accepting friend request: ${e.message}", e)
@@ -115,6 +133,8 @@ class FriendViewModel : ViewModel() {
                 friendRepository.declineFriendRequest(requestId, currentUserId)
                 // Reload suggestions after declining
                 loadFriendSuggestions()
+                // Reload pending requests after declining
+                loadPendingFriendRequests()
                 callback(true, "Friend request declined")
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error declining friend request: ${e.message}", e)
@@ -122,7 +142,7 @@ class FriendViewModel : ViewModel() {
             }
         }
     }
-    
+
     /**
      * Check request status for a specific user
      */
@@ -143,7 +163,28 @@ class FriendViewModel : ViewModel() {
         }
     }
     
-    fun getPendingFriendRequests(callback: (Boolean, List<com.bisu.chickcare.backend.repository.FriendRequest>, String) -> Unit) {
+    /**
+     * Load pending friend requests into StateFlow for reactive UI updates
+     */
+    fun loadPendingFriendRequests() {
+        val currentUserId = auth.currentUser?.uid ?: return
+        
+        viewModelScope.launch {
+            try {
+                val requests = friendRepository.getPendingFriendRequests(currentUserId)
+                _pendingRequests.value = requests
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error loading pending requests: ${e.message}", e)
+                _pendingRequests.value = emptyList()
+            }
+        }
+    }
+    
+    /**
+     * Get pending friend requests with callback support
+     * Also updates the StateFlow for reactive UI updates
+     */
+    fun getPendingFriendRequests(callback: (Boolean, List<FriendRequest>, String) -> Unit) {
         val currentUserId = auth.currentUser?.uid ?: run {
             callback(false, emptyList(), "User not logged in")
             return
@@ -152,9 +193,11 @@ class FriendViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 val requests = friendRepository.getPendingFriendRequests(currentUserId)
+                _pendingRequests.value = requests
                 callback(true, requests, "")
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error loading pending requests: ${e.message}", e)
+                _pendingRequests.value = emptyList()
                 callback(false, emptyList(), "Failed to load friend requests: ${e.message}")
             }
         }

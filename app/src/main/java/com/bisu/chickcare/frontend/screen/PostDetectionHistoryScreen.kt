@@ -1,6 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,13 +18,17 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DividerDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,6 +76,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
     val postRepository = remember { PostRepository() }
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
     var showSuccessMessage by remember { mutableStateOf<String?>(null) }
+    var selectedVisibility by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     
     Scaffold(
         topBar = {
@@ -144,7 +150,12 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                         userName = userProfile?.fullName ?: "User",
                         userPhotoUrl = userProfile?.photoUrl,
                         expandedMenuId = expandedMenuId,
+                        selectedVisibility = selectedVisibility[detection.id],
                         onMenuExpandedChange = { expandedMenuId = it },
+                        onVisibilitySelected = { visibility ->
+                            selectedVisibility = selectedVisibility + (detection.id to visibility)
+                            expandedMenuId = null
+                        },
                         onPostToTimeline = { visibility ->
                             val userId = auth.currentUser?.uid ?: return@DetectionHistoryItem
                             CoroutineScope(Dispatchers.IO).launch {
@@ -163,6 +174,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                                     )
                                     showSuccessMessage = "Posted to timeline as $visibility!"
                                     expandedMenuId = null
+                                    selectedVisibility = selectedVisibility - detection.id
                                     // Hide success message after 3 seconds
                                     kotlinx.coroutines.delay(3000)
                                     showSuccessMessage = null
@@ -186,7 +198,9 @@ fun DetectionHistoryItem(
     userName: String,
     userPhotoUrl: String?,
     expandedMenuId: String?,
+    selectedVisibility: String?,
     onMenuExpandedChange: (String?) -> Unit,
+    onVisibilitySelected: (String) -> Unit,
     onPostToTimeline: (String) -> Unit
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault())
@@ -208,7 +222,6 @@ fun DetectionHistoryItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.Top
         ) {
-            // More vert icon
             Box {
                 IconButton(
                     onClick = { onMenuExpandedChange(if (isMenuExpanded) null else detection.id) },
@@ -217,36 +230,36 @@ fun DetectionHistoryItem(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "More options",
-                        tint = Color(0xFF8B4513),
+                        tint = Color(0xFF100E0E),
                         modifier = Modifier.size(20.dp)
                     )
                 }
                 
                 DropdownMenu(
                     expanded = isMenuExpanded,
-                    onDismissRequest = { onMenuExpandedChange(null) }
+                    onDismissRequest = { onMenuExpandedChange(null) },
+                    modifier = Modifier.background(Color.White)
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Post as Public") },
+                        text = { Text("Public") },
                         onClick = {
-                            onPostToTimeline("public")
+                            onVisibilitySelected("public")
                         }
                     )
+                    HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
                     DropdownMenuItem(
-                        text = { Text("Post as Private") },
+                        text = { Text("Private") },
                         onClick = {
-                            onPostToTimeline("private")
+                            onVisibilitySelected("private")
                         }
                     )
                 }
             }
             
-            // Detection content
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // User info
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -276,22 +289,32 @@ fun DetectionHistoryItem(
                         }
                     }
                     
-                    Column {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
                         Text(
                             text = userName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
                             color = Color.Black
                         )
-                        Text(
-                            text = dateString,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
+                        selectedVisibility?.let { visibility ->
+                            Icon(
+                                imageVector = if (visibility == "public") Icons.Default.Public else Icons.Default.Lock,
+                                contentDescription = visibility,
+                                tint = Color.Gray,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
+                    Text(
+                        text = dateString,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray
+                    )
                 }
                 
-                // Detection result
                 Text(
                     text = detection.result,
                     style = MaterialTheme.typography.bodyMedium,
@@ -308,20 +331,36 @@ fun DetectionHistoryItem(
                 }
             }
             
-            // Past button
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFE1E0E0)
-                ),
-                modifier = Modifier.height(32.dp)
-            ) {
-                Text(
-                    text = "Past",
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color(0xFF464343),
-                    fontWeight = FontWeight.Medium
-                )
+            Box(
+                contentAlignment = Alignment.Center
+            ){
+                Card(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .clickable(
+                            enabled = selectedVisibility != null,
+                            onClick = {
+                                selectedVisibility?.let { visibility ->
+                                    onPostToTimeline(visibility)
+                                }
+                            }
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (selectedVisibility != null) Color(0xFFE0C9A8) else Color(0xFFE0C9A8).copy(alpha = 0.5f)
+                    ),
+                    shape = RoundedCornerShape(6.dp),
+                    elevation = CardDefaults.cardElevation(
+                        defaultElevation = if (selectedVisibility != null) 4.dp else 0.dp
+                    )
+                ) {
+                    Text(
+                        text = "Post",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selectedVisibility != null) Color(0xFF464343) else Color(0xFF464343).copy(alpha = 0.5f),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
         }
     }

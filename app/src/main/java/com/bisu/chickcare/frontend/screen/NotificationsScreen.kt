@@ -70,13 +70,29 @@ fun NotificationsScreen(navController: NavController) {
     val viewModel: DashboardViewModel = viewModel()
     val friendViewModel: FriendViewModel = viewModel()
     val notifications by viewModel.notifications.collectAsState()
+    val pendingRequests by friendViewModel.pendingRequests.collectAsState()
     val context = LocalContext.current
     
     LaunchedEffect(Unit) {
         viewModel.markAllNotificationsAsRead()
+        friendViewModel.loadPendingFriendRequests()
+        // Also use callback version to ensure it's called
+        friendViewModel.getPendingFriendRequests { success, requests, message ->
+            if (success) {
+                android.util.Log.d("NotificationsScreen", "Loaded ${requests.size} pending friend requests via callback")
+            }
+        }
+    }
+    
+    // Reload pending requests when they change
+    LaunchedEffect(pendingRequests.size) {
+        if (pendingRequests.isNotEmpty()) {
+            android.util.Log.d("NotificationsScreen", "Pending requests updated: ${pendingRequests.size}")
+        }
     }
     
     val unreadCount = notifications.count { !it.isRead }
+    val pendingRequestsCount = pendingRequests.size
 
     Scaffold(
         topBar = {
@@ -98,6 +114,16 @@ fun NotificationsScreen(navController: NavController) {
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+                        // Display pending friend requests count if any
+                        if (pendingRequestsCount > 0) {
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                "($pendingRequestsCount pending)",
+                                fontSize = 12.sp,
+                                color = Color.Gray,
+                                fontWeight = FontWeight.Normal
+                            )
                         }
                     }
                 },

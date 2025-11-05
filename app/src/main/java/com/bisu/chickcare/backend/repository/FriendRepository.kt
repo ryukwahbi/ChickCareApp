@@ -135,7 +135,12 @@ class FriendRepository {
         }
     }
     
-    suspend fun sendFriendRequest(fromUserId: String, fromUserName: String, toUserId: String) {
+    suspend fun sendFriendRequest(
+        fromUserId: String, 
+        fromUserName: String, 
+        toUserId: String,
+        notificationRepository: NotificationRepository? = null
+    ) {
         val requestData = hashMapOf(
             "fromUserId" to fromUserId,
             "fromUserName" to fromUserName,
@@ -145,10 +150,22 @@ class FriendRepository {
         )
         
         // Save request in receiver's friendRequests collection
-        usersCollection.document(toUserId)
+        val requestDocRef = usersCollection.document(toUserId)
             .collection("friendRequests")
             .add(requestData)
             .await()
+        
+        // Send notification to the receiver
+        notificationRepository?.addNotification(
+            userId = toUserId,
+            type = NotificationType.FRIEND_REQUEST,
+            title = "New Friend Request",
+            message = "$fromUserName sent you a friend request",
+            senderId = fromUserId,
+            senderName = fromUserName,
+            relatedEntityId = requestDocRef.id,
+            actionRequired = true
+        )
     }
     
     suspend fun acceptFriendRequest(
