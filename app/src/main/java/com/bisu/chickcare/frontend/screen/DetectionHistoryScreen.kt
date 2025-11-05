@@ -1,5 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.content.Intent
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -71,8 +73,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
-import android.content.Intent
-import android.util.Log
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -379,14 +379,14 @@ fun DetectionHistoryItemLastDetection(
                 val imageUri = try {
                     decodedUriString.toUri()
                 } catch (e: Exception) {
-                    android.util.Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
+                    Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
                     null
                 }
                 
                 if (imageUri != null) {
                     // Check if URI is file:// (captured) or content:// (uploaded)
                     val uriType = if (imageUri.scheme == "file") "captured" else if (imageUri.scheme == "content") "uploaded" else "unknown"
-                    android.util.Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
+                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
                     
                     AsyncImage(
                         model = imageUri,
@@ -399,11 +399,11 @@ fun DetectionHistoryItemLastDetection(
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop,
                         onError = { 
-                            android.util.Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
+                            Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
                             // Show camera icon on error
                         },
                         onSuccess = {
-                            android.util.Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
+                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
                         }
                     )
                 } else {
@@ -595,14 +595,14 @@ fun DetectionHistoryItemResult(
                 val imageUri = try {
                     decodedUriString.toUri()
                 } catch (e: Exception) {
-                    android.util.Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
+                    Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
                     null
                 }
                 
                 if (imageUri != null) {
                     // Check if URI is file:// (captured) or content:// (uploaded)
                     val uriType = if (imageUri.scheme == "file") "captured" else if (imageUri.scheme == "content") "uploaded" else "unknown"
-                    android.util.Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
+                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
                     
                     AsyncImage(
                         model = imageUri,
@@ -615,11 +615,11 @@ fun DetectionHistoryItemResult(
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop,
                         onError = { 
-                            android.util.Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
+                            Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
                             // Show status icon on error
                         },
                         onSuccess = {
-                            android.util.Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
+                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
                         }
                     )
                 } else {

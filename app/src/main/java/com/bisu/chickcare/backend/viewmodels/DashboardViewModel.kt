@@ -326,7 +326,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             try {
                 val date = SimpleDateFormat("MMM dd", Locale.getDefault()).parse(label)
                 date?.time ?: 0L
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 0L
             }
         }

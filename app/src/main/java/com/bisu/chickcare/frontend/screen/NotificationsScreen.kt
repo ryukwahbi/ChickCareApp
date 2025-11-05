@@ -74,7 +74,6 @@ fun NotificationsScreen(navController: NavController) {
     val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
     val context = LocalContext.current
     
-    // Mark all notifications as read when screen is opened
     LaunchedEffect(Unit) {
         viewModel.markAllNotificationsAsRead()
     }

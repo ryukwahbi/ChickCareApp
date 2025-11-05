@@ -2,6 +2,7 @@ package com.bisu.chickcare.frontend.screen
 
 import android.content.Intent
 import android.net.Uri
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -47,7 +48,6 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.repository.DetectionEntry
-import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -250,7 +250,7 @@ fun LastDetectionDetailScreen(
                                                 context.startActivity(webIntent)
                                             }
                                         } catch (e: Exception) {
-                                            android.util.Log.e("LastDetectionDetail", "Error opening maps: ${e.message}")
+                                            Log.e("LastDetectionDetail", "Error opening maps: ${e.message}")
                                         }
                                     }
                                 ) {
@@ -296,14 +296,14 @@ fun LastDetectionDetailScreen(
                                 // Try to decode URL encoding first
                                 java.net.URLDecoder.decode(imageUriString, "UTF-8")
                             } catch (e: Exception) {
-                                android.util.Log.w("LastDetectionDetail", "Failed to decode image URI: ${e.message}, using original")
+                                Log.w("LastDetectionDetail", "Failed to decode image URI: ${e.message}, using original")
                                 imageUriString
                             }
                             
                             val imageUri = try {
                                 decodedImageUriString.toUri()
                             } catch (e: Exception) {
-                                android.util.Log.w("LastDetectionDetail", "Failed to parse image URI: ${e.message}")
+                                Log.w("LastDetectionDetail", "Failed to parse image URI: ${e.message}")
                                 null
                             }
                             
@@ -318,10 +318,10 @@ fun LastDetectionDetailScreen(
                                         .clip(RoundedCornerShape(16.dp)),
                                     contentScale = ContentScale.Crop,
                                     onError = {
-                                        android.util.Log.e("LastDetectionDetail", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
+                                        Log.e("LastDetectionDetail", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
                                     },
                                     onSuccess = {
-                                        android.util.Log.d("LastDetectionDetail", "Successfully loaded detection image: $decodedImageUriString")
+                                        Log.d("LastDetectionDetail", "Successfully loaded detection image: $decodedImageUriString")
                                     }
                                 )
                             }

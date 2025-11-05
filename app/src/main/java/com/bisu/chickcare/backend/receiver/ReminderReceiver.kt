@@ -78,7 +78,7 @@ class ReminderReceiver : BroadcastReceiver() {
         val reminderService = ReminderService(context)
         val prefs: SharedPreferences = context.getSharedPreferences("reminders", Context.MODE_PRIVATE)
         
-        ReminderType.values().forEach { type ->
+        ReminderType.entries.forEach { type ->
             val hour = prefs.getInt("${type.name}_hour", -1)
             val minute = prefs.getInt("${type.name}_minute", -1)
             val enabled = prefs.getBoolean("${type.name}_enabled", false)
