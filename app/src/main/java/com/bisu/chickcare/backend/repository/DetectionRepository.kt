@@ -108,7 +108,8 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
 
                         if (isIndexError && !hasAttemptedFallback) {
-                            Log.d("DetectionRepository", "Index missing (expected), using fallback query. Create index for better performance: $errorMsg")
+                            // Use verbose logging for expected index errors to reduce log spam
+                            Log.v("DetectionRepository", "Index missing (expected), using fallback query")
                             // Remove original listener and use fallback
                             listener?.remove()
                             hasAttemptedFallback = true
@@ -116,7 +117,7 @@ class DetectionRepository {
                                 trySend(history)
                             }
                             return@addSnapshotListener
-                        } else {
+                        } else if (!isIndexError) {
                             Log.e("DetectionRepository", "Error listening to detection history: $errorMsg", error)
                             trySend(emptyList())
                             return@addSnapshotListener
@@ -341,7 +342,9 @@ class DetectionRepository {
                             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
                         
                         if (isIndexError && !hasAttemptedFallback) {
-                            Log.d("DetectionRepository", "Index missing (expected), using fallback query. Create index for better performance: $errorMsg")
+                            // Use verbose logging for expected index errors (reduce logcat noise)
+                            // These are expected until Firestore indexes are created
+                            Log.v("DetectionRepository", "Index missing for deleted items (expected), using fallback query")
                             // Remove original listener and use fallback
                             listener?.remove()
                             hasAttemptedFallback = true
@@ -349,11 +352,15 @@ class DetectionRepository {
                                 trySend(deleted)
                             }
                             return@addSnapshotListener
-                        } else {
+                        } else if (!isIndexError) {
+                            // Only log non-index errors (actual problems)
                             Log.e("DetectionRepository", "Error listening to recently deleted: $errorMsg", error)
                             trySend(emptyList())
                             return@addSnapshotListener
                         }
+                        // For index errors after fallback, silently handle (already using fallback)
+                        trySend(emptyList())
+                        return@addSnapshotListener
                     }
                     
                     if (snapshot != null) {
@@ -491,7 +498,8 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
 
                         if (isIndexError && !hasAttemptedFallback) {
-                            Log.d("DetectionRepository", "Index missing for favorites, using fallback")
+                            // Use verbose logging for expected index errors
+                            Log.v("DetectionRepository", "Index missing for favorites, using fallback")
                             listener?.remove()
                             hasAttemptedFallback = true
                             fallbackListener = tryFallbackHistoryQuery(userId) { history ->
@@ -499,7 +507,7 @@ class DetectionRepository {
                                 trySend(favorites)
                             }
                             return@addSnapshotListener
-                        } else {
+                        } else if (!isIndexError) {
                             Log.e("DetectionRepository", "Error listening to favorites: $errorMsg", error)
                             trySend(emptyList())
                             return@addSnapshotListener
@@ -561,7 +569,8 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
 
                         if (isIndexError && !hasAttemptedFallback) {
-                            Log.d("DetectionRepository", "Index missing for archived, using fallback")
+                            // Use verbose logging for expected index errors
+                            Log.v("DetectionRepository", "Index missing for archived, using fallback")
                             listener?.remove()
                             hasAttemptedFallback = true
                             fallbackListener = tryFallbackHistoryQuery(userId) { history ->
@@ -569,7 +578,7 @@ class DetectionRepository {
                                 trySend(archived)
                             }
                             return@addSnapshotListener
-                        } else {
+                        } else if (!isIndexError) {
                             Log.e("DetectionRepository", "Error listening to archived: $errorMsg", error)
                             trySend(emptyList())
                             return@addSnapshotListener
@@ -618,7 +627,8 @@ class DetectionRepository {
         } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
             // If index error, use fallback: get all deleted and filter in-memory
             if (e.message?.contains("index") == true || e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION) {
-                Log.d("DetectionRepository", "Index missing for cleanup (expected), using fallback method")
+                // Use verbose logging for expected index errors
+                Log.v("DetectionRepository", "Index missing for cleanup (expected), using fallback method")
                 try {
                     val fourteenDaysAgo = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000L)
                     val snapshot = usersCollection.document(userId)

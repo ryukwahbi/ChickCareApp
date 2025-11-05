@@ -56,6 +56,8 @@ import com.bisu.chickcare.frontend.screen.MedicationsLogScreen
 import com.bisu.chickcare.frontend.screen.CoopManagementScreen
 import com.bisu.chickcare.frontend.screen.BreedingRecordsScreen
 import com.bisu.chickcare.frontend.screen.ReportsAnalyticsScreen
+import com.bisu.chickcare.frontend.screen.RecentActivityScreen
+import com.bisu.chickcare.frontend.screen.FarmInsightsScreen
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -122,7 +124,11 @@ class MainActivity : ComponentActivity() {
                         composable("reset_password") { ResetPasswordScreen(navController) }
                         composable("action_tools") { ActionScreen(navController) }
                         composable("settings") { SettingsScreen(navController) }
-                        composable("dashboard") { DashboardScreen(navController) }
+                        composable("dashboard") {
+                            MainScreen(navController = navController) { paddingValues ->
+                                DashboardScreen(navController = navController)
+                            }
+                        }
                         composable("profile") { ProfileScreen(navController) }
                         composable(
                             route = "view_profile?userId={userId}",
@@ -209,6 +215,8 @@ class MainActivity : ComponentActivity() {
                                 HelpCenterScreen(paddingValues = paddingValues)
                             }
                         }
+                        composable("recent_activity") { RecentActivityScreen(navController) }
+                        composable("farm_insights") { FarmInsightsScreen(navController) }
 
                         composable(
                             route = "last_detection_detail" +

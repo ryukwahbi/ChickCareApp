@@ -175,12 +175,15 @@ fun LoginScreen(navController: NavController) {
                         focusedTextColor = Color.Black,
                         unfocusedTextColor = Color.Black,
                         cursorColor = Color(0xFF2F1801),
-                        focusedContainerColor = Color.LightGray.copy(alpha = 0.9f),
-                        unfocusedContainerColor = Color.LightGray.copy(alpha = 0.7f),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedBorderColor = Color(0xFF2F1801),
                         unfocusedBorderColor = Color.DarkGray,
                         focusedLabelColor = Color(0xFF2F1801),
-                        unfocusedLabelColor = Color.DarkGray
+                        unfocusedLabelColor = Color.DarkGray,
+                        errorBorderColor = Color.Red,
+                        errorLabelColor = Color.Red,
+                        errorContainerColor = Color.White
                     )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -210,12 +213,15 @@ fun LoginScreen(navController: NavController) {
                         focusedTextColor = Color.Black,
                         unfocusedTextColor = Color.Black,
                         cursorColor = Color(0xFF2F1801),
-                        focusedContainerColor = Color.LightGray.copy(alpha = 0.9f),
-                        unfocusedContainerColor = Color.LightGray.copy(alpha = 0.7f),
+                        focusedContainerColor = Color.White,
+                        unfocusedContainerColor = Color.White,
                         focusedBorderColor = Color(0xFF2F1801),
                         unfocusedBorderColor = Color.DarkGray,
                         focusedLabelColor = Color(0xFF2F1801),
-                        unfocusedLabelColor = Color.DarkGray
+                        unfocusedLabelColor = Color.DarkGray,
+                        errorBorderColor = Color.Red,
+                        errorLabelColor = Color.Red,
+                        errorContainerColor = Color.White
                     )
                 )
                 Spacer(modifier = Modifier.height(8.dp))

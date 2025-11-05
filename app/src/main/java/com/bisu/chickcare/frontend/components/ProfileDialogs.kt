@@ -139,6 +139,7 @@ fun PhotoPreviewDialog(imageModel: Any, onDismiss: () -> Unit) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@Suppress("DEPRECATION")
 fun EditProfileDialog(
     userProfile: UserProfile,
     onDismiss: () -> Unit,
@@ -178,17 +179,16 @@ fun EditProfileDialog(
         "Backyard/Hobby"
     )
     
-    // Text field colors
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = Color.Black,
         unfocusedTextColor = Color.Black,
-        cursorColor = Color(0xFF2F1801),
+        cursorColor = Color(0xFF1A1818),
         focusedContainerColor = Color.White,
         unfocusedContainerColor = Color.White,
-        focusedBorderColor = Color(0xFFD08025),
-        unfocusedBorderColor = Color(0xFF2F1801),
-        focusedLabelColor = Color(0xFFD08025),
-        unfocusedLabelColor = Color(0xFF2F1801),
+        focusedBorderColor = Color(0xFF3F3E3D),
+        unfocusedBorderColor = Color(0xFF000000),
+        focusedLabelColor = Color(0xFF3F3E3D),
+        unfocusedLabelColor = Color(0xFF000000),
         errorBorderColor = Color.Red,
         errorLabelColor = Color.Red,
         disabledTextColor = Color.Gray,
@@ -210,6 +210,7 @@ fun EditProfileDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
+                .heightIn(max = 700.dp)
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
@@ -253,7 +254,6 @@ fun EditProfileDialog(
                         .verticalScroll(scrollState),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // ========== PERSONAL INFORMATION (READ ONLY) SECTION ==========
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -309,16 +309,13 @@ fun EditProfileDialog(
                         thickness = 1.dp
                     )
                     
-                    // ========== FARM DETAILS (EDITABLE) SECTION ==========
                     Column(
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        // Gender and Address in a row
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            // Gender dropdown using ExposedDropdownMenuBox
                             ExposedDropdownMenuBox(
                                 expanded = showGenderDropdown,
                                 onExpandedChange = { showGenderDropdown = !showGenderDropdown },
@@ -337,10 +334,10 @@ fun EditProfileDialog(
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedTextColor = if (gender.isEmpty()) Color.Gray else Color.Black,
                                         unfocusedTextColor = if (gender.isEmpty()) Color.Gray else Color.Black,
-                                        focusedBorderColor = Color(0xFFD08025),
-                                        unfocusedBorderColor = Color(0xFF2F1801),
-                                        focusedLabelColor = Color(0xFFD08025),
-                                        unfocusedLabelColor = Color(0xFF2F1801)
+                                        focusedBorderColor = Color(0xFF3F3E3D),
+                                        unfocusedBorderColor = Color(0xFF000000),
+                                        focusedLabelColor = Color(0xFF3F3E3D),
+                                        unfocusedLabelColor = Color(0xFF000000)
                                     )
                                 )
                                 
@@ -356,7 +353,7 @@ fun EditProfileDialog(
                                                 Text(
                                                     option,
                                                     fontWeight = if (gender == option) FontWeight.Bold else FontWeight.Normal,
-                                                    color = if (gender == option) Color(0xFFD08025) else Color.Unspecified
+                                                    color = if (gender == option) Color(0xFF000000) else Color.Unspecified
                                                 )
                                             },
                                             onClick = {
@@ -368,7 +365,7 @@ fun EditProfileDialog(
                                                     Icon(
                                                         Icons.Default.CheckCircle,
                                                         contentDescription = "Selected",
-                                                        tint = Color(0xFFD08025)
+                                                        tint = Color(0xFF94D048)
                                                     )
                                                 }
                                             } else null
@@ -437,7 +434,7 @@ fun EditProfileDialog(
                                         text = { 
                                             Text(
                                                 option,
-                                                color = if (farmType == option) Color(0xFFD08025) else Color.Unspecified,
+                                                color = if (farmType == option) Color(0xFF000000) else Color.Unspecified,
                                                 fontWeight = if (farmType == option) FontWeight.Bold else FontWeight.Normal
                                             )
                                         },
@@ -450,7 +447,7 @@ fun EditProfileDialog(
                                                 Icon(
                                                     Icons.Default.CheckCircle,
                                                     contentDescription = "Selected",
-                                                    tint = Color(0xFFD08025)
+                                                    tint = Color(0xFF94D048)
                                                 )
                                             }
                                         } else null
@@ -459,7 +456,6 @@ fun EditProfileDialog(
                             }
                         }
                         
-                        // Specialization dropdown using ExposedDropdownMenuBox
                         ExposedDropdownMenuBox(
                             expanded = showSpecializationDropdown,
                             onExpandedChange = { showSpecializationDropdown = !showSpecializationDropdown },
@@ -489,7 +485,9 @@ fun EditProfileDialog(
                                         text = { 
                                             Text(
                                                 option,
-                                                color = if (specialization == option) Color(0xFFD08025) else Color.Unspecified,
+                                                color = if (specialization == option) Color(
+                                                    0xFF000000
+                                                ) else Color.Unspecified,
                                                 fontWeight = if (specialization == option) FontWeight.Bold else FontWeight.Normal
                                             )
                                         },
@@ -502,7 +500,7 @@ fun EditProfileDialog(
                                                 Icon(
                                                     Icons.Default.CheckCircle,
                                                     contentDescription = "Selected",
-                                                    tint = Color(0xFFD08025)
+                                                    tint = Color(0xFF94D048)
                                                 )
                                             }
                                         } else null
@@ -564,7 +562,7 @@ fun EditProfileDialog(
                         .fillMaxWidth()
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF4CAF50), // Green
+                        containerColor = Color(0xFF4CAF50),
                         contentColor = Color.White
                     ),
                     shape = RoundedCornerShape(12.dp)

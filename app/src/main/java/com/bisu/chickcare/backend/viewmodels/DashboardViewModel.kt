@@ -18,6 +18,7 @@ import com.bisu.chickcare.backend.service.NotificationService
 import com.bisu.chickcare.frontend.utils.DateFormatters
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -102,19 +104,22 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
 
         _uiState.update { it.copy(isLoading = true) }
 
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             val profileJob = async { auth.fetchUserProfile() }
             val statsJob = async { detectionService.fetchUserStats(userId) }
 
             val profileData = profileJob.await()
             val (chickens, _) = statsJob.await()
 
-            _uiState.update { currentState ->
-                currentState.copy(
-                    userName = (profileData?.get("fullName") as? String) ?: "User",
-                    totalChickens = chickens,
-                    isLoading = false
-                )
+            // Update state on main thread
+            withContext(Dispatchers.Main) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        userName = (profileData?.get("fullName") as? String) ?: "User",
+                        totalChickens = chickens,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
@@ -150,7 +155,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 
                 // Update UI state immediately with result in NonCancellable to ensure it completes
                 val (isInfected, status) = detectionResult
-                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                withContext(kotlinx.coroutines.NonCancellable) {
                     _uiState.update { currentState ->
                         currentState.copy(
                             isDetecting = false,
@@ -187,7 +192,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 // Even if cancelled, try to update UI if we have a result
                 if (detectionResult != null) {
                     val (isInfected, status) = detectionResult
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    withContext(kotlinx.coroutines.NonCancellable) {
                         _uiState.update { currentState ->
                             currentState.copy(
                                 isDetecting = false,
@@ -199,7 +204,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 } else {
                     // No result yet, set error state
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                    withContext(kotlinx.coroutines.NonCancellable) {
                         _uiState.update { currentState ->
                             if (currentState.detectionResult == null) {
                                 currentState.copy(
@@ -216,7 +221,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 // Don't re-throw - we've handled it
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Detection failed with exception: ${e.message}", e)
-                kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                withContext(kotlinx.coroutines.NonCancellable) {
                     _uiState.update { currentState ->
                         currentState.copy(
                             isDetecting = false,
@@ -267,47 +272,68 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             return listOf()
         }
         
-        // Group by weeks (last 6 weeks)
+        // Group by days (last 5 days) - DAILY DATA POINTS
         val calendar = Calendar.getInstance()
-        val weekGroups = mutableMapOf<String, Pair<Double, Double>>() // label to (healthyPercentage, unhealthyPercentage)
+        val dayGroups = mutableMapOf<String, Pair<Double, Double>>() // label to (avgHealthyConfidence, avgUnhealthyConfidence)
         
-        // Get last 6 weeks
-        for (i in 0 until 6) {
-            calendar.timeInMillis = System.currentTimeMillis()
-            calendar.add(Calendar.WEEK_OF_YEAR, -i)
-            calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-            val weekStart = calendar.timeInMillis
+        // Get last 5 days
+        val now = System.currentTimeMillis()
+        val fiveDaysAgo = now - (5 * 24 * 60 * 60 * 1000L) // 5 days in milliseconds
+        
+        // Filter entries to only last 5 days
+        val recentEntries = entries.filter { it.timestamp >= fiveDaysAgo }
+        
+        // Group by DAY - show ALL daily data points for last 5 days
+        // Process all 5 days to show complete trend
+        for (i in 0 until 5) {
+            calendar.timeInMillis = now
+            calendar.add(Calendar.DAY_OF_YEAR, -i)
+            calendar.set(Calendar.HOUR_OF_DAY, 0)
+            calendar.set(Calendar.MINUTE, 0)
+            calendar.set(Calendar.SECOND, 0)
+            calendar.set(Calendar.MILLISECOND, 0)
+            val dayStart = calendar.timeInMillis
             
-            calendar.add(Calendar.WEEK_OF_YEAR, 1)
-            val weekEnd = calendar.timeInMillis
+            calendar.add(Calendar.DAY_OF_YEAR, 1)
+            val dayEnd = calendar.timeInMillis
             
-            val label = SimpleDateFormat("MMM dd", Locale.getDefault()).format(weekStart)
+            // Format label: "MMM dd" (e.g., "Oct 03")
+            calendar.timeInMillis = dayStart
+            val label = SimpleDateFormat("MMM dd", Locale.getDefault()).format(dayStart)
             
-            val weekEntries = entries.filter { it.timestamp in weekStart until weekEnd }
+            val dayEntries = recentEntries.filter { it.timestamp in dayStart until dayEnd }
             
-            // Calculate percentage of healthy and unhealthy detections (not average confidence)
-            // This shows the trend: what percentage of detections were healthy vs unhealthy each week
-            val healthyEntries = weekEntries.filter { it.isHealthy }
-            val unhealthyEntries = weekEntries.filter { !it.isHealthy }
-            val totalEntries = weekEntries.size
+            // Calculate average confidence for healthy and unhealthy detections for this day
+            // This shows the actual confidence values (0-100%) instead of just percentages
+            val healthyEntries = dayEntries.filter { it.isHealthy }
+            val unhealthyEntries = dayEntries.filter { !it.isHealthy }
             
-            // Calculate percentage: (healthy count / total count) * 100
-            val healthyPercentage = if (totalEntries > 0) {
-                (healthyEntries.size.toDouble() / totalEntries.toDouble()) * 100.0
+            // Calculate average confidence * 100 to get percentage (0-100%)
+            val avgHealthyConfidence = if (healthyEntries.isNotEmpty()) {
+                healthyEntries.map { it.confidence * 100.0 }.average()
             } else 0.0
             
-            // Calculate percentage: (unhealthy count / total count) * 100
-            val unhealthyPercentage = if (totalEntries > 0) {
-                (unhealthyEntries.size.toDouble() / totalEntries.toDouble()) * 100.0
+            val avgUnhealthyConfidence = if (unhealthyEntries.isNotEmpty()) {
+                unhealthyEntries.map { it.confidence * 100.0 }.average()
             } else 0.0
             
-            weekGroups[label] = Pair(healthyPercentage, unhealthyPercentage)
+            // Add ALL days (even if 0) - this ensures we show the complete trend
+            dayGroups[label] = Pair(avgHealthyConfidence, avgUnhealthyConfidence)
         }
         
-        // Convert to list and reverse so oldest is first
-        return weekGroups.map { (label, averages) ->
+        // Convert to list and sort by date to ensure proper chronological order
+        val sortedEntries = dayGroups.toList().sortedBy { (label, _) ->
+            try {
+                val date = SimpleDateFormat("MMM dd", Locale.getDefault()).parse(label)
+                date?.time ?: 0L
+            } catch (e: Exception) {
+                0L
+            }
+        }
+        
+        return sortedEntries.map { (label, averages) ->
             TrendDataPoint(label, averages.first, averages.second)
-        }.reversed()
+        }
     }
     
     /**

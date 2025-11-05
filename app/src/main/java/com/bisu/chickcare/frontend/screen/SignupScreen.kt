@@ -208,9 +208,9 @@ fun SignupScreen(navController: NavController) {
         unfocusedTextColor = Color.Black,
         disabledTextColor = Color.Black,
         cursorColor = Color(0xFF2F1801),
-        focusedContainerColor = Color.LightGray.copy(alpha = 0.9f),
-        unfocusedContainerColor = Color.LightGray.copy(alpha = 0.7f),
-        disabledContainerColor = Color.LightGray.copy(alpha = 0.7f),
+        focusedContainerColor = Color.White,
+        unfocusedContainerColor = Color.White,
+        disabledContainerColor = Color.White,
         focusedBorderColor = Color.Black,
         unfocusedBorderColor = Color.Black,
         disabledBorderColor = Color.Black,
@@ -220,7 +220,7 @@ fun SignupScreen(navController: NavController) {
         errorBorderColor = Color.Red,
         errorLabelColor = Color.Red,
         errorCursorColor = Color.Red,
-        errorContainerColor = Color.LightGray.copy(alpha = 0.7f)
+        errorContainerColor = Color.White
     )
 
     val title = when (step) {

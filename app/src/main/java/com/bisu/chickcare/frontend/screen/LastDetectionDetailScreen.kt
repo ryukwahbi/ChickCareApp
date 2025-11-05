@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,6 +47,7 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import android.util.Log
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -57,6 +59,35 @@ fun LastDetectionDetailScreen(
     entry: DetectionEntry
 ) {
     val context = LocalContext.current
+    
+    // Grant URI permissions for content URIs before loading images
+    LaunchedEffect(entry.imageUri) {
+        entry.imageUri?.let { uriString ->
+            try {
+                val decodedUriString = try {
+                    java.net.URLDecoder.decode(uriString, "UTF-8")
+                } catch (_: Exception) {
+                    uriString
+                }
+                val uri = decodedUriString.toUri()
+                if (uri.scheme == "content") {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        Log.d("LastDetectionDetail", "Taken persistable URI permission for: $decodedUriString")
+                    } catch (e: SecurityException) {
+                        Log.w("LastDetectionDetail", "Cannot take persistable permission (may not support it): $decodedUriString - ${e.message}")
+                    } catch (e: Exception) {
+                        Log.w("LastDetectionDetail", "Error taking persistable permission: $decodedUriString - ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w("LastDetectionDetail", "Error parsing URI for permission: ${e.message}")
+            }
+        }
+    }
 
     Scaffold(
         topBar = {

@@ -31,6 +31,18 @@
 # Suppress ProviderInstaller warnings
 -dontwarn com.google.android.gms.security.ProviderInstaller**
 
+# Fix for Google Play Services Location companion object warning
+# Keep all members of internal location classes (includes companion objects)
+-keepclassmembers class com.google.android.gms.internal.location.** {
+    *;
+}
+
+# Keep companion objects for all Google Play Services classes
+# This will preserve Kotlin companion objects during R8/ProGuard processing
+-keepclassmembers class com.google.android.gms.** {
+    static ** Companion;
+}
+
 # Suppress reflection warnings for Google Play Services
 -keepclassmembers class * {
     @androidx.annotation.Keep *;

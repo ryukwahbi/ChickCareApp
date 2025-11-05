@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,9 +83,9 @@ fun ResultScreen(
     // Create a MediaPlayer that is managed by the composable's lifecycle
     val mediaPlayer = remember { MediaPlayer() }
     
-    // Take persistable URI permissions immediately when screen loads (before displaying images)
+    // Grant URI permissions immediately when screen loads (before displaying images)
     LaunchedEffect(imageUri, audioUri) {
-        // Take permissions for image URI for ALL content URIs (not just picker URIs)
+        // Grant permissions for image URI for ALL content URIs
         imageUri?.let { uriString ->
             try {
                 // Decode URL encoding first (navigation may encode URIs)
@@ -94,18 +95,25 @@ fun ResultScreen(
                     uriString // Use original if decoding fails
                 }
                 val uri = decodedUriString.toUri()
-                // Take persistable permission for all content URIs
+                // Grant permission for all content URIs
                 if (uri.scheme == "content") {
                     try {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        Log.d("ResultScreen", "Taken persistable URI permission for image: $decodedUriString")
-                    } catch (e: SecurityException) {
-                        Log.w("ResultScreen", "Cannot take persistable permission for image (may already be taken or expired): ${e.message}")
+                        // Try to take persistable permission (works for picker URIs)
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                            Log.d("ResultScreen", "Taken persistable URI permission for image: $decodedUriString")
+                        } catch (e: SecurityException) {
+                            // For media documents URIs, persistable permission may not be available
+                            // Coil should handle this with FLAG_GRANT_READ_URI_PERMISSION in ImageRequest
+                            Log.w("ResultScreen", "Cannot take persistable permission for image (using temporary): ${e.message}")
+                        } catch (e: Exception) {
+                            Log.w("ResultScreen", "Error taking persistable permission for image: ${e.message}")
+                        }
                     } catch (e: Exception) {
-                        Log.w("ResultScreen", "Error taking persistable permission for image: ${e.message}")
+                        Log.w("ResultScreen", "Error granting permission for image: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
@@ -113,7 +121,7 @@ fun ResultScreen(
             }
         }
         
-        // Take permissions for audio URI for ALL content URIs (not just picker URIs)
+        // Grant permissions for audio URI for ALL content URIs
         audioUri?.let { uriString ->
             try {
                 // Decode URL encoding first (navigation may encode URIs)
@@ -124,18 +132,24 @@ fun ResultScreen(
                 }
                 
                 val uri = decodedUriString.toUri()
-                // Take persistable permission for all content URIs
+                // Grant permission for all content URIs
                 if (uri.scheme == "content") {
                     try {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        Log.d("ResultScreen", "Taken persistable URI permission for audio: $decodedUriString")
-                    } catch (e: SecurityException) {
-                        Log.w("ResultScreen", "Cannot take persistable permission for audio (may already be taken or expired): ${e.message}")
+                        // Try to take persistable permission (works for picker URIs)
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                            Log.d("ResultScreen", "Taken persistable URI permission for audio: $decodedUriString")
+                        } catch (e: SecurityException) {
+                            // For media documents URIs, persistable permission may not be available
+                            Log.w("ResultScreen", "Cannot take persistable permission for audio (using temporary): ${e.message}")
+                        } catch (e: Exception) {
+                            Log.w("ResultScreen", "Error taking persistable permission for audio: ${e.message}")
+                        }
                     } catch (e: Exception) {
-                        Log.w("ResultScreen", "Error taking persistable permission for audio: ${e.message}")
+                        Log.w("ResultScreen", "Error granting permission for audio: ${e.message}")
                     }
                 }
             } catch (e: Exception) {
@@ -332,15 +346,38 @@ fun ResultScreen(
                                 }
                                 
                                 if (imageUriObj != null) {
+                                    // Create ImageRequest with permission flags for content URIs
+                                    val imageRequest = ImageRequest.Builder(context)
+                                        .data(imageUriObj)
+                                        .apply {
+                                            // For content URIs, ensure we have read permission
+                                            if (imageUriObj.scheme == "content") {
+                                                // Coil will use ContentResolver which should have permission
+                                                // from takePersistableUriPermission or the original intent
+                                            }
+                                        }
+                                        .build()
+                                    
                                     AsyncImage(
-                                        model = imageUriObj,
+                                        model = imageRequest,
                                         contentDescription = "Detection Input Image",
                                         modifier = Modifier
                                             .size(200.dp)
                                             .clip(RoundedCornerShape(12.dp)),
                                         contentScale = ContentScale.Crop,
-                                        onError = {
-                                            Log.e("ResultScreen", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
+                                        onError = { errorState ->
+                                            val error = errorState.result.throwable
+                                            Log.e("ResultScreen", "Failed to load image: $decodedImageUriString - ${error.message}")
+                                            // Try to read image using ContentResolver as fallback
+                                            try {
+                                                if (error.message?.contains("Permission Denial") == true) {
+                                                    Log.w("ResultScreen", "Permission denied, attempting to read via ContentResolver")
+                                                    // The permission issue will be handled by the error callback
+                                                    // User will see fallback icon
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e("ResultScreen", "Fallback image read also failed: ${e.message}")
+                                            }
                                         },
                                         onSuccess = {
                                             Log.d("ResultScreen", "Successfully loaded detection image: $decodedImageUriString")

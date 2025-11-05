@@ -12,9 +12,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Settings
@@ -67,7 +69,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
     val authViewModel: AuthViewModel = viewModel()
@@ -260,6 +262,7 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
+                    .imePadding()
             ) {
                 item {
                     Box {
@@ -373,12 +376,6 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                                 if (isViewingOwnProfile) {
                                     showEditDialog = true
                                 }
-                            },
-                            onAddInfo = {
-                                // No longer used - keeping for backward compatibility
-                            },
-                            onEditField = { _, _ ->
-                                // No longer used - editing only through pencil icon
                             },
                             onPrivacyChange = { fieldName, privacy ->
                                 if (isViewingOwnProfile) {

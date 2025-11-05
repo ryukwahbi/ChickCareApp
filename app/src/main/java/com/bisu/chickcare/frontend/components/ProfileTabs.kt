@@ -4,9 +4,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
@@ -18,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +36,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun TimelineTabContent(
     userProfile: UserProfile,
@@ -36,10 +44,22 @@ fun TimelineTabContent(
     onFriendSuggestions: () -> Unit,
     onNavigateToPost: () -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .imePadding()
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) {
+                // Dismiss keyboard when clicking outside input fields
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            },
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         FriendSuggestionsSection(
@@ -59,8 +79,6 @@ fun AboutTabContent(
     userProfile: UserProfile,
     mutualFriends: List<FriendSuggestion>,
     onEditInfo: () -> Unit,
-    onAddInfo: () -> Unit,
-    onEditField: (String, String) -> Unit = { _, _ -> },
     onPrivacyChange: (String, String) -> Unit
 ) {
     Column(
@@ -102,7 +120,6 @@ fun AboutTabContent(
                 
                 ProfileInfo(
                     userProfile = userProfile,
-                    onEditField = onEditField,
                     onPrivacyChange = onPrivacyChange
                 )
             }
@@ -115,7 +132,6 @@ fun AboutTabContent(
 @Composable
 fun ProfileInfo(
     userProfile: UserProfile,
-    onEditField: (String, String) -> Unit,
     onPrivacyChange: (String, String) -> Unit
 ) {
     val memberSince = if (userProfile.createdAt > 0L) {
@@ -131,7 +147,6 @@ fun ProfileInfo(
             label = "Email",
             value = userProfile.email,
             fieldName = "email",
-            onEditField = null, // Read-only
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["email"] ?: "public"
         )
@@ -139,7 +154,6 @@ fun ProfileInfo(
             label = "Contact Number",
             value = userProfile.contact,
             fieldName = "contact",
-            onEditField = null, // Read-only
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["contact"] ?: "public"
         )
@@ -147,7 +161,6 @@ fun ProfileInfo(
             label = "Birth Date",
             value = userProfile.birthDate,
             fieldName = "birthDate",
-            onEditField = null, // Read-only
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["birthDate"] ?: "public"
         )
@@ -155,7 +168,6 @@ fun ProfileInfo(
             label = "Gender",
             value = userProfile.gender ?: "Not set",
             fieldName = "gender",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["gender"] ?: "public",
             isEmpty = userProfile.gender.isNullOrEmpty()
@@ -164,7 +176,6 @@ fun ProfileInfo(
             label = "Address",
             value = userProfile.address.ifEmpty { "Not set" },
             fieldName = "address",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["address"] ?: "public",
             isEmpty = userProfile.address.isEmpty()
@@ -183,7 +194,6 @@ fun ProfileInfo(
             label = "Farm Name",
             value = userProfile.farmName.ifEmpty { "Not set" },
             fieldName = "farmName",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmName"] ?: "public",
             isEmpty = userProfile.farmName.isEmpty()
@@ -192,7 +202,6 @@ fun ProfileInfo(
             label = "Farm Location",
             value = userProfile.farmLocation.ifEmpty { "Not set" },
             fieldName = "farmLocation",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmLocation"] ?: "public",
             isEmpty = userProfile.farmLocation.isEmpty()
@@ -201,7 +210,6 @@ fun ProfileInfo(
             label = "Farm Type",
             value = userProfile.farmType.ifEmpty { "Not set" },
             fieldName = "farmType",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmType"] ?: "public",
             isEmpty = userProfile.farmType.isEmpty()
@@ -210,7 +218,6 @@ fun ProfileInfo(
             label = "Specialization",
             value = userProfile.specialization.ifEmpty { "Not set" },
             fieldName = "specialization",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["specialization"] ?: "public",
             isEmpty = userProfile.specialization.isEmpty()
@@ -229,7 +236,6 @@ fun ProfileInfo(
             label = "Number of Chickens",
             value = userProfile.numberOfBirds.ifEmpty { "Not set" },
             fieldName = "numberOfBirds",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["numberOfBirds"] ?: "public",
             isEmpty = userProfile.numberOfBirds.isEmpty()
@@ -238,7 +244,6 @@ fun ProfileInfo(
             label = "Years of Experience",
             value = userProfile.yearsExperience.ifEmpty { "Not set" },
             fieldName = "yearsExperience",
-            onEditField = onEditField,
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["yearsExperience"] ?: "public",
             isEmpty = userProfile.yearsExperience.isEmpty()
@@ -257,7 +262,6 @@ fun ProfileInfo(
             label = "Member Since",
             value = memberSince,
             fieldName = "memberSince",
-            onEditField = null,
             onPrivacyChange = null,
             currentPrivacy = "public"
         )

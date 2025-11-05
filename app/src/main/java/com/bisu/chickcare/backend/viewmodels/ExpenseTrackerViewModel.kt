@@ -32,7 +32,7 @@ class ExpenseTrackerViewModel : ViewModel() {
                 repository.getExpenses(userId).collect { expenses ->
                     _expenses.value = expenses
                 }
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Error handling
             } finally {
                 _isLoading.value = false
@@ -46,7 +46,7 @@ class ExpenseTrackerViewModel : ViewModel() {
             try {
                 _isLoading.value = true
                 repository.saveExpense(userId, expense)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Error handling
             } finally {
                 _isLoading.value = false
@@ -60,7 +60,7 @@ class ExpenseTrackerViewModel : ViewModel() {
             try {
                 _isLoading.value = true
                 repository.deleteExpense(userId, expenseId)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // Error handling
             } finally {
                 _isLoading.value = false

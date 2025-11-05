@@ -58,6 +58,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -70,6 +71,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import android.content.Intent
+import android.util.Log
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -82,10 +85,42 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
     val dashboardViewModel: DashboardViewModel = viewModel()
     val history by dashboardViewModel.detectionHistory.collectAsState()
     var selectedTab by remember { mutableIntStateOf(0) } // 0 = Last Detection, 1 = Result
+    val context = LocalContext.current
     
     // Get current route to ensure LaunchedEffect triggers on navigation
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    
+    // Grant URI permissions for all content URIs in history before loading images
+    LaunchedEffect(history) {
+        history.forEach { entry ->
+            entry.imageUri?.let { uriString ->
+                try {
+                    val decodedUriString = try {
+                        URLDecoder.decode(uriString, StandardCharsets.UTF_8.toString())
+                    } catch (_: Exception) {
+                        uriString
+                    }
+                    val uri = decodedUriString.toUri()
+                    if (uri.scheme == "content") {
+                        try {
+                            context.contentResolver.takePersistableUriPermission(
+                                uri,
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            )
+                            Log.d("DetectionHistoryScreen", "Taken persistable URI permission for: $decodedUriString")
+                        } catch (e: SecurityException) {
+                            Log.w("DetectionHistoryScreen", "Cannot take persistable permission (may not support it): $decodedUriString - ${e.message}")
+                        } catch (e: Exception) {
+                            Log.w("DetectionHistoryScreen", "Error taking persistable permission: $decodedUriString - ${e.message}")
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("DetectionHistoryScreen", "Error parsing URI for permission: ${e.message}")
+                }
+            }
+        }
+    }
     
     // Mark all detections as read when screen is displayed
     LaunchedEffect(currentRoute) {

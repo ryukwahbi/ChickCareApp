@@ -34,6 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -72,22 +73,30 @@ fun CustomTabBar(navController: NavController) {
     )
 
     val iconAndTextColor = Color(0xFF26201C)
-
+    val selectedColor = Color.White
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(80.dp)
-            .background(Color(0xFFD2B48C))
+            .background(Color(0xFFE1C1A0))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(vertical = 8.dp),
+                .padding(top = 0.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
             tabs.forEach { tab ->
-                val isSelected = currentRoute == tab.route
+                // More robust route matching - check if route starts with or equals tab route
+                val isSelected = currentRoute == tab.route || 
+                                 currentRoute?.startsWith("${tab.route}/") == true ||
+                                 (currentRoute == null && tab.route == "dashboard")
+                // Action and Profile tabs should not show white styling when selected
+                val shouldShowWhiteStyling = isSelected && 
+                                             tab.route != "action_tools" && 
+                                             tab.route != "profile"
+                val currentColor = if (shouldShowWhiteStyling) selectedColor else iconAndTextColor
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     modifier = Modifier
@@ -104,39 +113,45 @@ fun CustomTabBar(navController: NavController) {
                             }
                         }
                 ) {
-                    BadgedBox(
-                        badge = {
-                            if (tab.route == "detection_history" && newHistoryCount > 0) {
-                                Badge(containerColor = Color.Red) { 
-                                    Text("$newHistoryCount", color = Color.White) 
+                    if (shouldShowWhiteStyling) {
+                        Box(
+                            modifier = Modifier
+                                .padding(bottom = 17.dp)
+                                .width(42.dp)
+                                .height(4.dp)
+                                .background(selectedColor, RoundedCornerShape(2.dp))
+                        )
+                    } else {
+                        Spacer(modifier = Modifier.height(17.dp))
+                    }
+                    Box(
+                        modifier = Modifier.size(26.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        BadgedBox(
+                            badge = {
+                                if (tab.route == "detection_history" && newHistoryCount > 0) {
+                                    Badge(containerColor = Color.Red) { 
+                                        Text("$newHistoryCount", color = Color.White) 
+                                    }
                                 }
                             }
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = tab.label,
+                                tint = currentColor,
+                                modifier = Modifier.size(26.dp)
+                            )
                         }
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = iconAndTextColor,
-                            modifier = Modifier.size(24.dp)
-                        )
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = tab.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = iconAndTextColor
+                        style = MaterialTheme.typography.labelMedium,
+                        color = currentColor,
+                        fontWeight = if (shouldShowWhiteStyling) FontWeight.Bold else FontWeight.Normal
                     )
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .width(24.dp)
-                                .height(2.dp)
-                                .background(iconAndTextColor, RoundedCornerShape(1.dp))
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
                 }
             }
         }

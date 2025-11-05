@@ -11,6 +11,7 @@ data class TimelinePost(
     val userId: String = "",
     val userName: String = "",
     val userPhotoUrl: String? = null,
+    val content: String = "", // Text content for status posts
     val detectionId: String = "",
     val detectionResult: String = "",
     val isHealthy: Boolean = false,
@@ -47,6 +48,30 @@ class PostRepository {
             "confidence" to confidence,
             "imageUri" to imageUri,
             "audioUri" to audioUri,
+            "visibility" to visibility,
+            "timestamp" to System.currentTimeMillis()
+        )
+        
+        val docRef = usersCollection.document(userId)
+            .collection("timelinePosts")
+            .add(postData)
+            .await()
+        
+        return docRef.id
+    }
+    
+    suspend fun createTextPost(
+        userId: String,
+        userName: String,
+        userPhotoUrl: String?,
+        content: String,
+        visibility: String
+    ): String {
+        val postData = hashMapOf(
+            "userId" to userId,
+            "userName" to userName,
+            "userPhotoUrl" to userPhotoUrl,
+            "content" to content,
             "visibility" to visibility,
             "timestamp" to System.currentTimeMillis()
         )

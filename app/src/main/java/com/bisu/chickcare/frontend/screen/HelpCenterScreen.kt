@@ -368,12 +368,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                         text = "Help Center",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF8B4513)
+                        color = Color.Black
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF8B4513)
+                    titleContentColor = Color.Black
                 )
             )
         }

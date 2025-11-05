@@ -67,7 +67,9 @@ fun HealthTrendLineGraph(
                     val padding = 40f
                     val graphWidth = size.width - (padding * 2)
                     val graphHeight = size.height - (padding * 2)
+                    // Always use 0-100% range to show full confidence values
                     val maxValue = 100.0f
+                    val minValue = 0.0f
                     val gridLines = 5
                     for (i in 0..gridLines) {
                         val y = padding + (graphHeight * i / gridLines)
@@ -98,20 +100,30 @@ fun HealthTrendLineGraph(
                     }
                     
                     val xStep = graphWidth / (dataPoints.size - 1).coerceAtLeast(1)
+                    // Show labels but skip some if there are too many to avoid overlap
+                    val labelInterval = if (dataPoints.size > 15) {
+                        (dataPoints.size / 10).coerceAtLeast(1) // Show ~10 labels max
+                    } else {
+                        1 // Show all labels if 15 or fewer
+                    }
+                    
                     dataPoints.forEachIndexed { index, _ ->
                         val x = padding + (xStep * index)
-                        drawContext.canvas.nativeCanvas.apply {
-                            val text = dataPoints[index].label
-                            drawText(
-                                text,
-                                x - 20f,
-                                size.height - padding + 20f,
-                                android.graphics.Paint().apply {
-                                    color = android.graphics.Color.GRAY
-                                    textSize = 10f
-                                    textAlign = android.graphics.Paint.Align.CENTER
-                                }
-                            )
+                        // Only draw label if it's at the interval or if it's the first/last point
+                        if (index % labelInterval == 0 || index == 0 || index == dataPoints.size - 1) {
+                            drawContext.canvas.nativeCanvas.apply {
+                                val text = dataPoints[index].label
+                                drawText(
+                                    text,
+                                    x - 20f,
+                                    size.height - padding + 20f,
+                                    android.graphics.Paint().apply {
+                                        color = android.graphics.Color.GRAY
+                                        textSize = 10f
+                                        textAlign = android.graphics.Paint.Align.CENTER
+                                    }
+                                )
+                            }
                         }
                     }
                     

@@ -35,6 +35,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,6 +67,63 @@ fun HistoryResultScreen(
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     val mediaPlayer = remember { MediaPlayer() }
+    
+    // Grant URI permissions for content URIs before loading images
+    LaunchedEffect(entry.imageUri, entry.audioUri) {
+        // Grant permissions for image URI
+        entry.imageUri?.let { uriString ->
+            try {
+                val decodedUriString = try {
+                    java.net.URLDecoder.decode(uriString, "UTF-8")
+                } catch (_: Exception) {
+                    uriString
+                }
+                val uri = decodedUriString.toUri()
+                if (uri.scheme == "content") {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for image: $decodedUriString")
+                    } catch (e: SecurityException) {
+                        android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for image (may not support it): $decodedUriString - ${e.message}")
+                    } catch (e: Exception) {
+                        android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for image: $decodedUriString - ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("HistoryResultScreen", "Error parsing image URI for permission: ${e.message}")
+            }
+        }
+        
+        // Grant permissions for audio URI
+        entry.audioUri?.let { uriString ->
+            try {
+                val decodedUriString = try {
+                    java.net.URLDecoder.decode(uriString, "UTF-8")
+                } catch (_: Exception) {
+                    uriString
+                }
+                val uri = decodedUriString.toUri()
+                if (uri.scheme == "content") {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            uri,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for audio: $decodedUriString")
+                    } catch (e: SecurityException) {
+                        android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for audio (may not support it): $decodedUriString - ${e.message}")
+                    } catch (e: Exception) {
+                        android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for audio: $decodedUriString - ${e.message}")
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.w("HistoryResultScreen", "Error parsing audio URI for permission: ${e.message}")
+            }
+        }
+    }
 
     // Cleanup MediaPlayer when leaving screen
     DisposableEffect(Unit) {

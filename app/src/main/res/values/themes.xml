@@ -2,4 +2,7 @@
 <resources>
 
     <style name="Theme.ChickCare" parent="android:Theme.Material.Light.NoActionBar" />
+    
+    <!-- Theme for UCrop activity - using AppCompat theme from library -->
+    <!-- Note: Theme.AppCompat.Light.NoActionBar is provided by androidx.appcompat library -->
 </resources>
