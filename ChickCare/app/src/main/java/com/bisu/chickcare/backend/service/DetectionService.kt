@@ -27,7 +27,7 @@ class DetectionService(private val detectionRepository: DetectionRepository) {
     suspend fun getRemedySuggestions(isInfected: Boolean): List<String> = withContext(Dispatchers.IO) {
         if (isInfected) {
             listOf(
-                "Isolate infected birds immediately.",
+                "Isolate infected chicken immediately.",
                 "Administer antibiotics as prescribed by a vet.",
                 "Improve ventilation in the coop.",
                 "Ensure clean water and high-quality feed.",

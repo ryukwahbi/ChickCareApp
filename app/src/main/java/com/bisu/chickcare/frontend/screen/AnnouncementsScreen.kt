@@ -38,6 +38,7 @@ import androidx.navigation.NavController
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class Announcement(
     val id: String,
@@ -84,7 +85,7 @@ fun AnnouncementsScreen(navController: NavController) {
                         "Announcements",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -92,13 +93,13 @@ fun AnnouncementsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -130,12 +131,12 @@ fun AnnouncementsScreen(navController: NavController) {
                                     Icons.Default.Campaign,
                                     contentDescription = null,
                                     modifier = Modifier.padding(bottom = 8.dp),
-                                    tint = Color.Gray
+                                    tint = ThemeColorUtils.lightGray(Color.Gray)
                                 )
                                 Text(
                                     text = "No announcements available.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Gray
+                                    color = ThemeColorUtils.lightGray(Color.Gray)
                                 )
                             }
                         }
@@ -156,13 +157,13 @@ fun AnnouncementItem(announcement: Announcement) {
         "high" -> Color(0xFFE1615A)
         "normal" -> Color(0xFF589CDA)
         "low" -> Color(0xFF689169)
-        else -> Color.Gray
+        else -> ThemeColorUtils.lightGray(Color.Gray)
     }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -181,7 +182,7 @@ fun AnnouncementItem(announcement: Announcement) {
                     text = announcement.title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF231C16)
+                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
                 if (announcement.priority == "high") {
                     Box(
@@ -193,7 +194,7 @@ fun AnnouncementItem(announcement: Announcement) {
                             text = "Important",
                             style = MaterialTheme.typography.bodySmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White,
+                            color = ThemeColorUtils.white(),
                             fontSize = 10.sp
                         )
                     }
@@ -209,9 +210,8 @@ fun AnnouncementItem(announcement: Announcement) {
             Text(
                 text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(announcement.date)),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
 }
-

@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class Report(
     val id: String,
@@ -101,7 +102,7 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         "Reports & Analytics",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -109,13 +110,13 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -124,7 +125,7 @@ fun ReportsAnalyticsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Quick Stats
             Row(
@@ -179,7 +180,7 @@ fun ReportsAnalyticsScreen(navController: NavController) {
 fun QuickStatCard(title: String, value: String, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -196,7 +197,7 @@ fun QuickStatCard(title: String, value: String, color: Color, modifier: Modifier
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
@@ -218,7 +219,7 @@ fun ReportCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -271,14 +272,14 @@ fun ReportCard(
             Text(
                 text = report.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Last generated: ${report.lastGenerated}",
                 style = MaterialTheme.typography.bodySmall,
-                color = if (report.lastGenerated == "Never") Color(0xFFFF9800) else Color.Gray
+                color = if (report.lastGenerated == "Never") Color(0xFFFF9800) else ThemeColorUtils.lightGray(Color.Gray)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -334,4 +335,3 @@ fun ReportCard(
         }
     }
 }
-

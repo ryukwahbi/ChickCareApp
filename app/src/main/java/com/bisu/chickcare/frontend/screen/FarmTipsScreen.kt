@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class FarmTip(
     val id: Int,
@@ -148,7 +149,7 @@ fun FarmTipsScreen(navController: NavController) {
                         text = "Farm Tips & Best Practices",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -156,13 +157,13 @@ fun FarmTipsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -207,7 +208,7 @@ fun TipsCarouselHeader(
         modifier = modifier.height(200.dp),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
     ) {
         Box(
             modifier = Modifier
@@ -243,7 +244,7 @@ fun TipsCarouselHeader(
                                 Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        Color.Black.copy(alpha = 0.7f)
+                                        ThemeColorUtils.black(alpha = 0.7f)
                                     )
                                 )
                             )
@@ -258,12 +259,12 @@ fun TipsCarouselHeader(
                             text = tips[index].title,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = ThemeColorUtils.white()
                         )
                         Text(
                             text = tips[index].category,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.White.copy(alpha = 0.9f)
+                            color = ThemeColorUtils.white(alpha = 0.9f)
                         )
                     }
                 }
@@ -282,13 +283,13 @@ fun TipsCarouselHeader(
                         currentIndex = newIndex
                     },
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .background(ThemeColorUtils.black(alpha = 0.5f), CircleShape)
                         .size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Previous",
-                        tint = Color.White,
+                        tint = ThemeColorUtils.white(),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -306,13 +307,13 @@ fun TipsCarouselHeader(
                         currentIndex = newIndex
                     },
                     modifier = Modifier
-                        .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                        .background(ThemeColorUtils.black(alpha = 0.5f), CircleShape)
                         .size(36.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next",
-                        tint = Color.White,
+                        tint = ThemeColorUtils.white(),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -330,7 +331,7 @@ fun TipsCarouselHeader(
                         modifier = Modifier
                             .size(if (index == currentIndex) 8.dp else 6.dp)
                             .background(
-                                if (index == currentIndex) Color.White else Color.White.copy(alpha = 0.5f),
+                                if (index == currentIndex) ThemeColorUtils.white() else ThemeColorUtils.white(alpha = 0.5f),
                                 CircleShape
                             )
                     )
@@ -346,7 +347,7 @@ fun FarmTipCard(tip: FarmTip) {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
     ) {
         Row(
             modifier = Modifier
@@ -409,10 +410,9 @@ fun FarmTipCard(tip: FarmTip) {
                 Text(
                     text = tip.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
         }
     }
 }
-

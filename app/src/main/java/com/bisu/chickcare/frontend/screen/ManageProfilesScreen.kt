@@ -61,6 +61,7 @@ import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,8 +108,8 @@ fun ManageProfilesScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         },
@@ -232,7 +233,7 @@ fun ProfileItem(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(8.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -304,7 +305,7 @@ fun RemoveProfileDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = ThemeColorUtils.white()
             )
         ) {
             Box(modifier = Modifier
@@ -321,7 +322,7 @@ fun RemoveProfileDialog(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.Black,
+                        tint = ThemeColorUtils.black(),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -334,7 +335,7 @@ fun RemoveProfileDialog(
                         text = account.fullName,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 
@@ -342,7 +343,7 @@ fun RemoveProfileDialog(
                     Text(
                         text = "Are you sure you want to remove this profile? This action cannot be undone. You will be signed out if this is your current account.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black,
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
                 
@@ -359,7 +360,7 @@ fun RemoveProfileDialog(
                     ) {
                         Text(
                             "Remove profile",
-                            color = Color.White,
+                            color = ThemeColorUtils.white(),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
@@ -386,7 +387,7 @@ fun ClearAllAccountsDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = ThemeColorUtils.white()
             )
         ) {
             Box(modifier = Modifier
@@ -403,7 +404,7 @@ fun ClearAllAccountsDialog(
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Close",
-                        tint = Color.Black,
+                        tint = ThemeColorUtils.black(),
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -416,7 +417,7 @@ fun ClearAllAccountsDialog(
                         text = "Clear All Accounts",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black,
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
                 
@@ -424,7 +425,7 @@ fun ClearAllAccountsDialog(
                     Text(
                         text = "Are you sure you want to clear all $accountCount saved account(s)? This action cannot be undone. You will be signed out if your current account is in the list.",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Black,
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
                 
@@ -441,7 +442,7 @@ fun ClearAllAccountsDialog(
                     ) {
                         Text(
                             "Clear All",
-                            color = Color.White,
+                            color = ThemeColorUtils.white(),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
@@ -451,4 +452,3 @@ fun ClearAllAccountsDialog(
         }
     }
 }
-

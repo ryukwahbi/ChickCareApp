@@ -51,10 +51,9 @@ import com.bisu.chickcare.frontend.components.NavigationDrawerContent
 import com.bisu.chickcare.frontend.components.StatsSummaryCard
 import com.bisu.chickcare.frontend.components.WeatherUpdateCard
 import com.bisu.chickcare.frontend.utils.Dimens
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,22 +124,7 @@ fun DashboardScreen(navController: NavController) {
                             detectionHistory = detectionHistory,
                             navController = navController,
                             dashboardViewModel = dashboardViewModel,
-                            onViewHistoryClicked = { navController.navigate("detection_history") },
-                            onHistoryItemClicked = { entry: DetectionEntry ->
-                                val imageUri: String = entry.imageUri?.let { uri: String ->
-                                    URLEncoder.encode(
-                                        uri,
-                                        StandardCharsets.UTF_8.toString()
-                                    )
-                                } ?: ""
-                                val audioUri: String = entry.audioUri?.let { uri: String ->
-                                    URLEncoder.encode(
-                                        uri,
-                                        StandardCharsets.UTF_8.toString()
-                                    )
-                                } ?: ""
-                                navController.navigate("detection_result?imageUri=$imageUri&audioUri=$audioUri")
-                            }
+                            onViewHistoryClicked = { navController.navigate("detection_history") }
                         )
                     }
                 }
@@ -150,10 +134,10 @@ fun DashboardScreen(navController: NavController) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.5f)),
+                            .background(ThemeColorUtils.black(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Card(colors = CardDefaults.cardColors(containerColor = Color.White)) {
+                        Card(colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))) {
                         Column(
                             modifier = Modifier.padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -178,8 +162,7 @@ fun DashboardScreenContent(
     detectionHistory: List<DetectionEntry>,
     navController: NavController,
     dashboardViewModel: DashboardViewModel,
-    onViewHistoryClicked: () -> Unit,
-    onHistoryItemClicked: (DetectionEntry) -> Unit
+    onViewHistoryClicked: () -> Unit
 ) {
     LazyColumn(
         modifier = Modifier
@@ -242,7 +225,6 @@ fun DashboardScreenContent(
             DetectionHistoryCard(
                 detectionHistory = detectionHistory,
                 onViewAllClicked = onViewHistoryClicked,
-                onItemClicked = onHistoryItemClicked,
                 dashboardViewModel = dashboardViewModel
             )
         }

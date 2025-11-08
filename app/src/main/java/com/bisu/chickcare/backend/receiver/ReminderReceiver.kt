@@ -84,7 +84,7 @@ class ReminderReceiver : BroadcastReceiver() {
             val enabled = prefs.getBoolean("${type.name}_enabled", false)
             
             if (enabled && hour >= 0 && minute >= 0) {
-                val reminder = ReminderData(type, hour, minute, enabled)
+                val reminder = ReminderData(type, hour, minute, true)
                 reminderService.scheduleDailyReminder(reminder)
             }
         }

@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class DiseaseResource(
     val id: String,
@@ -123,7 +124,7 @@ fun DiseaseDatabaseScreen(navController: NavController) {
                         "Disease Database",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -131,13 +132,13 @@ fun DiseaseDatabaseScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -146,7 +147,7 @@ fun DiseaseDatabaseScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Info Banner
             Card(
@@ -179,7 +180,7 @@ fun DiseaseDatabaseScreen(navController: NavController) {
                         Text(
                             text = "These links open in your browser",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -214,7 +215,7 @@ fun DiseaseResourceCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -273,7 +274,7 @@ fun DiseaseResourceCard(
             Text(
                 text = resource.description,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -286,4 +287,3 @@ fun DiseaseResourceCard(
         }
     }
 }
-

@@ -51,6 +51,7 @@ import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.bisu.chickcare.backend.viewmodels.FriendViewModel
 import com.bisu.chickcare.frontend.components.ActiveStatusIndicator
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -101,7 +102,7 @@ fun FriendSuggestionsScreen(navController: NavController) {
                             Text(
                                 "(${pendingRequests.size} pending)",
                                 fontSize = 12.sp,
-                                color = Color.Gray,
+                                color = ThemeColorUtils.lightGray(Color.Gray),
                                 fontWeight = FontWeight.Normal
                             )
                         }
@@ -113,8 +114,8 @@ fun FriendSuggestionsScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -138,7 +139,7 @@ fun FriendSuggestionsScreen(navController: NavController) {
                 Text(
                     text = "No friend suggestions available",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
         } else {
@@ -208,7 +209,7 @@ fun FriendSuggestionItem(
     }
     
     val buttonColor = when (requestStatus) {
-        "pending" -> Color.Gray
+        "pending" -> ThemeColorUtils.lightGray(Color.Gray)
         "declined" -> Color(0xFF4CAF50)
         "accepted" -> Color.Blue
         else -> Color(0xFF4CAF50)
@@ -219,7 +220,7 @@ fun FriendSuggestionItem(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -264,7 +265,7 @@ fun FriendSuggestionItem(
                     Text(
                         text = "${suggestion.mutualFriendsCount} mutual friend${if (suggestion.mutualFriendsCount > 1) "s" else ""}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
             }
@@ -280,11 +281,10 @@ fun FriendSuggestionItem(
             ) {
                 Text(
                     text = buttonText, 
-                    color = Color.White,
+                    color = ThemeColorUtils.white(),
                     fontWeight = if (requestStatus == "pending") FontWeight.Medium else FontWeight.Normal
                 )
             }
         }
     }
 }
-

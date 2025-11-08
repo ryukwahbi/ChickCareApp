@@ -67,6 +67,7 @@ import com.bisu.chickcare.backend.viewmodels.ExpenseTrackerViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 enum class ExpenseCategory(val displayName: String, val color: Color) {
     FEED("Feed", Color(0xFFFF9800)),
@@ -107,7 +108,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                         "Expense Tracker",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -115,13 +116,13 @@ fun ExpenseTrackerScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -132,7 +133,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                     showAddDialog = true
                 },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Expense")
             }
@@ -142,7 +143,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             Column {
                 // Summary Cards
@@ -154,7 +155,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                 ) {
                     Card(
                         modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(4.dp)
                     ) {
                         Column(
@@ -171,13 +172,13 @@ fun ExpenseTrackerScreen(navController: NavController) {
                             Text(
                                 text = "Total Expenses",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
                     Card(
                         modifier = Modifier.weight(1f),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(4.dp)
                     ) {
                         Column(
@@ -194,7 +195,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                             Text(
                                 text = "This Month",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -206,7 +207,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Column(
@@ -274,13 +275,13 @@ fun ExpenseTrackerScreen(navController: NavController) {
                                             Icons.Default.AttachMoney,
                                             contentDescription = null,
                                             modifier = Modifier.size(64.dp),
-                                            tint = Color.Gray
+                                            tint = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
                                             "No expenses recorded",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = Color.Gray
+                                            color = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                     }
                                 }
@@ -496,7 +497,7 @@ fun CategoryRow(category: String, amount: Double, percentage: Int, color: Color)
             Text(
                 text = "$percentage% of total",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
         Text(
@@ -519,7 +520,7 @@ fun ExpenseCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -560,7 +561,7 @@ fun ExpenseCard(
                 Text(
                     text = "${dateFormat.format(Date(expense.date))} • ${expense.paymentMethod}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
 

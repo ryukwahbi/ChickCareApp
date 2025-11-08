@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
 import kotlinx.coroutines.delay
 
 /**
@@ -45,18 +49,68 @@ fun ProcessingScreen(
     val uiState by viewModel.uiState.collectAsState()
     var detectionTriggered by remember { mutableStateOf(false) }
     var timeoutReached by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val decodedImageUri = remember(imageUri) {
+        imageUri?.takeIf { it.isNotBlank() }?.let { Uri.decode(it) }
+    }
+    val decodedAudioUri = remember(audioUri) {
+        audioUri?.takeIf { it.isNotBlank() }?.let { Uri.decode(it) }
+    }
+    var processedImageUri by remember { mutableStateOf(decodedImageUri) }
+    var processedAudioUri by remember { mutableStateOf(decodedAudioUri) }
+    var imageReady by remember { mutableStateOf(decodedImageUri.isNullOrEmpty()) }
+    var audioReady by remember { mutableStateOf(decodedAudioUri.isNullOrEmpty()) }
+
+    LaunchedEffect(decodedImageUri) {
+        imageReady = false
+        processedImageUri = decodedImageUri
+        if (!decodedImageUri.isNullOrEmpty() && !decodedImageUri.startsWith("file://")) {
+            processedImageUri = persistUriToAppStorage(
+                context = context,
+                sourceUriString = decodedImageUri,
+                subdirectory = "detection_images",
+                fallbackExtension = "jpg",
+                logTag = "ProcessingScreen"
+            ) ?: decodedImageUri
+        }
+        imageReady = true
+    }
+
+    LaunchedEffect(decodedAudioUri) {
+        audioReady = false
+        processedAudioUri = decodedAudioUri
+        if (!decodedAudioUri.isNullOrEmpty() && !decodedAudioUri.startsWith("file://")) {
+            processedAudioUri = persistUriToAppStorage(
+                context = context,
+                sourceUriString = decodedAudioUri,
+                subdirectory = "detection_audio",
+                fallbackExtension = "m4a",
+                logTag = "ProcessingScreen"
+            ) ?: decodedAudioUri
+        }
+        audioReady = true
+    }
 
     // Trigger detection when screen loads
-    LaunchedEffect(imageUri, audioUri) {
+    LaunchedEffect(imageReady, audioReady, processedImageUri, processedAudioUri) {
         // At minimum, we need audio. Image can be optional (though fusion model works best with both)
-        if (!detectionTriggered && !audioUri.isNullOrEmpty()) {
-            Log.d("ProcessingScreen", "Triggering detection - Image: ${imageUri ?: "none"}, Audio: $audioUri")
+        if (!detectionTriggered && imageReady && audioReady && !processedAudioUri.isNullOrEmpty()) {
+            Log.d(
+                "ProcessingScreen",
+                "Triggering detection - Image: ${processedImageUri ?: "none"}, Audio: $processedAudioUri"
+            )
             detectionTriggered = true
-            viewModel.onScanNowClicked(imageUri ?: "", audioUri)
+            viewModel.onScanNowClicked(processedImageUri, processedAudioUri)
         } else {
-            Log.w("ProcessingScreen", "Cannot trigger detection - Image: ${imageUri ?: "none"}, Audio: ${audioUri ?: "none"}")
-            if (audioUri.isNullOrEmpty()) {
-                Log.e("ProcessingScreen", "Missing audio input! Image: ${!imageUri.isNullOrEmpty()}, Audio: false")
+            Log.w(
+                "ProcessingScreen",
+                "Cannot trigger detection - Image: ${processedImageUri ?: "none"}, Audio: ${processedAudioUri ?: "none"} (ready: image=$imageReady, audio=$audioReady)"
+            )
+            if (audioReady && processedAudioUri.isNullOrEmpty()) {
+                Log.e(
+                    "ProcessingScreen",
+                    "Missing audio input! Image: ${!processedImageUri.isNullOrEmpty()}, Audio: false"
+                )
                 // Navigate back if audio is missing (required)
                 navController.popBackStack()
             }
@@ -70,8 +124,9 @@ fun ProcessingScreen(
             delay(150000) // 150 seconds timeout (increased from 90)
             
             // Check current state after delay
-            val currentIsDetecting = uiState.isDetecting
-            val currentResult = uiState.detectionResult
+            val currentState = viewModel.uiState.value
+            val currentIsDetecting = currentState.isDetecting
+            val currentResult = currentState.detectionResult
             
             // Only timeout if:
             // 1. Detection has stopped (isDetecting = false)
@@ -79,16 +134,19 @@ fun ProcessingScreen(
             // 3. Timeout hasn't been reached yet
             if (currentResult == null && !currentIsDetecting && !timeoutReached) {
                 Log.e("ProcessingScreen", "Detection timeout after 150 seconds! Model may be stuck or failed silently.")
-                Log.e("ProcessingScreen", "UI State - isDetecting: $currentIsDetecting, result: $currentResult")
+                Log.e("ProcessingScreen", "UI State - isDetecting: ${false}, result: $currentResult")
                 timeoutReached = true
                 // Set an error result if detection never completed
                 viewModel.clearDetectionResult()
                 // Navigate to result screen with timeout error
-                val encodedImage = java.net.URLEncoder.encode(imageUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
-                val encodedAudio = java.net.URLEncoder.encode(audioUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
-                navController.navigate(
-                    "detection_result?imageUri=$encodedImage&audioUri=$encodedAudio&status=Error: Processing timeout. Please try again with valid chicken image and audio.&suggestions="
-                ) {
+                val encodedAudio = processedAudioUri?.let { Uri.encode(it) } ?: ""
+                val baseRoute = StringBuilder("detection_result?status=${Uri.encode("Error: Processing timeout. Please try again with valid chicken image and audio.")}")
+                baseRoute.append("&suggestions=")
+                baseRoute.append("&audioUri=$encodedAudio")
+                processedImageUri?.let {
+                    baseRoute.append("&imageUri=").append(Uri.encode(it))
+                }
+                navController.navigate(baseRoute.toString()) {
                     popUpTo("processing") { inclusive = true }
                 }
             } else if (currentResult != null) {
@@ -101,14 +159,20 @@ fun ProcessingScreen(
                 // Wait a bit more and check again
                 delay(30000) // Wait another 30 seconds
                 // Check one more time
-                if (uiState.detectionResult == null && !uiState.isDetecting) {
+                val followUpState = viewModel.uiState.value
+                val followUpResult = followUpState.detectionResult
+                val followUpDetecting = followUpState.isDetecting
+                if (followUpResult == null && !followUpDetecting && !timeoutReached) {
                     Log.e("ProcessingScreen", "Detection stopped without result after 180 seconds total")
                     timeoutReached = true
-                    val encodedImage = java.net.URLEncoder.encode(imageUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
-                    val encodedAudio = java.net.URLEncoder.encode(audioUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
-                    navController.navigate(
-                        "detection_result?imageUri=$encodedImage&audioUri=$encodedAudio&status=Error: Processing timeout. Please try again with valid chicken image and audio.&suggestions="
-                    ) {
+                    val encodedAudio = processedAudioUri?.let { Uri.encode(it) } ?: ""
+                    val route = StringBuilder("detection_result?status=${Uri.encode("Error: Processing timeout. Please try again with valid chicken image and audio.")}")
+                    route.append("&suggestions=")
+                    route.append("&audioUri=$encodedAudio")
+                    processedImageUri?.let {
+                        route.append("&imageUri=").append(Uri.encode(it))
+                    }
+                    navController.navigate(route.toString()) {
                         popUpTo("processing") { inclusive = true }
                     }
                 }
@@ -134,21 +198,31 @@ fun ProcessingScreen(
             }
             
             val suggestionsString = uiState.remedySuggestions.joinToString("|")
-            val encodedSuggestions = java.net.URLEncoder.encode(
-                suggestionsString,
-                java.nio.charset.StandardCharsets.UTF_8.toString()
+            val routeParams = mutableListOf(
+                "status" to status,
+                "suggestions" to suggestionsString,
+                "audioUri" to (processedAudioUri ?: "")
             )
-            val encodedImage = java.net.URLEncoder.encode(imageUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
-            val encodedAudio = java.net.URLEncoder.encode(audioUri ?: "", java.nio.charset.StandardCharsets.UTF_8.toString())
+            processedImageUri?.let {
+                if (it.isNotEmpty()) {
+                    routeParams += "imageUri" to it
+                }
+            }
+            val route = buildString {
+                append("detection_result?")
+                append(
+                    routeParams.joinToString("&") { (key, value) ->
+                        "$key=${Uri.encode(value)}"
+                    }
+                )
+            }
 
-            navController.navigate(
-                "detection_result?imageUri=$encodedImage&audioUri=$encodedAudio&status=$status&suggestions=$encodedSuggestions"
-            ) {
+            navController.navigate(route) {
                 popUpTo("processing") { inclusive = true }
             }
             viewModel.clearDetectionResult()
         } else if (uiState.isDetecting) {
-            Log.d("ProcessingScreen", "Still detecting... isDetecting: ${uiState.isDetecting}, result: ${uiState.detectionResult}")
+            Log.d("ProcessingScreen", "Still detecting... isDetecting: ${true}, result: ${uiState.detectionResult}")
         } else if (timeoutReached && uiState.detectionResult != null) {
             Log.d("ProcessingScreen", "Timeout already reached, but result exists - will let timeout handler navigate")
         }
@@ -160,8 +234,8 @@ fun ProcessingScreen(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFFF1E0C9),
-                        Color(0xFFF1E0C9)
+                        ThemeColorUtils.beige(Color(0xFFF1E0C9)),
+                        ThemeColorUtils.beige(Color(0xFFF1E0C9))
                     )
                 )
             ),
@@ -174,23 +248,37 @@ fun ProcessingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
+            val progressIndicatorColor = if (ThemeColorUtils.black() == Color.White) {
+                // Dark mode (black inverted to white)
+                ThemeColorUtils.lightGray(Color(0xFFD0D3D8))
+            } else {
+                ThemeColorUtils.beige(Color(0xFFE3B386))
+            }
+
+            val indicatorBackgroundColors = if (ThemeColorUtils.black() == Color.White) {
+                listOf(
+                    ThemeColorUtils.lightGray(Color(0xFF55595E)).copy(alpha = 0.3f),
+                    ThemeColorUtils.lightGray(Color(0xFF3A3D40)).copy(alpha = 0.1f)
+                )
+            } else {
+                listOf(
+                    ThemeColorUtils.beige(Color(0xFFE3B386)).copy(alpha = 0.3f),
+                    Color(0xFFD4A574).copy(alpha = 0.1f)
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .size(120.dp)
                     .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                Color(0xFFE3B386).copy(alpha = 0.3f),
-                                Color(0xFFD4A574).copy(alpha = 0.1f)
-                            )
-                        ),
+                        Brush.radialGradient(colors = indicatorBackgroundColors),
                         RoundedCornerShape(60.dp)
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(80.dp),
-                    color = Color(0xFFE3B386),
+                    color = progressIndicatorColor,
                     strokeWidth = 4.dp
                 )
             }
@@ -207,20 +295,16 @@ fun ProcessingScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "Analyzing chicken health using\nfusion model (Image + Audio)",
-                fontSize = 16.sp,
-                color = Color(0xFF64748B),
-                textAlign = TextAlign.Center,
-                lineHeight = 24.sp
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
+            val statusColor = if (ThemeColorUtils.black() == Color.White) {
+                ThemeColorUtils.white()
+            } else {
+                ThemeColorUtils.black()
+            }
 
             Text(
                 text = "Please wait...",
                 fontSize = 14.sp,
-                color = Color(0xFF94A3B8),
+                color = statusColor,
                 textAlign = TextAlign.Center
             )
         }

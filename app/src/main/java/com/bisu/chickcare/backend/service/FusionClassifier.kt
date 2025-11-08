@@ -21,74 +21,93 @@ import java.nio.channels.FileChannel
  */
 class FusionClassifier(
     private val context: Context,
-    private val modelPath: String = "cnnmlp_fusion.tflite",
+    modelPathOverride: String? = null,
 ) {
+    companion object {
+        const val PRIMARY_MODEL_PATH = "cnnmlp_fusion_v2.tflite"
+    }
+
     private var interpreter: Interpreter? = null
     private var isModelLoaded = false
     private var inputImageShape: IntArray? = null
     private var inputSpecShape: IntArray? = null
     private var outputShape: IntArray? = null
+    private var activeModelPath: String? = null
+
+    private val candidateModelPaths: List<String> = listOf(modelPathOverride ?: PRIMARY_MODEL_PATH)
 
     init {
         setupInterpreter()
     }
 
     private fun setupInterpreter() {
-        try {
-            val modelBuffer = loadModelFromAssets(context, modelPath)
-            
-            if (modelBuffer != null) {
-                val options = Interpreter.Options().apply {
-                    setNumThreads(4)
-                    setUseXNNPACK(true) // Enable optimized kernels
-                }
-                
-                try {
-                    interpreter = Interpreter(modelBuffer, options)
-                    
-                    // Get input/output details
-                    val inputDetails = interpreter?.inputTensorCount ?: 0
-                    val outputDetails = interpreter?.outputTensorCount ?: 0
-                    
-                    if (inputDetails >= 2) {
-                        // Get input shapes
-                        inputImageShape = interpreter?.getInputTensor(0)?.shape()
-                        inputSpecShape = interpreter?.getInputTensor(1)?.shape()
-                        outputShape = interpreter?.getOutputTensor(0)?.shape()
-                        
-                        android.util.Log.i("FusionClassifier", "Fusion model loaded successfully!")
-                        android.util.Log.d("FusionClassifier", "Input count: $inputDetails, Output count: $outputDetails")
-                        android.util.Log.d("FusionClassifier", "Input 0 (Image) shape: ${inputImageShape?.contentToString()}")
-                        android.util.Log.d("FusionClassifier", "Input 1 (Spectrogram) shape: ${inputSpecShape?.contentToString()}")
-                        android.util.Log.d("FusionClassifier", "Output shape: ${outputShape?.contentToString()}")
-                        
-                        isModelLoaded = true
-                    } else {
-                        android.util.Log.e("FusionClassifier", "Model does not have 2 inputs (found $inputDetails)")
-                        isModelLoaded = false
+        var lastException: Exception? = null
+
+        candidateModelPaths.forEachIndexed { index, path ->
+            try {
+                val modelBuffer = loadModelFromAssets(context, path)
+
+                if (modelBuffer != null) {
+                    val options = Interpreter.Options().apply {
+                        setNumThreads(4)
+                        setUseXNNPACK(true) // Enable optimized kernels
                     }
-                } catch (e: IllegalArgumentException) {
-                    val errorMsg = e.message ?: ""
-                    if (errorMsg.contains("FULLY_CONNECTED") || errorMsg.contains("opcode")) {
-                        android.util.Log.e("FusionClassifier", "Model opcode version mismatch: ${e.message}")
-                        android.util.Log.e("FusionClassifier", "This usually means the TFLite runtime version doesn't match the model. Please ensure TFLite 2.16.1+ is in build.gradle")
-                        android.util.Log.e("FusionClassifier", "Stack trace:", e)
-                    } else {
-                        android.util.Log.e("FusionClassifier", "Failed to create interpreter: ${e.message}", e)
+
+                    try {
+                        interpreter = Interpreter(modelBuffer, options)
+
+                        // Get input/output details
+                        val inputDetails = interpreter?.inputTensorCount ?: 0
+                        val outputDetails = interpreter?.outputTensorCount ?: 0
+
+                        if (inputDetails >= 2) {
+                            // Get input shapes
+                            inputImageShape = interpreter?.getInputTensor(0)?.shape()
+                            inputSpecShape = interpreter?.getInputTensor(1)?.shape()
+                            outputShape = interpreter?.getOutputTensor(0)?.shape()
+
+                            activeModelPath = path
+                            android.util.Log.i("FusionClassifier", "Fusion model loaded successfully from $path")
+                            android.util.Log.d("FusionClassifier", "Input count: $inputDetails, Output count: $outputDetails")
+                            android.util.Log.d("FusionClassifier", "Input 0 (Image) shape: ${inputImageShape?.contentToString()}")
+                            android.util.Log.d("FusionClassifier", "Input 1 (Spectrogram) shape: ${inputSpecShape?.contentToString()}")
+                            android.util.Log.d("FusionClassifier", "Output shape: ${outputShape?.contentToString()}")
+
+                            isModelLoaded = true
+                            return
+                        } else {
+                            android.util.Log.e("FusionClassifier", "Model at $path does not have 2 inputs (found $inputDetails)")
+                            isModelLoaded = false
+                        }
+                    } catch (e: IllegalArgumentException) {
+                        val errorMsg = e.message ?: ""
+                        if (errorMsg.contains("FULLY_CONNECTED") || errorMsg.contains("opcode")) {
+                            android.util.Log.e("FusionClassifier", "Model opcode version mismatch for $path: ${e.message}")
+                            android.util.Log.e("FusionClassifier", "This usually means the TFLite runtime version doesn't match the model. Please ensure TFLite 2.16.1+ is in build.gradle")
+                            android.util.Log.e("FusionClassifier", "Stack trace:", e)
+                        } else {
+                            android.util.Log.e("FusionClassifier", "Failed to create interpreter for $path: ${e.message}", e)
+                        }
+                        lastException = e
+                    } catch (e: Exception) {
+                        android.util.Log.e("FusionClassifier", "Failed to create interpreter for $path: ${e.message}", e)
+                        lastException = e
                     }
-                    isModelLoaded = false
-                } catch (e: Exception) {
-                    android.util.Log.e("FusionClassifier", "Failed to create interpreter: ${e.message}", e)
-                    isModelLoaded = false
+                } else {
+                    android.util.Log.w("FusionClassifier", "Model buffer for $path was null (file missing?)")
                 }
-            } else {
-                android.util.Log.e("FusionClassifier", "Failed to load model buffer from assets")
-                isModelLoaded = false
+            } catch (e: Exception) {
+                android.util.Log.w("FusionClassifier", "Failed to load model from $path: ${e.message}")
+                lastException = e
             }
-        } catch (e: Exception) {
-            android.util.Log.e("FusionClassifier", "Failed to setup fusion classifier: ${e.message}", e)
-            isModelLoaded = false
         }
+
+        android.util.Log.e(
+            "FusionClassifier",
+            "Failed to setup fusion classifier with any candidate model. Checked paths: ${candidateModelPaths.joinToString()}",
+            lastException
+        )
+        isModelLoaded = false
     }
 
     /**
@@ -104,7 +123,7 @@ class FusionClassifier(
             val declaredLength = fileDescriptor.declaredLength
             fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)
         } catch (e: IOException) {
-            android.util.Log.e("FusionClassifier", "Error loading model from assets: ${e.message}", e)
+            android.util.Log.e("FusionClassifier", "Error loading model from assets ($modelPath): ${e.message}")
             null
         }
     }
@@ -197,27 +216,17 @@ class FusionClassifier(
 
             android.util.Log.d("FusionClassifier", "Raw probabilities - Index 0: $prob0, Index 1: $prob1")
             
-            // CRITICAL FIX: According to model documentation, output is [Healthy, Unhealthy]
-            // BUT based on real evidence: Index 1 = 0.9999 results in "Healthy" classification
-            // BUT chicken is clearly UNHEALTHY (swollen eye, discolored)
-            // This means the CURRENT interpretation is WRONG
-            // 
-            // Analysis:
-            // - Current code: healthyProb = prob1, unhealthyProb = prob0
-            // - Result: prob1 (0.9999) > prob0 (0.0001) → "Healthy" 
-            // - Reality: Chicken is UNHEALTHY
-            // 
-            // Conclusion: Index 1 actually represents UNHEALTHY, not Healthy!
-            // Correct mapping: Index 0 = Healthy, Index 1 = Unhealthy (as per model doc)
-            // But we were treating Index 1 as Healthy - that's the bug!
-            val healthyProb = prob0  // Index 0 = Healthy (as per model documentation)
-            val unhealthyProb = prob1 // Index 1 = Unhealthy (as per model documentation)
+            // According to the exported model metadata, output order is [Unhealthy, Healthy]
+            // However, earlier revisions mistakenly assumed the opposite which caused healthy
+            // samples to be flagged as infected. To keep behaviour consistent with the trained
+            // model, map index 1 → Healthy, index 0 → Unhealthy.
+            val unhealthyProb = prob0  // Index 0 corresponds to the unhealthy class
+            val healthyProb = prob1    // Index 1 corresponds to the healthy class
             
-            android.util.Log.d("FusionClassifier", "Interpreted (FIXED) - Healthy (prob0): $healthyProb, Unhealthy (prob1): $unhealthyProb")
-            android.util.Log.d("FusionClassifier", "Previous bug: Index 1 was treated as Healthy, causing incorrect classifications")
+            android.util.Log.d("FusionClassifier", "Interpreted probabilities - Healthy (index1): $healthyProb, Unhealthy (index0): $unhealthyProb")
 
             // Determine prediction using correct mapping
-            val (label, confidence) = if (healthyProb > unhealthyProb) {
+            val (label, confidence) = if (healthyProb >= unhealthyProb) {
                 "Healthy" to healthyProb
             } else {
                 "Unhealthy" to unhealthyProb
@@ -237,15 +246,13 @@ class FusionClassifier(
      */
     fun isModelAvailable(): Boolean = isModelLoaded
 
-    /**
-     * Clean up resources
-     * IMPORTANT: Call this when done with the classifier to free resources
-     */
-    @Suppress("unused") // Public API method - may be called externally
+    @Suppress("unused")
     fun close() {
         interpreter?.close()
         interpreter = null
         isModelLoaded = false
     }
+
+    fun getActiveModelPath(): String? = activeModelPath
 }
 

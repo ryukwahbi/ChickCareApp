@@ -71,6 +71,7 @@ import com.bisu.chickcare.backend.viewmodels.VaccinationViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -99,7 +100,7 @@ fun VaccinationScheduleScreen(navController: NavController) {
                         "Vaccination Schedule",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -107,13 +108,13 @@ fun VaccinationScheduleScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -124,7 +125,7 @@ fun VaccinationScheduleScreen(navController: NavController) {
                     showAddDialog = true
                 },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Vaccination")
             }
@@ -134,7 +135,7 @@ fun VaccinationScheduleScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             Column {
                 // Summary Cards
@@ -168,7 +169,7 @@ fun VaccinationScheduleScreen(navController: NavController) {
                 val tabs = listOf("All", "Upcoming", "Completed", "Overdue")
                 PrimaryTabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = Color.White,
+                    containerColor = ThemeColorUtils.white(),
                     contentColor = Color(0xFFDA8041)
                 ) {
                     tabs.forEachIndexed { index, title ->
@@ -220,13 +221,13 @@ fun VaccinationScheduleScreen(navController: NavController) {
                                             Icons.Default.Vaccines,
                                             contentDescription = null,
                                             modifier = Modifier.size(64.dp),
-                                            tint = Color.Gray
+                                            tint = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
                                             "No vaccinations found",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = Color.Gray
+                                            color = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                     }
                                 }
@@ -454,7 +455,7 @@ fun VaccinationCard(
         colors = CardDefaults.cardColors(
             containerColor = if (isUpcoming || isOverdue) 
                 borderColor.copy(alpha = 0.1f) 
-            else Color.White
+            else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -494,13 +495,13 @@ fun VaccinationCard(
                             Text(
                                 text = "Chicken ID: ${vaccination.chickenId}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         } else {
                             Text(
                                 text = "Flock Vaccination",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -566,7 +567,7 @@ fun VaccinationCard(
                 Text(
                     text = "Notes: ${vaccination.notes}",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray,
+                    color = ThemeColorUtils.lightGray(Color.Gray),
                     modifier = Modifier.padding(top = 4.dp)
                 )
             }
@@ -575,7 +576,7 @@ fun VaccinationCard(
 }
 
 @Composable
-fun InfoRow(label: String, value: String, valueColor: Color = Color.Black) {
+fun InfoRow(label: String, value: String, valueColor: Color = ThemeColorUtils.black()) {
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween
@@ -583,7 +584,7 @@ fun InfoRow(label: String, value: String, valueColor: Color = Color.Black) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
+            color = ThemeColorUtils.lightGray(Color.Gray),
             modifier = Modifier.weight(1f)
         )
         Text(
@@ -600,7 +601,7 @@ fun InfoRow(label: String, value: String, valueColor: Color = Color.Black) {
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -617,7 +618,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }

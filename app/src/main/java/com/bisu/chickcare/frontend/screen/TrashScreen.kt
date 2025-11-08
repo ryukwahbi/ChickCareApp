@@ -46,7 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,6 +57,7 @@ import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +87,7 @@ fun TrashScreen(navController: NavController) {
                         "Trash",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -95,7 +95,7 @@ fun TrashScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
@@ -107,7 +107,7 @@ fun TrashScreen(navController: NavController) {
                                 selectionMode = false
                             }
                         ) {
-                            Text("Cancel", color = Color(0xFF231C16))
+                            Text("Cancel", color = ThemeColorUtils.darkGray(Color(0xFF231C16)))
                         }
                     } else {
                         TextButton(
@@ -115,13 +115,13 @@ fun TrashScreen(navController: NavController) {
                                 selectionMode = true
                             }
                         ) {
-                            Text("Select", color = Color(0xFF231C16))
+                            Text("Select", color = ThemeColorUtils.darkGray(Color(0xFF231C16)))
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -130,7 +130,7 @@ fun TrashScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Action buttons when in selection mode
             if (selectionMode && selectedItems.isNotEmpty()) {
@@ -149,10 +149,10 @@ fun TrashScreen(navController: NavController) {
                             Icons.Default.Restore,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Recover Selected", color = Color.White)
+                        Text("Recover Selected", color = ThemeColorUtils.white())
                     }
                     Button(
                         onClick = { showDeleteSelectedDialog = true },
@@ -163,10 +163,10 @@ fun TrashScreen(navController: NavController) {
                             Icons.Default.Delete,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete Selected", color = Color.White)
+                        Text("Delete Selected", color = ThemeColorUtils.white())
                     }
                 }
             } else if (selectionMode) {
@@ -186,10 +186,10 @@ fun TrashScreen(navController: NavController) {
                             Icons.Default.Restore,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Recover All", color = Color.White)
+                        Text("Recover All", color = ThemeColorUtils.white())
                     }
                     Button(
                         onClick = { showDeleteAllDialog = true },
@@ -200,10 +200,10 @@ fun TrashScreen(navController: NavController) {
                             Icons.Default.Delete,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete All", color = Color.White)
+                        Text("Delete All", color = ThemeColorUtils.white())
                     }
                 }
             }
@@ -225,7 +225,7 @@ fun TrashScreen(navController: NavController) {
                             Text(
                                 text = "No deleted items found.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -271,7 +271,7 @@ fun TrashScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
-                    Text("Restore All", color = Color.White)
+                    Text("Restore All", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -297,7 +297,7 @@ fun TrashScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Delete All", color = Color.White)
+                    Text("Delete All", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -326,7 +326,7 @@ fun TrashScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
-                    Text("Restore", color = Color.White)
+                    Text("Restore", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -355,7 +355,7 @@ fun TrashScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Delete", color = Color.White)
+                    Text("Delete", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -393,7 +393,7 @@ fun TrashItemCard(
                 }
             },
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected && selectionMode) Color(0xFFE3F2FD) else Color.White
+            containerColor = if (isSelected && selectionMode) Color(0xFFE3F2FD) else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
     ) {
@@ -443,7 +443,7 @@ fun TrashItemCard(
                 Text(
                     text = dateFormat.format(Date(entry.timestamp)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -502,7 +502,7 @@ fun TrashItemCard(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Delete", color = Color.White)
+                    Text("Delete", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -513,4 +513,3 @@ fun TrashItemCard(
         )
     }
 }
-

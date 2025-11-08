@@ -56,7 +56,11 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.sanitizeToUri
+import com.bisu.chickcare.frontend.utils.sanitizeUriString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,56 +75,35 @@ fun HistoryResultScreen(
     // Grant URI permissions for content URIs before loading images
     LaunchedEffect(entry.imageUri, entry.audioUri) {
         // Grant permissions for image URI
-        entry.imageUri?.let { uriString ->
+        val sanitizedImageString = sanitizeUriString(entry.imageUri, "HistoryResultScreen")
+        val imageUri = sanitizeToUri(entry.imageUri, "HistoryResultScreen")
+        if (sanitizedImageString != null && imageUri?.scheme == "content") {
             try {
-                val decodedUriString = try {
-                    java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (_: Exception) {
-                    uriString
-                }
-                val uri = decodedUriString.toUri()
-                if (uri.scheme == "content") {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for image: $decodedUriString")
-                    } catch (e: SecurityException) {
-                        android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for image (may not support it): $decodedUriString - ${e.message}")
-                    } catch (e: Exception) {
-                        android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for image: $decodedUriString - ${e.message}")
-                    }
-                }
+                context.contentResolver.takePersistableUriPermission(
+                    imageUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for image: $sanitizedImageString")
+            } catch (e: SecurityException) {
+                android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for image (may not support it): $sanitizedImageString - ${e.message}")
             } catch (e: Exception) {
-                android.util.Log.w("HistoryResultScreen", "Error parsing image URI for permission: ${e.message}")
+                android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for image: $sanitizedImageString - ${e.message}")
             }
         }
         
-        // Grant permissions for audio URI
-        entry.audioUri?.let { uriString ->
+        val sanitizedAudioString = sanitizeUriString(entry.audioUri, "HistoryResultScreen")
+        val audioUri = sanitizeToUri(entry.audioUri, "HistoryResultScreen")
+        if (sanitizedAudioString != null && audioUri?.scheme == "content") {
             try {
-                val decodedUriString = try {
-                    java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (_: Exception) {
-                    uriString
-                }
-                val uri = decodedUriString.toUri()
-                if (uri.scheme == "content") {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for audio: $decodedUriString")
-                    } catch (e: SecurityException) {
-                        android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for audio (may not support it): $decodedUriString - ${e.message}")
-                    } catch (e: Exception) {
-                        android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for audio: $decodedUriString - ${e.message}")
-                    }
-                }
+                context.contentResolver.takePersistableUriPermission(
+                    audioUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                android.util.Log.d("HistoryResultScreen", "Taken persistable URI permission for audio: $sanitizedAudioString")
+            } catch (e: SecurityException) {
+                android.util.Log.w("HistoryResultScreen", "Cannot take persistable permission for audio (may not support it): $sanitizedAudioString - ${e.message}")
             } catch (e: Exception) {
-                android.util.Log.w("HistoryResultScreen", "Error parsing audio URI for permission: ${e.message}")
+                android.util.Log.w("HistoryResultScreen", "Error taking persistable permission for audio: $sanitizedAudioString - ${e.message}")
             }
         }
     }
@@ -147,7 +130,7 @@ fun HistoryResultScreen(
                         text = "Detection Result",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 24.sp,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -164,14 +147,14 @@ fun HistoryResultScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black,
-                    navigationIconContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black(),
+                    navigationIconContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -191,7 +174,7 @@ fun HistoryResultScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(8.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -202,22 +185,16 @@ fun HistoryResultScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             // Captured Image (only show if image URI exists)
-                            val imageUriString = entry.imageUri
-                            val hasValidImageUri = !imageUriString.isNullOrEmpty()
-                            val imageUri = if (hasValidImageUri) {
-                                try {
-                                    imageUriString.toUri()
-                                } catch (e: Exception) {
-                                    android.util.Log.w("HistoryResultScreen", "Invalid image URI format: $imageUriString", e)
-                                    null
-                                }
-                            } else {
-                                null
-                            }
+                            val sanitizedImageString = sanitizeUriString(entry.imageUri, "HistoryResultScreen")
+                            val imageUri = sanitizeToUri(entry.imageUri, "HistoryResultScreen")
+                            if (sanitizedImageString != null && imageUri != null) {
+                                val imageRequest = ImageRequest.Builder(context)
+                                    .data(imageUri)
+                                    .crossfade(true)
+                                    .build()
 
-                            if (imageUri != null) {
                                 AsyncImage(
-                                    model = imageUri,
+                                    model = imageRequest,
                                     contentDescription = "Detection Image",
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -225,23 +202,21 @@ fun HistoryResultScreen(
                                         .clip(RoundedCornerShape(12.dp)),
                                     contentScale = ContentScale.Crop,
                                     onError = {
-                                        android.util.Log.e("HistoryResultScreen", "Failed to load image: $imageUriString - ${it.result.throwable.message}")
+                                        android.util.Log.e("HistoryResultScreen", "Failed to load image: $sanitizedImageString - ${it.result.throwable.message}")
                                     },
                                     onSuccess = {
-                                        android.util.Log.d("HistoryResultScreen", "Successfully loaded detection image: $imageUriString")
+                                        android.util.Log.d("HistoryResultScreen", "Successfully loaded detection image: $sanitizedImageString")
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
 
                             // Result Text - Clean up result text to remove plus signs and confidence
-                            val cleanResult = entry.result
-                                .replace("+", "") // Remove plus signs
-                                .replace(Regex("""\s*\([0-9.]+%?\)$"""), "") // Remove confidence like (99.8%) or (100.0) at the end
-                                .trim()
-                            
                             Text(
-                                text = "Result: $cleanResult",
+                                text = "Result: ${entry.result
+                                    .replace("+", "")
+                                    .replace(Regex("""\s*\([0-9.]+%?\)?$"""), "")
+                                    .trim()}",
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
@@ -250,12 +225,11 @@ fun HistoryResultScreen(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
 
-                            // Confidence
                             Text(
-                                text = "Confidence: ${(entry.confidence * 100).toInt()}%",
+                                text = "Confidence: ${String.format("%.1f", entry.confidence * 100)}%",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF666666)
+                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
                                 ),
                                 textAlign = TextAlign.Center
                             )
@@ -304,7 +278,7 @@ fun HistoryResultScreen(
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isPlaying) Color.DarkGray else Color(0xFF7BC0F6)
+                                        containerColor = if (isPlaying) ThemeColorUtils.darkGray(Color.DarkGray) else Color(0xFF7BC0F6)
                                     ),
                                     shape = RoundedCornerShape(50)
                                 ) {
@@ -324,7 +298,7 @@ fun HistoryResultScreen(
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.beige(Color(0xFFFFF3E0))),
                             elevation = CardDefaults.cardElevation(12.dp),
                             shape = RoundedCornerShape(16.dp)
                         ) {
@@ -344,13 +318,13 @@ fun HistoryResultScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = buildAnnotatedString {
-                                        withStyle(SpanStyle(color = Color.Black, fontWeight = FontWeight.SemiBold)) {
+                                        withStyle(SpanStyle(color = ThemeColorUtils.black(), fontWeight = FontWeight.SemiBold)) {
                                             append("If your chicken has been detected as ")
                                         }
                                         withStyle(SpanStyle(color = Color(0xFFF44336), fontWeight = FontWeight.ExtraBold)) {
                                             append("INFECTED")
                                         }
-                                        withStyle(SpanStyle(color = Color.Black, fontWeight = FontWeight.SemiBold)) {
+                                        withStyle(SpanStyle(color = ThemeColorUtils.black(), fontWeight = FontWeight.SemiBold)) {
                                             append(". Please go to the veterinarian immediately for proper diagnosis and treatment.")
                                         }
                                     },
@@ -387,14 +361,14 @@ fun HistoryResultScreen(
                                     Icon(
                                         imageVector = Icons.Default.Call,
                                         contentDescription = null,
-                                        tint = Color.White
+                                        tint = ThemeColorUtils.white()
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     Text(
                                         text = "Find Nearby Veterinarian",
                                         style = MaterialTheme.typography.bodyLarge,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = ThemeColorUtils.white()
                                     )
                                 }
                             }
@@ -406,7 +380,7 @@ fun HistoryResultScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
                         elevation = CardDefaults.cardElevation(8.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -420,7 +394,7 @@ fun HistoryResultScreen(
                                     text = "⬤",
                                     style = MaterialTheme.typography.headlineMedium.copy(
                                         fontSize = 20.sp,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -428,7 +402,7 @@ fun HistoryResultScreen(
                                     text = "Recommended Actions After Detection",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 )
                             }
@@ -455,7 +429,7 @@ fun HistoryResultScreen(
                             } else {
                                 listOf(
                                     "IMPORTANT: Go to the veterinarian immediately for proper diagnosis and treatment.",
-                                    "Isolate infected birds immediately to prevent disease spread.",
+                                    "Isolate infected chicken immediately to prevent disease spread.",
                                     "Administer antibiotics only as prescribed by a veterinarian.",
                                     "Improve ventilation in the coop to reduce infection risk.",
                                     "Ensure clean water and high-quality feed to support recovery.",
@@ -474,14 +448,14 @@ fun HistoryResultScreen(
                                         text = "—  ",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = Color.Black
+                                            color = ThemeColorUtils.black()
                                         )
                                     )
                                     Text(
                                         text = suggestion,
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = Color.Black
+                                            color = ThemeColorUtils.black()
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -494,4 +468,3 @@ fun HistoryResultScreen(
         }
     }
 }
-

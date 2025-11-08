@@ -66,6 +66,7 @@ import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.frontend.utils.Validators
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @Composable
 fun LoginScreen(navController: NavController) {
@@ -154,7 +155,7 @@ fun LoginScreen(navController: NavController) {
                         Text(
                             text = "Welcome back, ${email.split("@")[0]}!",
                             style = MaterialTheme.typography.titleMedium,
-                            color = Color.White.copy(alpha = 0.8f)
+                            color = ThemeColorUtils.white(alpha = 0.8f)
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -172,18 +173,18 @@ fun LoginScreen(navController: NavController) {
                             Text("Invalid email format", color = MaterialTheme.colorScheme.error)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
+                        focusedTextColor = ThemeColorUtils.black(),
+                        unfocusedTextColor = ThemeColorUtils.black(),
                         cursorColor = Color(0xFF2F1801),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = ThemeColorUtils.white(),
+                        unfocusedContainerColor = ThemeColorUtils.white(),
                         focusedBorderColor = Color(0xFF2F1801),
-                        unfocusedBorderColor = Color.DarkGray,
+                        unfocusedBorderColor = ThemeColorUtils.darkGray(Color.DarkGray),
                         focusedLabelColor = Color(0xFF2F1801),
-                        unfocusedLabelColor = Color.DarkGray,
+                        unfocusedLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
                         errorBorderColor = Color.Red,
                         errorLabelColor = Color.Red,
-                        errorContainerColor = Color.White
+                        errorContainerColor = ThemeColorUtils.white()
                     )
                 )
                 Spacer(modifier = Modifier.height(16.dp))
@@ -198,7 +199,7 @@ fun LoginScreen(navController: NavController) {
                             Icon(
                                 imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
                                 contentDescription = "Toggle password visibility",
-                                tint = Color.DarkGray
+                                tint = ThemeColorUtils.darkGray(Color.DarkGray)
                             )
                         }
                     },
@@ -210,18 +211,18 @@ fun LoginScreen(navController: NavController) {
                             Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = Color.Black,
-                        unfocusedTextColor = Color.Black,
+                        focusedTextColor = ThemeColorUtils.black(),
+                        unfocusedTextColor = ThemeColorUtils.black(),
                         cursorColor = Color(0xFF2F1801),
-                        focusedContainerColor = Color.White,
-                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = ThemeColorUtils.white(),
+                        unfocusedContainerColor = ThemeColorUtils.white(),
                         focusedBorderColor = Color(0xFF2F1801),
-                        unfocusedBorderColor = Color.DarkGray,
+                        unfocusedBorderColor = ThemeColorUtils.darkGray(Color.DarkGray),
                         focusedLabelColor = Color(0xFF2F1801),
-                        unfocusedLabelColor = Color.DarkGray,
+                        unfocusedLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
                         errorBorderColor = Color.Red,
                         errorLabelColor = Color.Red,
-                        errorContainerColor = Color.White
+                        errorContainerColor = ThemeColorUtils.white()
                     )
                 )
                 Spacer(modifier = Modifier.height(8.dp))
@@ -237,7 +238,7 @@ fun LoginScreen(navController: NavController) {
                     ) {
                         Text(
                             text = "Forgot Password?",
-                            color = Color.White,
+                            color = ThemeColorUtils.white(),
                             modifier = Modifier
                                 .clickable { navController.navigate("reset_password") }
                                 .padding(4.dp)
@@ -264,13 +265,13 @@ fun LoginScreen(navController: NavController) {
                     shape = CircleShape,
                     colors = ButtonDefaults.elevatedButtonColors(
                         containerColor = Color(0xFFD27D2D),
-                        contentColor = Color.White,
+                        contentColor = ThemeColorUtils.white(),
                         disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.10f),
-                        disabledContentColor = Color.White.copy(alpha = 0.12f)
+                        disabledContentColor = ThemeColorUtils.white(alpha = 0.12f)
                     )
                 ) {
                     if (isLoading) {
-                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = ThemeColorUtils.white())
                     } else {
                         Text("Log In")
                     }
@@ -289,7 +290,7 @@ fun LoginScreen(navController: NavController) {
                 ) {
                     Text(
                         text = "Don't have an account? ",
-                        color = Color.White,
+                        color = ThemeColorUtils.white(),
                         fontWeight = FontWeight.Normal
                     )
                     Text(

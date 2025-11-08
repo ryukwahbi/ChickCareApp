@@ -12,6 +12,11 @@ class DetectionService(
     private val detectionRepository: DetectionRepository,
     private val context: Context
 ) {
+    companion object {
+        private val fusionModelMissingMessage =
+            "Detection Error: Fusion model is unavailable. Please ensure ${FusionClassifier.PRIMARY_MODEL_PATH} is in the assets folder."
+    }
+
     // Initialize classifiers lazily to prevent crashes on app startup if model loading fails
     private val imageClassifier by lazy { ChickenClassifier(context) }
     private val audioClassifier by lazy { AudioClassifier(context) }
@@ -168,7 +173,7 @@ class DetectionService(
                 }
             } else if (isImageDetection && isAudioDetection && !fusionClassifier.isModelAvailable()) {
                 android.util.Log.e("DetectionService", "Fusion model not available but both inputs provided!")
-                return@withContext false to "Detection Error: Fusion model is unavailable. Please ensure cnnmlp_fusion.tflite is in assets folder."
+                return@withContext false to fusionModelMissingMessage
             }
 
             // FALLBACK: Use individual classifiers if fusion is not available or failed
@@ -181,7 +186,7 @@ class DetectionService(
                     android.util.Log.w("DetectionService", "Image classifier not available (expected - using fusion model)")
                     // If fusion model also failed and we have both inputs, return error
                     if (!fusionClassifier.isModelAvailable() && isAudioDetection) {
-                        return@withContext false to "Detection Error: Fusion model is unavailable. Please ensure cnnmlp_fusion.tflite is in assets folder."
+                        return@withContext false to fusionModelMissingMessage
                     }
                     // If we only have image input but no image model, return specific error
                     if (!isAudioDetection) {
@@ -349,7 +354,7 @@ class DetectionService(
         if (isInfected) {
             listOf(
                 "⚠️ IMPORTANT: Go to the veterinarian immediately for proper diagnosis and treatment.",
-                "Isolate infected birds immediately to prevent disease spread.",
+                "Isolate infected chicken immediately to prevent disease spread.",
                 "Administer antibiotics only as prescribed by a veterinarian.",
                 "Improve ventilation in the coop to reduce infection risk.",
                 "Ensure clean water and high-quality feed to support recovery.",

@@ -53,17 +53,17 @@ class AuthViewModel : ViewModel() {
                 }
 
                 auth.signInWithEmailAndPassword(email, password).await()
-                
+
                 // Save account to AccountManager if context is provided
                 context?.let {
                     val accountManager = AccountManager(it)
                     val userId = auth.currentUser?.uid ?: ""
                     accountManager.updateAccountInfo(userId)
                 }
-                
+
                 // Get and save FCM token after successful login
                 saveFCMToken()
-                
+
                 fetchUserProfile() // Fetch profile after successful login
                 callback.onResult(true, "Login successful")
             } catch (_: FirebaseAuthInvalidCredentialsException) {
@@ -142,6 +142,41 @@ class AuthViewModel : ViewModel() {
                     )
                 }
             }
+    }
+
+    
+    fun changePassword(
+        oldPassword: String,
+        newPassword: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        val currentUser = auth.currentUser
+        if (currentUser == null) {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                // Re-authenticate user with old password
+                val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(
+                    currentUser.email ?: "",
+                    oldPassword
+                )
+                currentUser.reauthenticate(credential).await()
+                
+                // Update password
+                currentUser.updatePassword(newPassword).await()
+                
+                callback(true, "Password changed successfully")
+            } catch (_: FirebaseAuthInvalidCredentialsException) {
+                callback(false, "Current password is incorrect")
+            } catch (_: FirebaseAuthWeakPasswordException) {
+                callback(false, "New password is too weak. Use at least 8 characters with uppercase, lowercase, number, and special character")
+            } catch (e: Exception) {
+                callback(false, "Failed to change password: ${e.message}")
+            }
+        }
     }
 
     private fun fetchUserProfile() {

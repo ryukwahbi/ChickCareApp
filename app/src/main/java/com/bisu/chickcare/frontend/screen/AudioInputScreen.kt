@@ -60,6 +60,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,7 +75,10 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.navigation.NavController
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.io.File
 import java.util.Locale
 
@@ -85,6 +89,10 @@ fun AudioInputScreen(
     imageUri: String? = null
 ) {
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    val decodedImageUri = remember(imageUri) {
+        imageUri?.takeIf { it.isNotBlank() }?.let { Uri.decode(it) }
+    }
     var hasAudioPermission by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(
@@ -115,33 +123,44 @@ fun AudioInputScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
-            // Take persistent URI permission for content URIs (e.g., Google Drive)
-            if (it.scheme == "content") {
-                try {
-                    context.contentResolver.takePersistableUriPermission(
-                        it,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                    Log.d(
-                        "AudioInputScreen",
-                        "Took persistent URI permission for: $it"
-                    )
-                } catch (e: SecurityException) {
-                    Log.w(
-                        "AudioInputScreen",
-                        "Could not take persistent URI permission: ${e.message}"
-                    )
-                    // Continue anyway - MediaPlayer might still work
+            coroutineScope.launch {
+                var finalUriString = it.toString()
+                if (it.scheme == "content") {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            it,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        Log.d(
+                            "AudioInputScreen",
+                            "Took persistent URI permission for: $it"
+                        )
+                    } catch (e: Exception) {
+                        Log.w(
+                            "AudioInputScreen",
+                            "Could not take persistent URI permission: ${e.message}"
+                        )
+                    }
+                    persistUriToAppStorage(
+                        context = context,
+                        sourceUriString = it.toString(),
+                        subdirectory = "detection_audio",
+                        fallbackExtension = "m4a",
+                        logTag = "AudioInputScreen"
+                    )?.let { stored ->
+                        finalUriString = stored
+                    }
                 }
+                uploadedAudioUri = finalUriString
+                val fileUri = finalUriString.toUri()
+                fileUri.path?.let { path ->
+                    val possibleFile = File(path)
+                    if (possibleFile.exists()) {
+                        audioFile = possibleFile
+                    }
+                }
+                Log.d("AudioInputScreen", "Audio uploaded - URI: $finalUriString, hasAudio should now be true")
             }
-            uploadedAudioUri = it.toString()
-            // For content URIs, we don't need audioFile since we use uploadedAudioUri
-            // Only set audioFile if we have a valid file path
-            val filePath = it.path
-            if (!filePath.isNullOrEmpty() && File(filePath).exists()) {
-                audioFile = File(filePath)
-            }
-            Log.d("AudioInputScreen", "Audio uploaded - URI: $it, hasAudio should now be true")
         }
     }
 
@@ -428,7 +447,7 @@ fun AudioInputScreen(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFE3B386))
+                    .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
                     .statusBarsPadding()
                     .padding(top = 1.dp, bottom = 21.dp)
             ) {
@@ -439,7 +458,7 @@ fun AudioInputScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White
+                        tint = ThemeColorUtils.white()
                     )
                 }
 
@@ -448,9 +467,9 @@ fun AudioInputScreen(
                     style = MaterialTheme.typography.displayMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 25.sp,
-                        color = Color.White,
+                        color = ThemeColorUtils.black(),
                         shadow = androidx.compose.ui.graphics.Shadow(
-                            color = Color.Black.copy(alpha = 0.3f),
+                            color = ThemeColorUtils.black(alpha = 0.3f),
                             offset = androidx.compose.ui.geometry.Offset(2f, 2f),
                             blurRadius = 4f
                         )
@@ -468,8 +487,8 @@ fun AudioInputScreen(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color(0xFFF1E0C9),
-                                Color(0xFFF1E0C9)
+                                ThemeColorUtils.beige(Color(0xFFF1E0C9)),
+                                ThemeColorUtils.beige(Color(0xFFF1E0C9))
                             )
                         )
                     )
@@ -490,7 +509,7 @@ fun AudioInputScreen(
                             text = "Select Chicken Audio",
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF361601),
+                            color = ThemeColorUtils.black(),
                             textAlign = TextAlign.Center
                         )
 
@@ -512,11 +531,11 @@ fun AudioInputScreen(
                                 .shadow(
                                     elevation = 8.dp,
                                     shape = RoundedCornerShape(12.dp),
-                                    spotColor = Color.Black.copy(alpha = 0.15f)
+                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
                                 ),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color(0xFFFFF3CD)
+                                containerColor = ThemeColorUtils.beige(Color(0xFFFFF3CD))
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                         ) {
@@ -627,12 +646,12 @@ fun AudioInputScreen(
                                         .shadow(
                                             elevation = 6.dp,
                                             shape = RoundedCornerShape(20.dp),
-                                            spotColor = Color.Black.copy(alpha = 0.15f)
+                                            spotColor = ThemeColorUtils.black(alpha = 0.15f)
                                         ),
                                     shape = RoundedCornerShape(20.dp),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = Color.White
+                                        containerColor = ThemeColorUtils.white()
                                     )
                                 ) {
                                     Column(
@@ -689,7 +708,7 @@ fun AudioInputScreen(
                                                         Icon(
                                                             Icons.Default.Mic,
                                                             contentDescription = "Recording...",
-                                                            tint = Color.White,
+                                                            tint = ThemeColorUtils.white(),
                                                             modifier = Modifier.size(48.dp)
                                                         )
                                                     }
@@ -736,7 +755,7 @@ fun AudioInputScreen(
                                                     .shadow(
                                                         elevation = 4.dp,
                                                         shape = RoundedCornerShape(40.dp),
-                                                        spotColor = Color.Black.copy(alpha = 0.2f)
+                                                        spotColor = ThemeColorUtils.black(alpha = 0.2f)
                                                     )
                                                     .background(
                                                         Brush.radialGradient(
@@ -752,7 +771,7 @@ fun AudioInputScreen(
                                                 Icon(
                                                     Icons.Default.Mic,
                                                     contentDescription = "Record",
-                                                    tint = Color.White,
+                                                    tint = ThemeColorUtils.white(),
                                                     modifier = Modifier.size(40.dp)
                                                 )
                                             }
@@ -778,12 +797,12 @@ fun AudioInputScreen(
                                         .shadow(
                                             elevation = 6.dp,
                                             shape = RoundedCornerShape(20.dp),
-                                            spotColor = Color.Black.copy(alpha = 0.15f)
+                                            spotColor = ThemeColorUtils.black(alpha = 0.15f)
                                         ),
                                     shape = RoundedCornerShape(20.dp),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
                                     colors = CardDefaults.cardColors(
-                                        containerColor = Color.White
+                                        containerColor = ThemeColorUtils.white()
                                     )
                                 ) {
                                     Column(
@@ -799,7 +818,7 @@ fun AudioInputScreen(
                                                 .shadow(
                                                     elevation = 4.dp,
                                                     shape = RoundedCornerShape(40.dp),
-                                                    spotColor = Color.Black.copy(alpha = 0.2f)
+                                                    spotColor = ThemeColorUtils.black(alpha = 0.2f)
                                                 )
                                                 .background(
                                                     Brush.radialGradient(
@@ -815,7 +834,7 @@ fun AudioInputScreen(
                                             Icon(
                                                 Icons.Default.UploadFile,
                                                 contentDescription = "Upload",
-                                                tint = Color.White,
+                                                tint = ThemeColorUtils.white(),
                                                 modifier = Modifier.size(40.dp)
                                             )
                                         }
@@ -844,22 +863,22 @@ fun AudioInputScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f))
+                    .background(ThemeColorUtils.black(alpha = 0.7f))
             ) {
                 // Floating Dialog Card - Centered (3:4 aspect ratio - width:height)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
-                        .aspectRatio(3f / 4f) // 3:4 aspect ratio (width:height) - wider, less tall
+                        .aspectRatio(3f / 4f)
                         .align(Alignment.Center)
                         .shadow(
                             elevation = 24.dp,
                             shape = RoundedCornerShape(24.dp),
-                            spotColor = Color.Black.copy(alpha = 0.5f)
+                            spotColor = ThemeColorUtils.black(alpha = 0.5f)
                         ),
                     shape = RoundedCornerShape(24.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = Color.White
+                        containerColor = ThemeColorUtils.white()
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                 ) {
@@ -877,10 +896,9 @@ fun AudioInputScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.spacedBy(16.dp)
                             ) {
-                                // Large Check Circle Badge (similar to image preview)
                                 Box(
                                     modifier = Modifier
-                                        .size(140.dp)
+                                        .size(100.dp)
                                         .background(
                                             Brush.radialGradient(
                                                 colors = listOf(
@@ -900,12 +918,12 @@ fun AudioInputScreen(
                                     Icon(
                                         Icons.Default.CheckCircle,
                                         contentDescription = "Audio ready",
-                                        tint = Color.White,
+                                        tint = ThemeColorUtils.white(),
                                         modifier = Modifier.size(60.dp)
                                     )
                                 }
 
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(10.dp))
 
                                 Text(
                                     text = "Audio Ready!",
@@ -941,7 +959,6 @@ fun AudioInputScreen(
                                     )
                                 }
                                 
-                                // Audio Playback Controls
                                 Spacer(modifier = Modifier.height(12.dp))
                                 
                                 Card(
@@ -1060,7 +1077,7 @@ fun AudioInputScreen(
                                             Icon(
                                                 imageVector = if (isPlayingAudio) Icons.Default.Pause else Icons.Default.PlayArrow,
                                                 contentDescription = if (isPlayingAudio) "Pause" else "Play",
-                                                tint = Color.White,
+                                                tint = ThemeColorUtils.white(),
                                                 modifier = Modifier.size(28.dp)
                                             )
                                         }
@@ -1086,7 +1103,8 @@ fun AudioInputScreen(
                                 }
                             }
 
-                            // Action Buttons (matching ImageInputScreen layout)
+                            Spacer(modifier = Modifier.height(20.dp))
+
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -1111,7 +1129,7 @@ fun AudioInputScreen(
                                     Icon(
                                         Icons.Default.Refresh,
                                         contentDescription = "Retake",
-                                        tint = Color.White,
+                                        tint = ThemeColorUtils.white(),
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -1119,36 +1137,32 @@ fun AudioInputScreen(
                                         text = "Retake",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = ThemeColorUtils.white()
                                     )
                                 }
 
-                                // Process & Analyze Button (larger, like "Proceed Audio Input")
                                 Button(
                                     onClick = {
                                         val audioUri = uploadedAudioUri ?: audioFile?.let {
                                             Uri.fromFile(it).toString()
                                         }
-                                        val imgUri = imageUri ?: ""
+                                        val imgUri = decodedImageUri ?: ""
                                         
                                         Log.d("AudioInputScreen", "Process & Analyze clicked - audioUri: $audioUri, imageUri: $imgUri")
                                         
                                         if (audioUri != null) {
-                                            val encodedImage = if (imgUri.isNotEmpty()) {
-                                                java.net.URLEncoder.encode(
-                                                    imgUri,
-                                                    java.nio.charset.StandardCharsets.UTF_8.toString()
-                                                )
-                                            } else {
-                                                ""
-                                            }
-                                            val encodedAudio = java.net.URLEncoder.encode(
-                                                audioUri,
-                                                java.nio.charset.StandardCharsets.UTF_8.toString()
-                                            )
+                                            val encodedAudio = Uri.encode(audioUri)
+                                            val routeBuilder = StringBuilder("processing?audioUri=$encodedAudio")
                                             
-                                            Log.d("AudioInputScreen", "Navigating to processing with imageUri=$encodedImage&audioUri=$encodedAudio")
-                                            navController.navigate("processing?imageUri=$encodedImage&audioUri=$encodedAudio")
+                                            if (imgUri.isNotEmpty()) {
+                                                val encodedImage = Uri.encode(imgUri)
+                                                routeBuilder.append("&imageUri=").append(encodedImage)
+                                                Log.d("AudioInputScreen", "Navigating to processing with imageUri=$encodedImage&audioUri=$encodedAudio")
+                                            } else {
+                                                Log.d("AudioInputScreen", "Navigating to processing without imageUri, audioUri=$encodedAudio")
+                                            }
+                                            
+                                            navController.navigate(routeBuilder.toString())
                                         } else {
                                             Log.e("AudioInputScreen", "Cannot navigate: audioUri is null")
                                         }
@@ -1160,7 +1174,7 @@ fun AudioInputScreen(
                                         .shadow(
                                             elevation = 8.dp,
                                             shape = RoundedCornerShape(16.dp),
-                                            spotColor = Color.Black.copy(alpha = 0.3f)
+                                            spotColor = ThemeColorUtils.black(alpha = 0.3f)
                                         ),
                                     shape = RoundedCornerShape(16.dp),
                                     colors = ButtonDefaults.buttonColors(
@@ -1171,7 +1185,7 @@ fun AudioInputScreen(
                                         text = "Process & Analyze",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White
+                                        color = ThemeColorUtils.white()
                                     )
                                 }
                             }
@@ -1190,14 +1204,14 @@ fun AudioInputScreen(
                                 .align(Alignment.TopEnd)
                                 .padding(12.dp)
                                 .background(
-                                    Color.White.copy(alpha = 0.9f),
+                                    ThemeColorUtils.white(alpha = 0.9f),
                                     CircleShape
                                 )
                         ) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.Black,
+                                tint = ThemeColorUtils.black(),
                                 modifier = Modifier.size(24.dp)
                             )
                         }

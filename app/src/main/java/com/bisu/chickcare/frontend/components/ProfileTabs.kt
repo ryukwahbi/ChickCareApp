@@ -35,6 +35,7 @@ import com.bisu.chickcare.backend.repository.FriendSuggestion
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -42,7 +43,9 @@ fun TimelineTabContent(
     userProfile: UserProfile,
     suggestionCount: Int,
     onFriendSuggestions: () -> Unit,
-    onNavigateToPost: () -> Unit
+    onNavigateToPost: () -> Unit,
+    isViewingOwnProfile: Boolean,
+    timelineUserId: String
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -62,14 +65,18 @@ fun TimelineTabContent(
             },
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        FriendSuggestionsSection(
-            suggestionCount = suggestionCount,
-            onClick = onFriendSuggestions
-        )
+        if (isViewingOwnProfile) {
+            FriendSuggestionsSection(
+                suggestionCount = suggestionCount,
+                onClick = onFriendSuggestions
+            )
+        }
         
         PostsSection(
             userProfile = userProfile,
-            onNavigateToPost = onNavigateToPost  // This will navigate to post_detection_history
+            onNavigateToPost = onNavigateToPost,
+            isViewingOwnProfile = isViewingOwnProfile,
+            timelineUserId = timelineUserId  // ensures correct timeline source
         )
     }
 }
@@ -91,7 +98,7 @@ fun AboutTabContent(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = ThemeColorUtils.white()
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
         ) {
@@ -281,7 +288,7 @@ fun PhotosTabContent() {
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("No photos yet.", color = Color.Gray)
+        Text("No photos yet.", color = ThemeColorUtils.lightGray(Color.Gray))
     }
 }
 
@@ -298,7 +305,7 @@ fun AudiosTabContent() {
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("No audio recordings yet.", color = Color.Gray)
+        Text("No audio recordings yet.", color = ThemeColorUtils.lightGray(Color.Gray))
     }
 }
 
@@ -315,7 +322,6 @@ fun MoreTabContent() {
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(16.dp))
-        Text("More options coming soon.", color = Color.Gray)
+        Text("More options coming soon.", color = ThemeColorUtils.lightGray(Color.Gray))
     }
 }
-

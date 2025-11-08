@@ -28,7 +28,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -268,71 +267,39 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     private fun calculateTrendData(entries: List<DetectionEntry>): List<TrendDataPoint> {
         if (entries.isEmpty()) {
-            // Return empty data points for empty state
-            return listOf()
+            return emptyList()
         }
-        
-        // Group by days (last 5 days) - DAILY DATA POINTS
-        val calendar = Calendar.getInstance()
-        val dayGroups = mutableMapOf<String, Pair<Double, Double>>() // label to (avgHealthyConfidence, avgUnhealthyConfidence)
-        
-        // Get last 5 days
+
         val now = System.currentTimeMillis()
-        val fiveDaysAgo = now - (5 * 24 * 60 * 60 * 1000L) // 5 days in milliseconds
-        
-        // Filter entries to only last 5 days
-        val recentEntries = entries.filter { it.timestamp >= fiveDaysAgo }
-        
-        // Group by DAY - show ALL daily data points for last 5 days
-        // Process all 5 days to show complete trend
-        for (i in 0 until 5) {
-            calendar.timeInMillis = now
-            calendar.add(Calendar.DAY_OF_YEAR, -i)
-            calendar.set(Calendar.HOUR_OF_DAY, 0)
-            calendar.set(Calendar.MINUTE, 0)
-            calendar.set(Calendar.SECOND, 0)
-            calendar.set(Calendar.MILLISECOND, 0)
-            val dayStart = calendar.timeInMillis
-            
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
-            val dayEnd = calendar.timeInMillis
-            
-            // Format label: "MMM dd" (e.g., "Oct 03")
-            calendar.timeInMillis = dayStart
-            val label = SimpleDateFormat("MMM dd", Locale.getDefault()).format(dayStart)
-            
-            val dayEntries = recentEntries.filter { it.timestamp in dayStart until dayEnd }
-            
-            // Calculate average confidence for healthy and unhealthy detections for this day
-            // This shows the actual confidence values (0-100%) instead of just percentages
-            val healthyEntries = dayEntries.filter { it.isHealthy }
-            val unhealthyEntries = dayEntries.filter { !it.isHealthy }
-            
-            // Calculate average confidence * 100 to get percentage (0-100%)
-            val avgHealthyConfidence = if (healthyEntries.isNotEmpty()) {
-                healthyEntries.map { it.confidence * 100.0 }.average()
-            } else 0.0
-            
-            val avgUnhealthyConfidence = if (unhealthyEntries.isNotEmpty()) {
-                unhealthyEntries.map { it.confidence * 100.0 }.average()
-            } else 0.0
-            
-            // Add ALL days (even if 0) - this ensures we show the complete trend
-            dayGroups[label] = Pair(avgHealthyConfidence, avgUnhealthyConfidence)
+        val sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000L) // 7 days window
+
+        // Keep only the detections within the last 7 days and order chronologically
+        val recentEntries = entries
+            .filter { it.timestamp >= sevenDaysAgo }
+            .sortedBy { it.timestamp }
+
+        if (recentEntries.isEmpty()) {
+            return emptyList()
         }
-        
-        // Convert to list and sort by date to ensure proper chronological order
-        val sortedEntries = dayGroups.toList().sortedBy { (label, _) ->
-            try {
-                val date = SimpleDateFormat("MMM dd", Locale.getDefault()).parse(label)
-                date?.time ?: 0L
-            } catch (_: Exception) {
-                0L
-            }
-        }
-        
-        return sortedEntries.map { (label, averages) ->
-            TrendDataPoint(label, averages.first, averages.second)
+
+        val labelFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
+        val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
+
+        return recentEntries.mapIndexed { index, entry ->
+            val confidencePercent = (entry.confidence * 100.0).coerceIn(0.0, 100.0)
+            val healthyValue = if (entry.isHealthy) confidencePercent else 0.0
+            val unhealthyValue = if (!entry.isHealthy) confidencePercent else 0.0
+
+            // If multiple detections share the same day, append a sequence number to the label
+            val dateLabel = labelFormatter.format(entry.timestamp)
+            val timeLabel = timeFormatter.format(entry.timestamp)
+            val label = "$dateLabel\n$timeLabel"
+
+            TrendDataPoint(
+                label = label,
+                healthyAverage = healthyValue,
+                unhealthyAverage = unhealthyValue
+            )
         }
     }
     

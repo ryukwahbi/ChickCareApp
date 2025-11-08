@@ -66,6 +66,9 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.sanitizeToUri
+import com.bisu.chickcare.frontend.utils.sanitizeUriString
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -82,18 +85,16 @@ fun ResultScreen(
     var isSaving by remember { mutableStateOf(false) }
     // Create a MediaPlayer that is managed by the composable's lifecycle
     val mediaPlayer = remember { MediaPlayer() }
+    val sanitizedImageUriString = remember(imageUri) { sanitizeUriString(imageUri, "ResultScreen") }
+    val sanitizedImageUri = remember(imageUri) { sanitizeToUri(imageUri, "ResultScreen") }
+    val sanitizedAudioUriString = remember(audioUri) { sanitizeUriString(audioUri, "ResultScreen") }
+    val sanitizedAudioUri = remember(audioUri) { sanitizeToUri(audioUri, "ResultScreen") }
     
     // Grant URI permissions immediately when screen loads (before displaying images)
-    LaunchedEffect(imageUri, audioUri) {
+    LaunchedEffect(sanitizedImageUriString, sanitizedAudioUriString) {
         // Grant permissions for image URI for ALL content URIs
-        imageUri?.let { uriString ->
+        sanitizedImageUriString?.let { decodedUriString ->
             try {
-                // Decode URL encoding first (navigation may encode URIs)
-                val decodedUriString = try {
-                    java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (_: Exception) {
-                    uriString // Use original if decoding fails
-                }
                 val uri = decodedUriString.toUri()
                 // Grant permission for all content URIs
                 if (uri.scheme == "content") {
@@ -122,15 +123,8 @@ fun ResultScreen(
         }
         
         // Grant permissions for audio URI for ALL content URIs
-        audioUri?.let { uriString ->
+        sanitizedAudioUriString?.let { decodedUriString ->
             try {
-                // Decode URL encoding first (navigation may encode URIs)
-                val decodedUriString = try {
-                    java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (_: Exception) {
-                    uriString // Use original if decoding fails
-                }
-                
                 val uri = decodedUriString.toUri()
                 // Grant permission for all content URIs
                 if (uri.scheme == "content") {
@@ -167,7 +161,7 @@ fun ResultScreen(
 
     // Decode URL-encoded status (spaces become + in URLs)
     val decodedStatus = try {
-        java.net.URLDecoder.decode(status, "UTF-8")
+        Uri.decode(status)
     } catch (e: Exception) {
         Log.w("ResultScreen", "Failed to decode status: ${e.message}, using original")
         status
@@ -277,7 +271,7 @@ fun ResultScreen(
                         "Detection Result",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 24.sp,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -285,14 +279,14 @@ fun ResultScreen(
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black,
-                    navigationIconContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black(),
+                    navigationIconContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -301,7 +295,7 @@ fun ResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC)) // Light beige background
+                .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
         ) {
             AsyncImage(
                 model = backgroundUrl,
@@ -321,7 +315,7 @@ fun ResultScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.white().copy(alpha = 0.9f)),
                         elevation = CardDefaults.cardElevation(8.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -330,64 +324,40 @@ fun ResultScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             // If an image URI is present, show the image. Otherwise, show an icon.
-                            if (!imageUri.isNullOrEmpty()) {
-                                // Decode URL encoding first if needed, then convert to Uri
-                                val decodedImageUriString = try {
-                                    java.net.URLDecoder.decode(imageUri, "UTF-8")
-                                } catch (e: Exception) {
-                                    Log.w("ResultScreen", "Failed to decode image URI: ${e.message}, using original")
-                                    imageUri
-                                }
-                                val imageUriObj = try {
-                                    decodedImageUriString.toUri()
-                                } catch (e: Exception) {
-                                    Log.w("ResultScreen", "Failed to parse image URI: ${e.message}")
-                                    null
-                                }
-                                
-                                if (imageUriObj != null) {
-                                    // Create ImageRequest with permission flags for content URIs
-                                    // Coil automatically handles content URIs with proper permissions
-                                    val imageRequest = ImageRequest.Builder(context)
-                                        .data(imageUriObj)
-                                        .build()
-                                    
-                                    AsyncImage(
-                                        model = imageRequest,
-                                        contentDescription = "Detection Input Image",
-                                        modifier = Modifier
-                                            .size(200.dp)
-                                            .clip(RoundedCornerShape(12.dp)),
-                                        contentScale = ContentScale.Crop,
-                                        onError = { errorState ->
-                                            val error = errorState.result.throwable
-                                            Log.e("ResultScreen", "Failed to load image: $decodedImageUriString - ${error.message}")
-                                            // Try to read image using ContentResolver as fallback
-                                            try {
-                                                if (error.message?.contains("Permission Denial") == true) {
-                                                    Log.w("ResultScreen", "Permission denied, attempting to read via ContentResolver")
-                                                    // The permission issue will be handled by the error callback
-                                                    // User will see fallback icon
-                                                }
-                                            } catch (e: Exception) {
-                                                Log.e("ResultScreen", "Fallback image read also failed: ${e.message}")
+                            if (!sanitizedImageUriString.isNullOrEmpty() && sanitizedImageUri != null) {
+                                // Create ImageRequest with permission flags for content URIs
+                                // Coil automatically handles content URIs with proper permissions
+                                val imageRequest = ImageRequest.Builder(context)
+                                    .data(sanitizedImageUri)
+                                    .build()
+
+                                AsyncImage(
+                                    model = imageRequest,
+                                    contentDescription = "Detection Input Image",
+                                    modifier = Modifier
+                                        .size(200.dp)
+                                        .clip(RoundedCornerShape(12.dp)),
+                                    contentScale = ContentScale.Crop,
+                                    onError = { errorState ->
+                                        val error = errorState.result.throwable
+                                        Log.e("ResultScreen", "Failed to load image: $sanitizedImageUriString - ${error.message}")
+                                        // Try to read image using ContentResolver as fallback
+                                        try {
+                                            if (error.message?.contains("Permission Denial") == true) {
+                                                Log.w("ResultScreen", "Permission denied, attempting to read via ContentResolver")
+                                                // The permission issue will be handled by the error callback
+                                                // User will see fallback icon
                                             }
-                                        },
-                                        onSuccess = {
-                                            Log.d("ResultScreen", "Successfully loaded detection image: $decodedImageUriString")
+                                        } catch (e: Exception) {
+                                            Log.e("ResultScreen", "Fallback image read also failed: ${e.message}")
                                         }
-                                    )
-                                } else {
-                                    // Fallback icon if URI parsing fails
-                                    Icon(
-                                        imageVector = Icons.Default.Healing,
-                                        contentDescription = "Health Icon",
-                                        modifier = Modifier.size(200.dp),
-                                        tint = resultColor
-                                    )
-                                }
+                                    },
+                                    onSuccess = {
+                                        Log.d("ResultScreen", "Successfully loaded detection image: $sanitizedImageUriString")
+                                    }
+                                )
                             } else {
-                                // Fallback for when there's no image (e.g., audio-only detection)
+                                // Fallback icon if image is missing or invalid
                                 Icon(
                                     imageVector = Icons.Default.Healing,
                                     contentDescription = "Health Icon",
@@ -427,59 +397,39 @@ fun ResultScreen(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        // Result line: "Result: Healthy" or "Result: Infected"
-                                        Row(
-                                            horizontalArrangement = Arrangement.Center,
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            Text(
-                                                text = "Result: ",
-                                                style = MaterialTheme.typography.headlineMedium.copy(
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 28.sp,
-                                                    color = Color.Black
-                                                )
-                                            )
-                                            Text(
-                                                text = resultText,
-                                                style = MaterialTheme.typography.headlineMedium.copy(
-                                                    fontWeight = FontWeight.ExtraBold,
-                                                    fontSize = 28.sp,
-                                                    color = resultColor // Green for Healthy, Red for Infected
-                                                )
-                                            )
+                                        val displayResultText = if (confidenceText.isNotEmpty()) {
+                                            "$resultText - $confidenceText%"
+                                        } else {
+                                            resultText
                                         }
 
-                                        // Confidence line: "Confidence: XX.X"
+                                        Text(
+                                            text = "Result: $displayResultText",
+                                            style = MaterialTheme.typography.headlineMedium.copy(
+                                                fontWeight = FontWeight.ExtraBold,
+                                                fontSize = 28.sp,
+                                                color = resultColor // Green for Healthy, Red for Infected
+                                            ),
+                                            textAlign = TextAlign.Center
+                                        )
+
                                         if (confidenceText.isNotEmpty()) {
                                             Spacer(modifier = Modifier.height(8.dp))
-                                            Row(
-                                                horizontalArrangement = Arrangement.Center,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Text(
-                                                    text = "Confidence: ",
-                                                    style = MaterialTheme.typography.titleLarge.copy(
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        fontSize = 20.sp,
-                                                        color = Color.Black
-                                                    )
-                                                )
-                                                Text(
-                                                    text = "$confidenceText%",
-                                                    style = MaterialTheme.typography.titleLarge.copy(
-                                                        fontWeight = FontWeight.SemiBold,
-                                                        fontSize = 20.sp,
-                                                        color = Color.Black
-                                                    )
-                                                )
-                                            }
+                                            Text(
+                                                text = "Confidence: $confidenceText%",
+                                                style = MaterialTheme.typography.titleLarge.copy(
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 20.sp,
+                                                    color = ThemeColorUtils.black()
+                                                ),
+                                                textAlign = TextAlign.Center
+                                            )
                                         }
                                     }
                                 }
                             }
                             // --- Play Audio Button (only shows if audioUri exists) ---
-                            if (!audioUri.isNullOrEmpty()) {
+                            if (!sanitizedAudioUriString.isNullOrEmpty() && sanitizedAudioUri != null) {
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Button(
                                     onClick = {
@@ -498,7 +448,7 @@ fun ResultScreen(
                                             }
                                         } else {
                                             try {
-                                                val decodedAudioUri = Uri.decode(audioUri).toUri()
+                                                val decodedAudioUri = sanitizedAudioUri
                                                 Log.d(
                                                     "ResultScreen",
                                                     "Attempting to play audio: $decodedAudioUri"
@@ -652,7 +602,7 @@ fun ResultScreen(
                                         }
                                     },
                                     colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isPlaying) Color.DarkGray else Color(
+                                        containerColor = if (isPlaying) ThemeColorUtils.darkGray(Color.DarkGray) else Color(
                                             0xFF7BC0F6
                                         )
                                     )
@@ -673,7 +623,9 @@ fun ResultScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFFF3E0)),
+                        colors = CardDefaults.cardColors(
+                            containerColor = ThemeColorUtils.beige(Color(0xFFFFF3E0))
+                        ),
                         elevation = CardDefaults.cardElevation(12.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -706,7 +658,7 @@ fun ResultScreen(
                                     text = buildAnnotatedString {
                                         withStyle(
                                             style = SpanStyle(
-                                                color = Color.Black,
+                                            color = ThemeColorUtils.black(),
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         ) {
@@ -722,7 +674,7 @@ fun ResultScreen(
                                         }
                                         withStyle(
                                             style = SpanStyle(
-                                                color = Color.Black,
+                                            color = ThemeColorUtils.black(),
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         ) {
@@ -773,14 +725,14 @@ fun ResultScreen(
                                 Icon(
                                     imageVector = Icons.Default.Call,
                                     contentDescription = null,
-                                    tint = Color.White
+                                    tint = ThemeColorUtils.white()
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "Find Nearby Veterinarian",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                    color = ThemeColorUtils.white()
                                 )
                             }
                         }
@@ -791,7 +743,7 @@ fun ResultScreen(
                 item {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.white().copy(alpha = 0.9f)),
                         elevation = CardDefaults.cardElevation(8.dp),
                         shape = RoundedCornerShape(16.dp)
                     ) {
@@ -805,7 +757,7 @@ fun ResultScreen(
                                     text = "⬤",
                                     style = MaterialTheme.typography.headlineMedium.copy(
                                         fontSize = 20.sp,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -813,7 +765,7 @@ fun ResultScreen(
                                     text = "Recommended Actions After Detection",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 )
                             }
@@ -862,14 +814,14 @@ fun ResultScreen(
                                         text = "—  ",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = Color.Black
+                                            color = ThemeColorUtils.black()
                                         )
                                     )
                                     Text(
                                         text = suggestion,
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = Color.Black
+                                            color = ThemeColorUtils.black()
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -900,7 +852,7 @@ fun ResultScreen(
                             text = "Done - Back to Dashboard",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color.White
+                            color = ThemeColorUtils.white()
                         )
                     }
                 }
@@ -932,8 +884,8 @@ fun ResultScreen(
                         resultString = decodedStatus,
                         isHealthy = isHealthy,
                         confidence = confidenceValue,
-                        imageUri = imageUri,
-                        audioUri = audioUri,
+                        imageUri = sanitizedImageUriString,
+                        audioUri = sanitizedAudioUriString,
                         context = context,
                         recommendations = recommendations
                     )

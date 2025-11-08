@@ -52,6 +52,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @Composable
 fun WeatherUpdateCard() {
@@ -127,7 +128,7 @@ fun WeatherUpdateCard() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.PaddingLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
         elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -147,7 +148,7 @@ fun WeatherUpdateCard() {
                         Text(
                             location,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
+                            color = ThemeColorUtils.lightGray(Color.Gray),
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -156,7 +157,7 @@ fun WeatherUpdateCard() {
                     Text(
                         "Today",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray,
+                        color = ThemeColorUtils.lightGray(Color.Gray),
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     IconButton(onClick = { weatherViewModel.fetchWeather(useCelsius = useCelsius) }) {
@@ -173,10 +174,10 @@ fun WeatherUpdateCard() {
                             .padding(2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val selectedBg = Color.White
+                        val selectedBg = ThemeColorUtils.white()
                         val unselectedBg = Color(0xFFF1F1F1)
                         val selectedColor = Color(0xFF000000)
-                        val unselectedColor = Color(0xFF666666)
+                        val unselectedColor = ThemeColorUtils.lightGray(Color(0xFF666666))
 
                         Box(
                             modifier = Modifier
@@ -223,7 +224,7 @@ fun WeatherUpdateCard() {
                     Text(
                         "Loading weather...",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
             } else {
@@ -240,7 +241,7 @@ fun WeatherUpdateCard() {
                         Text(
                             "Location is off. Using default city.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
+                            color = ThemeColorUtils.lightGray(Color.Gray),
                             modifier = Modifier.weight(1f)
                         )
                         Text(
@@ -281,7 +282,7 @@ fun WeatherUpdateCard() {
                         Text(
                             weatherCondition,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = Color.Gray,
+                            color = ThemeColorUtils.lightGray(Color.Gray),
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -325,7 +326,7 @@ fun WeatherUpdateCard() {
                     Text(
                         "Next hours",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.Gray,
+                        color = ThemeColorUtils.lightGray(Color.Gray),
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                     LazyRow(
@@ -342,9 +343,9 @@ fun WeatherUpdateCard() {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
-                                Text(hour, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text(hour, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.lightGray(Color.Gray))
                                 Text("$t°", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text(condition, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                                Text(condition, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.lightGray(Color.Gray))
                                 Text("$pop%", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2196F3))
                             }
                         }
@@ -379,8 +380,7 @@ fun RowScope.WeatherInfoItem(
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color.Gray
+            color = ThemeColorUtils.lightGray(Color.Gray)
         )
     }
 }
-

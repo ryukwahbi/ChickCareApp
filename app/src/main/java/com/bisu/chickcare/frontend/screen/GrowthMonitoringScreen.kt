@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import java.text.SimpleDateFormat
 import java.util.*
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class GrowthRecord(
     val id: String,
@@ -80,7 +81,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
                         "Growth Monitoring",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -88,13 +89,13 @@ fun GrowthMonitoringScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -102,7 +103,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
             FloatingActionButton(
                 onClick = { /* Add new record */ },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Record")
             }
@@ -112,7 +113,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Summary Cards
             Row(
@@ -129,7 +130,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
                 )
                 Card(
                     modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
@@ -146,7 +147,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
                         Text(
                             text = "Avg Weight (kg)",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -158,7 +159,7 @@ fun GrowthMonitoringScreen(navController: NavController) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .height(200.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(
@@ -179,12 +180,12 @@ fun GrowthMonitoringScreen(navController: NavController) {
                         text = "Growth Chart",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                     Text(
                         text = "Visual representation of weight trends",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
             }
@@ -220,7 +221,7 @@ fun GrowthRecordCard(record: GrowthRecord) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -255,12 +256,12 @@ fun GrowthRecordCard(record: GrowthRecord) {
                 Text(
                     text = "ID: ${record.chickenId} | Age: ${record.age} weeks",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
                 Text(
                     text = dateFormat.format(Date(record.date)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
 
@@ -301,14 +302,14 @@ fun GrowthRecordCard(record: GrowthRecord) {
 
         if (record.notes.isNotEmpty()) {
             Surface(
-                color = Color(0xFFF5F5DC),
+                color = ThemeColorUtils.beige(Color(0xFFF5F5DC)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "📝 ${record.notes}",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF231C16)
+                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             }
         }
@@ -319,7 +320,7 @@ fun GrowthRecordCard(record: GrowthRecord) {
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -336,9 +337,8 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
 }
-

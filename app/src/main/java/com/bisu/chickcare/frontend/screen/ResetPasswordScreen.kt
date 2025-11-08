@@ -1,5 +1,12 @@
 package com.bisu.chickcare.frontend.screen
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,17 +40,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.frontend.utils.Validators
 import kotlinx.coroutines.delay
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 private enum class MessageType {
     NONE, SUCCESS, ERROR
@@ -61,33 +73,57 @@ fun ResetPasswordScreen(navController: NavController) {
     var isSuccess by remember { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black,
-        disabledTextColor = Color.Black,
+        focusedTextColor = ThemeColorUtils.black(),
+        unfocusedTextColor = ThemeColorUtils.black(),
+        disabledTextColor = ThemeColorUtils.black(),
         cursorColor = Color(0xFF2F1801),
-        focusedContainerColor = Color.White,
-        unfocusedContainerColor = Color.White,
-        disabledContainerColor = Color.White,
-        focusedBorderColor = Color.Black,
-        unfocusedBorderColor = Color.Black,
-        disabledBorderColor = Color.Black,
+        focusedContainerColor = ThemeColorUtils.white(),
+        unfocusedContainerColor = ThemeColorUtils.white(),
+        disabledContainerColor = ThemeColorUtils.white(),
+        focusedBorderColor = ThemeColorUtils.black(),
+        unfocusedBorderColor = ThemeColorUtils.black(),
+        disabledBorderColor = ThemeColorUtils.black(),
         focusedLabelColor = Color(0xFF2F1801),
-        unfocusedLabelColor = Color.DarkGray,
-        disabledLabelColor = Color.DarkGray,
+        unfocusedLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
+        disabledLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
         errorBorderColor = Color.Red,
         errorLabelColor = Color.Red,
         errorCursorColor = Color.Red,
-        errorContainerColor = Color.White
+        errorContainerColor = ThemeColorUtils.white()
     )
 
-    Box(modifier = Modifier.fillMaxSize()) {
+    val infiniteTransition = rememberInfiniteTransition(label = "reset_background_zoom")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 15000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "reset_zoom_scale"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.farm_background),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .scale(scale)
+                .alpha(0.4f),
+            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+        )
+
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFDAAE73).copy(alpha = 0.75f),
+                            Color(0xFFDAAE73).copy(alpha = 0.6f),
                             Color(0xFF946644).copy(alpha = 0.7f),
                             Color(0xFF5C4033).copy(alpha = 0.95f)
                         )
@@ -98,8 +134,8 @@ fun ResetPasswordScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(10.dp)
-                .padding(top = 68.dp),
+                .padding(horizontal = 16.dp)
+                .padding(top = 72.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Top
         ) {
@@ -109,7 +145,7 @@ fun ResetPasswordScreen(navController: NavController) {
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.White,
+                    tint = ThemeColorUtils.white(),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -120,7 +156,7 @@ fun ResetPasswordScreen(navController: NavController) {
                 text = "Reset Password",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.White
+                color = ThemeColorUtils.white()
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -129,7 +165,7 @@ fun ResetPasswordScreen(navController: NavController) {
                 text = "Enter your email address and we'll send you a link to reset your password.",
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Normal,
-                color = Color.White.copy(alpha = 0.8f),
+                color = ThemeColorUtils.white(alpha = 0.8f),
                 textAlign = TextAlign.Start
             )
 
@@ -191,9 +227,9 @@ fun ResetPasswordScreen(navController: NavController) {
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFD27D2D),
-                    contentColor = Color.White,
+                    contentColor = ThemeColorUtils.white(),
                     disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
-                    disabledContentColor = Color.White.copy(alpha = 0.8f)
+                    disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
                 ),
                 elevation = ButtonDefaults.buttonElevation(
                     defaultElevation = 8.dp,
@@ -204,7 +240,7 @@ fun ResetPasswordScreen(navController: NavController) {
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(24.dp),
-                        color = Color.White,
+                        color = ThemeColorUtils.white(),
                         strokeWidth = 2.dp
                     )
                 } else {

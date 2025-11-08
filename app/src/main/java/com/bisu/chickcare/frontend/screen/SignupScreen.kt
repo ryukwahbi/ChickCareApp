@@ -95,6 +95,7 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -204,23 +205,23 @@ fun SignupScreen(navController: NavController) {
     val fullContact = (if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code) + contactInput
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black,
-        disabledTextColor = Color.Black,
+        focusedTextColor = ThemeColorUtils.black(),
+        unfocusedTextColor = ThemeColorUtils.black(),
+        disabledTextColor = ThemeColorUtils.black(),
         cursorColor = Color(0xFF2F1801),
-        focusedContainerColor = Color.White,
-        unfocusedContainerColor = Color.White,
-        disabledContainerColor = Color.White,
-        focusedBorderColor = Color.Black,
-        unfocusedBorderColor = Color.Black,
-        disabledBorderColor = Color.Black,
+        focusedContainerColor = ThemeColorUtils.white(),
+        unfocusedContainerColor = ThemeColorUtils.white(),
+        disabledContainerColor = ThemeColorUtils.white(),
+        focusedBorderColor = ThemeColorUtils.black(),
+        unfocusedBorderColor = ThemeColorUtils.black(),
+        disabledBorderColor = ThemeColorUtils.black(),
         focusedLabelColor = Color(0xFF2F1801),
-        unfocusedLabelColor = Color.DarkGray,
-        disabledLabelColor = Color.DarkGray,
+        unfocusedLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
+        disabledLabelColor = ThemeColorUtils.darkGray(Color.DarkGray),
         errorBorderColor = Color.Red,
         errorLabelColor = Color.Red,
         errorCursorColor = Color.Red,
-        errorContainerColor = Color.White
+        errorContainerColor = ThemeColorUtils.white()
     )
 
     val title = when (step) {
@@ -288,7 +289,7 @@ fun SignupScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color.White
+                                tint = ThemeColorUtils.white()
                             )
                         }
                     },
@@ -310,12 +311,12 @@ fun SignupScreen(navController: NavController) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleLarge,
-                    color = Color.White
+                    color = ThemeColorUtils.white()
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.White.copy(alpha = 0.8f),
+                    color = ThemeColorUtils.white(alpha = 0.8f),
                     modifier = Modifier.padding(top = 8.dp)
                 )
                 Spacer(modifier = Modifier.height(32.dp))
@@ -367,9 +368,9 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White,
+                                contentColor = ThemeColorUtils.white(),
                                 disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
-                                disabledContentColor = Color.White.copy(alpha = 0.8f)
+                                disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
                             ),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 8.dp,
@@ -393,7 +394,7 @@ fun SignupScreen(navController: NavController) {
                                 Icon(
                                     imageVector = Icons.Default.CalendarToday,
                                     contentDescription = "Select date",
-                                    tint = Color.Black
+                                    tint = ThemeColorUtils.black()
                                 )
                             },
                             shape = RoundedCornerShape(12.dp),
@@ -421,9 +422,9 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White,
+                                contentColor = ThemeColorUtils.white(),
                                 disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
-                                disabledContentColor = Color.White.copy(alpha = 0.8f)
+                                disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
                             ),
                             elevation = ButtonDefaults.buttonElevation(
                                 defaultElevation = 8.dp,
@@ -497,19 +498,19 @@ fun SignupScreen(navController: NavController) {
                                         onClick = null,
                                         colors = RadioButtonDefaults.colors(
                                             selectedColor = Color(0xFFD27D2D),
-                                            unselectedColor = Color.White
+                                            unselectedColor = ThemeColorUtils.white()
                                         )
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
                                     if (text != "More options") {
-                                        Text(text, style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                                        Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.white())
                                     } else {
                                         Column {
-                                            Text(text, style = MaterialTheme.typography.bodyLarge, color = Color.White)
+                                            Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.white())
                                             Text(
                                                 "Select More options to choose another gender or if you’d rather not say.",
                                                 style = MaterialTheme.typography.bodySmall,
-                                                color = Color.White.copy(alpha = 0.7f)
+                                                color = ThemeColorUtils.white(alpha = 0.7f)
                                             )
                                         }
                                     }
@@ -604,7 +605,7 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White
+                                contentColor = ThemeColorUtils.white()
                             )
                         ) {
                             Text("Next")
@@ -629,7 +630,7 @@ fun SignupScreen(navController: NavController) {
                                             Icon(
                                                 Icons.Default.ArrowDropDown,
                                                 contentDescription = "Select Country",
-                                                tint = Color.Black
+                                                tint = ThemeColorUtils.black()
                                             )
                                         }
                                     },
@@ -661,7 +662,7 @@ fun SignupScreen(navController: NavController) {
                                     Text(
                                         text = if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code,
                                         modifier = Modifier.padding(start = 16.dp),
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 }
                             )
@@ -690,7 +691,7 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White
+                                contentColor = ThemeColorUtils.white()
                             )
                         ) {
                             Text("Next")
@@ -728,7 +729,7 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White
+                                contentColor = ThemeColorUtils.white()
                             )
                         ) {
                             Text("Next")
@@ -813,11 +814,11 @@ fun SignupScreen(navController: NavController) {
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = Color.White
+                                contentColor = ThemeColorUtils.white()
                             )
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White)
+                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = ThemeColorUtils.white())
                             } else {
                                 Text("Sign Up")
                             }
@@ -839,7 +840,7 @@ fun SignupScreen(navController: NavController) {
         if (showCountryDialog) {
             AlertDialog(
                 modifier = Modifier
-                    .border(2.dp, Color.Black, RoundedCornerShape(16.dp))
+                    .border(2.dp, ThemeColorUtils.black(), RoundedCornerShape(16.dp))
                     .sizeIn(maxHeight = 400.dp),
                 onDismissRequest = { showCountryDialog = false },
                 title = {
@@ -852,7 +853,7 @@ fun SignupScreen(navController: NavController) {
                         Text(
                             text = "Select Country",
                             style = MaterialTheme.typography.titleLarge,
-                            color = Color.Black,
+                            color = ThemeColorUtils.black(),
                             modifier = Modifier.padding(start = 16.dp)
                         )
                         IconButton(
@@ -862,7 +863,7 @@ fun SignupScreen(navController: NavController) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Close",
-                                tint = Color.Black
+                                tint = ThemeColorUtils.black()
                             )
                         }
                     }
@@ -889,7 +890,7 @@ fun SignupScreen(navController: NavController) {
                                 Text(
                                     text = country.name,
                                     style = MaterialTheme.typography.bodyLarge,
-                                    color = Color.Black
+                                    color = ThemeColorUtils.black()
                                 )
                             }
                         }
@@ -897,7 +898,7 @@ fun SignupScreen(navController: NavController) {
                 },
                 confirmButton = {},
                 dismissButton = {},
-                containerColor = Color.White,
+                containerColor = ThemeColorUtils.white(),
                 shape = RoundedCornerShape(16.dp)
             )
         }

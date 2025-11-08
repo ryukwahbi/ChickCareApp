@@ -1,6 +1,7 @@
 package com.bisu.chickcare
 
 import android.Manifest
+import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -40,8 +41,16 @@ import com.bisu.chickcare.frontend.screen.ProcessingScreen
 import com.bisu.chickcare.frontend.screen.ProfileScreen
 import com.bisu.chickcare.frontend.screen.RecentlyDeletedScreen
 import com.bisu.chickcare.frontend.screen.ResetPasswordScreen
+import com.bisu.chickcare.frontend.screen.SavedPostsScreen
 import com.bisu.chickcare.frontend.screen.ResultScreen
 import com.bisu.chickcare.frontend.screen.SettingsScreen
+import com.bisu.chickcare.frontend.screen.AccountSettingsScreen
+import com.bisu.chickcare.frontend.screen.SecurityPrivacyScreen
+import com.bisu.chickcare.frontend.screen.NotificationSettingsScreen
+import com.bisu.chickcare.frontend.screen.AboutScreen
+import com.bisu.chickcare.frontend.screen.LanguageSettingsScreen
+import com.bisu.chickcare.frontend.screen.PrivacyPolicyScreen
+import com.bisu.chickcare.frontend.screen.TermsOfServiceScreen
 import com.bisu.chickcare.frontend.screen.SignupScreen
 import com.bisu.chickcare.frontend.screen.TrashScreen
 import com.bisu.chickcare.frontend.screen.WelcomeScreen
@@ -59,9 +68,14 @@ import com.bisu.chickcare.frontend.screen.ReportsAnalyticsScreen
 import com.bisu.chickcare.frontend.screen.RecentActivityScreen
 import com.bisu.chickcare.frontend.screen.FarmInsightsScreen
 import com.bisu.chickcare.frontend.screen.AnnouncementsScreen
+import com.bisu.chickcare.backend.utils.LocaleHelper
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
+    
+    override fun attachBaseContext(newBase: Context) {
+        super.attachBaseContext(LocaleHelper.attachBaseContext(newBase))
+    }
     
     private val requestNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -125,12 +139,30 @@ class MainActivity : ComponentActivity() {
                         composable("reset_password") { ResetPasswordScreen(navController) }
                         composable("action_tools") { ActionScreen(navController) }
                         composable("settings") { SettingsScreen(navController) }
+                        composable("account_settings") { AccountSettingsScreen(navController) }
+                        composable("security_privacy_settings") { SecurityPrivacyScreen(navController) }
+                        composable("notification_settings") { NotificationSettingsScreen(navController) }
+                        composable("about_settings") { AboutScreen(navController) }
+                        composable("language_settings") { LanguageSettingsScreen(navController) }
+                        composable("privacy_policy") { PrivacyPolicyScreen(navController) }
+                        composable("terms_of_service") { TermsOfServiceScreen(navController) }
                         composable("dashboard") {
                             MainScreen(navController = navController) { paddingValues ->
                                 DashboardScreen(navController = navController)
                             }
                         }
-                        composable("profile") { ProfileScreen(navController) }
+                        composable(
+                            route = "profile?initialTab={initialTab}",
+                            arguments = listOf(
+                                navArgument("initialTab") {
+                                    type = NavType.IntType
+                                    defaultValue = 0
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val initialTab = backStackEntry.arguments?.getInt("initialTab") ?: 0
+                            ProfileScreen(navController = navController, initialTab = initialTab)
+                        }
                         composable(
                             route = "view_profile?userId={userId}",
                             arguments = listOf(
@@ -190,10 +222,9 @@ class MainActivity : ComponentActivity() {
                         composable("post_detection_history") { PostDetectionHistoryScreen(navController) }
                         composable("recently_deleted") { RecentlyDeletedScreen(navController) }
                         composable("favorites") { FavoritesScreen(navController) }
+                        composable("saved_posts") { SavedPostsScreen(navController) }
                         composable("archives") { ArchivesScreen(navController) }
                         composable("trash") { TrashScreen(navController) }
-
-                        // New feature screens
                         composable("health_records") { HealthRecordsScreen(navController) }
                         composable("vaccination_schedule") { VaccinationScheduleScreen(navController) }
                         composable("feeding_schedule") { FeedingScheduleScreen(navController) }
@@ -343,11 +374,10 @@ class MainActivity : ComponentActivity() {
                             val isHealthy = backStackEntry.arguments?.getBoolean("isHealthy") ?: false
                             val confidence = backStackEntry.arguments?.getFloat("confidence") ?: 0f
                             val recommendationsStr = backStackEntry.arguments?.getString("recommendations") ?: ""
-                            val recommendations = if (recommendationsStr.isNotEmpty()) {
-                                recommendationsStr.split("|")
-                            } else {
-                                emptyList()
-                            }
+                            val recommendations = recommendationsStr
+                                .split("|")
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
                             
                             val entry = DetectionEntry(
                                 id = entryId,
@@ -396,7 +426,12 @@ class MainActivity : ComponentActivity() {
                             ResultScreen(
                                 navController = navController,
                                 status = backStackEntry.arguments?.getString("status") ?: "Unknown",
-                                suggestions = backStackEntry.arguments?.getString("suggestions")?.split('|') ?: emptyList(),
+                                suggestions = backStackEntry.arguments
+                                    ?.getString("suggestions")
+                                    ?.split('|')
+                                    ?.map { it.trim() }
+                                    ?.filter { it.isNotEmpty() }
+                                    ?: emptyList(),
                                 imageUri = backStackEntry.arguments?.getString("imageUri"),
                                 audioUri = backStackEntry.arguments?.getString("audioUri")
                             )

@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import kotlinx.coroutines.delay
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @Composable
 fun WelcomeScreen(navController: NavController) {
@@ -118,7 +119,7 @@ fun WelcomeScreen(navController: NavController) {
                     onDrawWithContent {
                         drawContent()
                         drawCircle(
-                            color = Color.Black.copy(alpha = 0.05f),
+                            color = ThemeColorUtils.black(alpha = 0.05f),
                             radius = size.minDimension / 4,
                             center = center
                         )

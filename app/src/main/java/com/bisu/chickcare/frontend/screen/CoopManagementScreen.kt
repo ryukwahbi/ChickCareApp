@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class Coop(
     val id: String,
@@ -93,7 +94,7 @@ fun CoopManagementScreen(navController: NavController) {
                         "Coop Management",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -101,13 +102,13 @@ fun CoopManagementScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -115,7 +116,7 @@ fun CoopManagementScreen(navController: NavController) {
             FloatingActionButton(
                 onClick = { /* Add new coop */ },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Coop")
             }
@@ -125,7 +126,7 @@ fun CoopManagementScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Summary Cards
             Row(
@@ -142,7 +143,7 @@ fun CoopManagementScreen(navController: NavController) {
                 )
                 Card(
                     modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
@@ -159,7 +160,7 @@ fun CoopManagementScreen(navController: NavController) {
                         Text(
                             text = "Utilization",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -176,7 +177,7 @@ fun CoopManagementScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                 elevation = CardDefaults.cardElevation(2.dp)
             ) {
                 Column(
@@ -208,7 +209,7 @@ fun CoopManagementScreen(navController: NavController) {
                         progress = { totalOccupancy.toFloat() / totalCapacity },
                         modifier = Modifier.fillMaxWidth(),
                         color = Color(0xFF4CAF50),
-                        trackColor = Color.Gray.copy(alpha = 0.2f)
+                        trackColor = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.2f)
                     )
                 }
             }
@@ -242,7 +243,7 @@ fun CoopCard(coop: Coop) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -284,19 +285,19 @@ fun CoopCard(coop: Coop) {
                                 Icons.Default.LocationOn,
                                 contentDescription = null,
                                 modifier = Modifier.size(16.dp),
-                                tint = Color.Gray
+                                tint = ThemeColorUtils.lightGray(Color.Gray)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
                                 text = coop.location,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                         Text(
                             text = coop.type,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -327,7 +328,7 @@ fun CoopCard(coop: Coop) {
                     Text(
                         text = "Occupancy",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                     Text(
                         text = "${coop.currentOccupancy} / ${coop.capacity}",
@@ -348,7 +349,7 @@ fun CoopCard(coop: Coop) {
                 progress = { occupancyPercentage / 100f },
                 modifier = Modifier.fillMaxWidth(),
                 color = statusColor,
-                trackColor = Color.Gray.copy(alpha = 0.2f)
+                trackColor = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.2f)
             )
         }
     }
@@ -358,7 +359,7 @@ fun CoopCard(coop: Coop) {
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -375,9 +376,8 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
 }
-

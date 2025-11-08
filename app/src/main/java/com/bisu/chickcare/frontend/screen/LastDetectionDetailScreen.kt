@@ -47,10 +47,14 @@ import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.frontend.utils.sanitizeToUri
+import com.bisu.chickcare.frontend.utils.sanitizeUriString
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,29 +66,19 @@ fun LastDetectionDetailScreen(
     
     // Grant URI permissions for content URIs before loading images
     LaunchedEffect(entry.imageUri) {
-        entry.imageUri?.let { uriString ->
+        val sanitizedString = sanitizeUriString(entry.imageUri, "LastDetectionDetail")
+        val uri = sanitizeToUri(entry.imageUri, "LastDetectionDetail")
+        if (sanitizedString != null && uri?.scheme == "content") {
             try {
-                val decodedUriString = try {
-                    java.net.URLDecoder.decode(uriString, "UTF-8")
-                } catch (_: Exception) {
-                    uriString
-                }
-                val uri = decodedUriString.toUri()
-                if (uri.scheme == "content") {
-                    try {
-                        context.contentResolver.takePersistableUriPermission(
-                            uri,
-                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                        )
-                        Log.d("LastDetectionDetail", "Taken persistable URI permission for: $decodedUriString")
-                    } catch (e: SecurityException) {
-                        Log.w("LastDetectionDetail", "Cannot take persistable permission (may not support it): $decodedUriString - ${e.message}")
-                    } catch (e: Exception) {
-                        Log.w("LastDetectionDetail", "Error taking persistable permission: $decodedUriString - ${e.message}")
-                    }
-                }
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+                Log.d("LastDetectionDetail", "Taken persistable URI permission for: $sanitizedString")
+            } catch (e: SecurityException) {
+                Log.w("LastDetectionDetail", "Cannot take persistable permission (may not support it): $sanitizedString - ${e.message}")
             } catch (e: Exception) {
-                Log.w("LastDetectionDetail", "Error parsing URI for permission: ${e.message}")
+                Log.w("LastDetectionDetail", "Error taking persistable permission: $sanitizedString - ${e.message}")
             }
         }
     }
@@ -96,7 +90,7 @@ fun LastDetectionDetailScreen(
                     Text(
                         text = "Detection Details",
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -104,7 +98,7 @@ fun LastDetectionDetailScreen(
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
@@ -130,15 +124,16 @@ fun LastDetectionDetailScreen(
                 // Date and Time Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     elevation = CardDefaults.cardElevation(8.dp),
                     shape = RoundedCornerShape(20.dp)
                 ) {
-                    Column(
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Default.CalendarMonth,
@@ -146,30 +141,33 @@ fun LastDetectionDetailScreen(
                             modifier = Modifier.size(64.dp),
                             tint = Color(0xFFD27D2D)
                         )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            text = "Date and Time",
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF333333)
+                        Column(
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text(
+                                text = "Date and Time",
+                                style = MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF333333)
+                                )
                             )
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text(
-                            text = formatLastDetectionDate(entry.timestamp),
-                            style = MaterialTheme.typography.headlineMedium.copy(
-                                fontWeight = FontWeight.SemiBold,
-                                color = Color(0xFFD27D2D)
-                            ),
-                            textAlign = TextAlign.Center
-                        )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = formatLastDetectionDate(entry.timestamp),
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Color(0xFFD27D2D)
+                                ),
+                                textAlign = TextAlign.Start
+                            )
+                        }
                     }
                 }
 
                 // Location Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     elevation = CardDefaults.cardElevation(8.dp),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -203,10 +201,16 @@ fun LastDetectionDetailScreen(
                                         )
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
+                                    val formattedLocation = entry.location
+                                        ?.replace("+", " ")
+                                        ?.replace(",", ", ")
+                                        ?.replace("\\s+".toRegex(), " ")
+                                        ?.trim()
+
                                     Text(
-                                        text = entry.location ?: "Location not available",
+                                        text = formattedLocation ?: "Location not available",
                                         style = MaterialTheme.typography.bodyLarge.copy(
-                                            color = if (entry.location.isNullOrEmpty()) Color.Gray else Color(0xFF666666)
+                                            color = if (entry.location.isNullOrEmpty()) ThemeColorUtils.lightGray(Color.Gray) else ThemeColorUtils.lightGray(Color(0xFF666666))
                                         )
                                     )
                                 }
@@ -270,7 +274,7 @@ fun LastDetectionDetailScreen(
                 if (!entry.imageUri.isNullOrEmpty()) {
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(8.dp),
                         shape = RoundedCornerShape(20.dp)
                     ) {
@@ -291,39 +295,31 @@ fun LastDetectionDetailScreen(
                             
                             // Decode and parse the image URI - handle URL encoding from navigation
                             // entry.imageUri is already checked for null/empty in the outer if condition
-                            val imageUriString = entry.imageUri
-                            val decodedImageUriString = try {
-                                // Try to decode URL encoding first
-                                java.net.URLDecoder.decode(imageUriString, "UTF-8")
-                            } catch (e: Exception) {
-                                Log.w("LastDetectionDetail", "Failed to decode image URI: ${e.message}, using original")
-                                imageUriString
-                            }
-                            
-                            val imageUri = try {
-                                decodedImageUriString.toUri()
-                            } catch (e: Exception) {
-                                Log.w("LastDetectionDetail", "Failed to parse image URI: ${e.message}")
-                                null
-                            }
-                            
-                            // Show only the actual captured image - no placeholder
-                            if (imageUri != null) {
-                                AsyncImage(
-                                    model = imageUri,
-                                    contentDescription = "Detection Image",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(300.dp)
-                                        .clip(RoundedCornerShape(16.dp)),
-                                    contentScale = ContentScale.Crop,
-                                    onError = {
-                                        Log.e("LastDetectionDetail", "Failed to load image: $decodedImageUriString - ${it.result.throwable.message}")
-                                    },
-                                    onSuccess = {
-                                        Log.d("LastDetectionDetail", "Successfully loaded detection image: $decodedImageUriString")
-                                    }
-                                )
+                val imageUriString = entry.imageUri
+                val sanitizedUriString = sanitizeUriString(imageUriString, "LastDetectionDetail")
+                val imageUri = sanitizeToUri(imageUriString, "LastDetectionDetail")
+
+                if (sanitizedUriString != null && imageUri != null) {
+                    val imageRequest = ImageRequest.Builder(context)
+                        .data(imageUri)
+                        .crossfade(true)
+                        .build()
+
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = "Detection Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp)
+                            .clip(RoundedCornerShape(16.dp)),
+                        contentScale = ContentScale.Crop,
+                        onError = {
+                            Log.e("LastDetectionDetail", "Failed to load image: $sanitizedUriString - ${it.result.throwable.message}")
+                        },
+                        onSuccess = {
+                            Log.d("LastDetectionDetail", "Successfully loaded detection image: $sanitizedUriString")
+                        }
+                    )
                             }
                         }
                     }
@@ -332,7 +328,7 @@ fun LastDetectionDetailScreen(
                 // Additional Info Card
                 Card(
                     modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     elevation = CardDefaults.cardElevation(8.dp),
                     shape = RoundedCornerShape(20.dp)
                 ) {
@@ -357,35 +353,51 @@ fun LastDetectionDetailScreen(
                                 text = "Status:",
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF666666)
+                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
                                 )
                             )
+                            val cleanedStatus = entry.result
+                                .replace("�", "%")
+                                .replace("+", " ")
+                                .replace("\\s+".toRegex(), " ")
+                                .trim()
+                            val statusLabel = cleanedStatus
+                                .substringBefore("(")
+                                .substringBefore(":")
+                                .substringBefore("%")
+                                .trim()
+                                .ifEmpty { cleanedStatus.substringBefore("%").trim() }
+                                .ifEmpty { if (entry.isHealthy) "Healthy" else "Unhealthy" }
+                            val confidenceValue = (entry.confidence * 100).coerceAtLeast(0f)
                             Text(
-                                text = entry.result,
+                                text = "$statusLabel - ${confidenceValue.formatOneDecimal()}%",
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
                                 )
                             )
                         }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = "Confidence:",
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFF666666)
+                        if (entry.confidence > 0f) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "Confidence:",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                    )
                                 )
-                            )
-                            Text(
-                                text = "${(entry.confidence * 100).toInt()}%",
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFD27D2D)
+                                val confidenceValue = (entry.confidence * 100).coerceAtLeast(0f)
+                                Text(
+                                    text = "${confidenceValue.formatOneDecimal()}%",
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFFD27D2D)
+                                    )
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -401,3 +413,4 @@ fun formatLastDetectionDate(timestamp: Long): String {
     return "${dateFormat.format(date)}\n${timeFormat.format(date)}"
 }
 
+private fun Float.formatOneDecimal(): String = String.format(Locale.getDefault(), "%.1f", this)

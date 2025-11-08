@@ -3,8 +3,6 @@ package com.bisu.chickcare.frontend.screen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.BitmapFactory
-import android.graphics.BitmapFactory.Options
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -63,9 +62,9 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.InputStream
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -76,7 +75,7 @@ fun ImageInputScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var imageAspectRatio by remember { mutableStateOf<Float?>(null) }
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(navBackStackEntry?.savedStateHandle) {
         navBackStackEntry?.savedStateHandle?.get<String>("capturedImageUri")?.let { uriString ->
@@ -110,79 +109,43 @@ fun ImageInputScreen(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let {
-            // Take persistable URI permission immediately when image is selected
-            // This is critical for content URIs to ensure we can access them later
-            // Note: GetContent() may not support persistable permissions for all URI types
-            // For picker URIs, we need to use OpenDocument() or PickVisualMedia() instead
-            if (it.scheme == "content") {
-                try {
-                    // Try to take persistable permission
-                    context.contentResolver.takePersistableUriPermission(
-                        it,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                    )
-                    android.util.Log.d(
-                        "ImageInputScreen",
-                        "Taken persistable URI permission for image: $it"
-                    )
-                } catch (e: SecurityException) {
-                    android.util.Log.w(
-                        "ImageInputScreen",
-                        "Cannot take persistable URI permission (GetContent() may not support persistable for this URI type): ${e.message}. URI: $it"
-                    )
-                    // Continue anyway - might still have temporary access for now
-                    // For future: consider using OpenDocument() or PickVisualMedia() instead
-                } catch (e: Exception) {
-                    android.util.Log.w(
-                        "ImageInputScreen",
-                        "Error taking persistable URI permission: ${e.message}"
-                    )
+            coroutineScope.launch {
+                var finalUriString = it.toString()
+                if (it.scheme == "content") {
+                    try {
+                        context.contentResolver.takePersistableUriPermission(
+                            it,
+                            Intent.FLAG_GRANT_READ_URI_PERMISSION
+                        )
+                        android.util.Log.d(
+                            "ImageInputScreen",
+                            "Taken persistable URI permission for image: $it"
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.w(
+                            "ImageInputScreen",
+                            "Persistable permission not granted for image: ${e.message}"
+                        )
+                    }
+                    persistUriToAppStorage(
+                        context = context,
+                        sourceUriString = it.toString(),
+                        subdirectory = "detection_images",
+                        fallbackExtension = "jpg",
+                        logTag = "ImageInputScreen"
+                    )?.let { stored ->
+                        finalUriString = stored
+                    }
                 }
+
+                val finalUri = finalUriString.toUri()
+                selectedImageUri = finalUri
+                onImageSelected(finalUri)
             }
-            selectedImageUri = it
-            onImageSelected(it)
-            // Aspect ratio will be loaded by LaunchedEffect when selectedImageUri changes
         }
     }
 
     // Function to load image dimensions and calculate aspect ratio
-    suspend fun loadImageAspectRatio(context: android.content.Context, uri: Uri) {
-        withContext(Dispatchers.IO) {
-            try {
-                val inputStream: InputStream? = context.contentResolver.openInputStream(uri)
-                inputStream?.use { stream ->
-                    val options = Options().apply {
-                        inJustDecodeBounds = true // Only decode bounds, not the full image
-                    }
-                    BitmapFactory.decodeStream(stream, null, options)
-                    if (options.outWidth > 0 && options.outHeight > 0) {
-                        val aspectRatio = options.outWidth.toFloat() / options.outHeight.toFloat()
-                        withContext(Dispatchers.Main) {
-                            imageAspectRatio = aspectRatio
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                // Fallback to 1:1 if we can't load dimensions
-                withContext(Dispatchers.Main) {
-                    imageAspectRatio = 1f
-                }
-            }
-        }
-    }
-
-    // Load aspect ratio when image URI changes (from camera or other sources)
-    LaunchedEffect(selectedImageUri) {
-        selectedImageUri?.let { uri ->
-            // Reset aspect ratio and load new one
-            imageAspectRatio = null
-            loadImageAspectRatio(context, uri)
-        } ?: run {
-            imageAspectRatio = null // Reset when no image
-        }
-    }
-
     val scaleCamera by animateFloatAsState(
         targetValue = if (selectedImageUri == null) 1f else 0.95f,
         animationSpec = tween(300),
@@ -200,7 +163,7 @@ fun ImageInputScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFFE3B386))
+                .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
                 .statusBarsPadding()
                 .padding(top = 1.dp, bottom = 21.dp),
             contentAlignment = Alignment.CenterStart
@@ -210,9 +173,9 @@ fun ImageInputScreen(
                 style = MaterialTheme.typography.displayMedium.copy(
                     fontWeight = FontWeight.Bold,
                     fontSize = 25.sp,
-                    color = Color.White,
+                    color = ThemeColorUtils.black(),
                     shadow = androidx.compose.ui.graphics.Shadow(
-                        color = Color.Black.copy(alpha = 0.3f),
+                        color = ThemeColorUtils.black(alpha = 0.3f),
                         offset = androidx.compose.ui.geometry.Offset(2f, 2f),
                         blurRadius = 4f
                     )
@@ -228,8 +191,8 @@ fun ImageInputScreen(
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            Color(0xFFF1E0C9),
-                            Color(0xFFF1E0C9)
+                            ThemeColorUtils.beige(Color(0xFFF1E0C9)),
+                            ThemeColorUtils.beige(Color(0xFFF1E0C9))
                         )
                     )
                 )
@@ -250,7 +213,7 @@ fun ImageInputScreen(
                         text = "Select Chicken Image",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF361601),
+                        color = ThemeColorUtils.black(),
                         textAlign = TextAlign.Center
                     )
 
@@ -272,11 +235,11 @@ fun ImageInputScreen(
                             .shadow(
                                 elevation = 8.dp,
                                 shape = RoundedCornerShape(12.dp),
-                                spotColor = Color.Black.copy(alpha = 0.15f)
+                                spotColor = ThemeColorUtils.black(alpha = 0.15f)
                             ),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFFFF3CD)
+                            containerColor = ThemeColorUtils.beige(Color(0xFFFFF3CD))
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
                     ) {
@@ -288,48 +251,48 @@ fun ImageInputScreen(
                                 text = "NOTE: Image Capture Guidelines",
                                 fontSize = 18.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = Color(0xFF575450)
+                                color = ThemeColorUtils.darkGray(Color(0xFF575450))
                             )
 
                             HorizontalDivider(
                                 thickness = 1.5.dp,
-                                color = Color(0xFF6C6242).copy(alpha = 0.5f)
+                                color = ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                             )
 
                             Text(
                                 text = "—  Capture a CLEAR focused photo of the chicken's face and head area.",
                                 fontSize = 15.5.sp,
-                                color = Color(0xFF000000),
+                                color = ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Ensure GOOD LIGHTING avoid shadows or dark areas that hide details.",
                                 fontSize = 15.5.sp,
-                                color = Color(0xFF000000),
+                                color = ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Focus on the HEAD REGION capture symptoms like nasal discharge, facial swelling, or eye issues.",
                                 fontSize = 15.5.sp,
-                                color = Color(0xFF000000),
+                                color = ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Get CLOSE ENOUGH the chicken should fill most of the frame for accurate analysis.",
                                 fontSize = 15.5.sp,
-                                color = Color(0xFF000000),
+                                color = ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Keep the chicken STILL, wait for it to be calm before capturing.",
                                 fontSize = 15.5.sp,
-                                color = Color(0xFF000000),
+                                color = ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
 
                             HorizontalDivider(
                                 thickness = 1.5.dp,
-                                color = Color(0xFF6C6242).copy(alpha = 0.5f)
+                                color = ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                             )
 
                             Text(
@@ -372,13 +335,13 @@ fun ImageInputScreen(
                                     .shadow(
                                         elevation = 6.dp,
                                         shape = RoundedCornerShape(20.dp),
-                                        spotColor = Color.Black.copy(alpha = 0.15f)
+                                        spotColor = ThemeColorUtils.black(alpha = 0.15f)
                                     ),
                                 shape = RoundedCornerShape(20.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White
-                                )
+                            colors = CardDefaults.cardColors(
+                                containerColor = ThemeColorUtils.white()
+                            )
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -393,7 +356,7 @@ fun ImageInputScreen(
                                             .shadow(
                                                 elevation = 4.dp,
                                                 shape = RoundedCornerShape(40.dp),
-                                                spotColor = Color.Black.copy(alpha = 0.2f)
+                                                spotColor = ThemeColorUtils.black(alpha = 0.2f)
                                             )
                                             .background(
                                                 Brush.radialGradient(
@@ -409,7 +372,7 @@ fun ImageInputScreen(
                                         Icon(
                                             Icons.Default.CameraAlt,
                                             contentDescription = "Camera",
-                                            tint = Color.White,
+                                            tint = ThemeColorUtils.white(),
                                             modifier = Modifier.size(40.dp)
                                         )
                                     }
@@ -434,13 +397,13 @@ fun ImageInputScreen(
                                     .shadow(
                                         elevation = 6.dp,
                                         shape = RoundedCornerShape(20.dp),
-                                        spotColor = Color.Black.copy(alpha = 0.15f)
+                                        spotColor = ThemeColorUtils.black(alpha = 0.15f)
                                     ),
                                 shape = RoundedCornerShape(20.dp),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                                colors = CardDefaults.cardColors(
-                                    containerColor = Color.White
-                                )
+                            colors = CardDefaults.cardColors(
+                                containerColor = ThemeColorUtils.white()
+                            )
                             ) {
                                 Column(
                                     modifier = Modifier
@@ -455,7 +418,7 @@ fun ImageInputScreen(
                                             .shadow(
                                                 elevation = 4.dp,
                                                 shape = RoundedCornerShape(40.dp),
-                                                spotColor = Color.Black.copy(alpha = 0.2f)
+                                                spotColor = ThemeColorUtils.black(alpha = 0.2f)
                                             )
                                             .background(
                                                 Brush.radialGradient(
@@ -471,7 +434,7 @@ fun ImageInputScreen(
                                         Icon(
                                             Icons.Default.UploadFile,
                                             contentDescription = "Upload",
-                                            tint = Color.White,
+                                            tint = ThemeColorUtils.white(),
                                             modifier = Modifier.size(40.dp)
                                         )
                                     }
@@ -494,43 +457,24 @@ fun ImageInputScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.7f))
+                        .background(ThemeColorUtils.black(alpha = 0.7f))
                 ) {
-                    val dialogAspectRatio =
-                        imageAspectRatio ?: 1f
-                    val constrainedAspectRatio = dialogAspectRatio.coerceIn(0.5f, 2.0f)
-
-                    val maxWidthFraction = 0.77f
-                    val maxHeightFraction = 0.85f
+                    val maxWidthFraction = 0.82f
+                    val maxHeightFraction = 0.70f
 
                     Card(
                         modifier = Modifier
-                            .then(
-                                if (imageAspectRatio != null) {
-                                    if (constrainedAspectRatio >= 1f) {
-                                        Modifier
-                                            .fillMaxWidth(maxWidthFraction)
-                                            .aspectRatio(constrainedAspectRatio)
-                                    } else {
-                                        Modifier
-                                            .fillMaxHeight(maxHeightFraction)
-                                            .aspectRatio(constrainedAspectRatio)
-                                    }
-                                } else {
-                                    Modifier
-                                        .fillMaxWidth(maxWidthFraction)
-                                        .fillMaxHeight(maxHeightFraction)
-                                }
-                            )
+                            .fillMaxWidth(maxWidthFraction)
+                            .fillMaxHeight(maxHeightFraction)
                             .align(Alignment.Center)
                             .shadow(
                                 elevation = 24.dp,
                                 shape = RoundedCornerShape(24.dp),
-                                spotColor = Color.Black.copy(alpha = 0.5f)
+                                spotColor = ThemeColorUtils.black(alpha = 0.5f)
                             ),
                         shape = RoundedCornerShape(24.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = Color.White
+                            containerColor = ThemeColorUtils.white()
                         ),
                         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
                     ) {
@@ -551,15 +495,15 @@ fun ImageInputScreen(
                                 ) {
                                     Card(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .fillMaxHeight()
+                                            .fillMaxWidth(0.91f)
+                                            .aspectRatio(1f)
                                             .shadow(
                                                 elevation = 8.dp,
                                                 shape = RoundedCornerShape(16.dp)
                                             ),
                                         shape = RoundedCornerShape(16.dp),
                                         colors = CardDefaults.cardColors(
-                                            containerColor = Color.Gray
+                                            containerColor = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize()) {
@@ -588,7 +532,7 @@ fun ImageInputScreen(
                                                 Icon(
                                                     Icons.Default.CheckCircle,
                                                     contentDescription = "Selected",
-                                                    tint = Color.White,
+                                                    tint = ThemeColorUtils.white(),
                                                     modifier = Modifier.size(28.dp)
                                                 )
                                             }
@@ -621,7 +565,7 @@ fun ImageInputScreen(
                                             text = "Retake",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = ThemeColorUtils.white()
                                         )
                                     }
 
@@ -629,10 +573,7 @@ fun ImageInputScreen(
                                     Button(
                                         onClick = {
                                             selectedImageUri?.let { uri ->
-                                                val encodedUri = java.net.URLEncoder.encode(
-                                                    uri.toString(),
-                                                    java.nio.charset.StandardCharsets.UTF_8.toString()
-                                                )
+                                                val encodedUri = Uri.encode(uri.toString())
                                                 navController.navigate("audio_input?imageUri=$encodedUri")
                                             }
                                         },
@@ -642,7 +583,7 @@ fun ImageInputScreen(
                                             .shadow(
                                                 elevation = 8.dp,
                                                 shape = RoundedCornerShape(16.dp),
-                                                spotColor = Color.Black.copy(alpha = 0.3f)
+                                                spotColor = ThemeColorUtils.black(alpha = 0.3f)
                                             ),
                                         shape = RoundedCornerShape(16.dp),
                                         colors = ButtonDefaults.buttonColors(
@@ -653,7 +594,7 @@ fun ImageInputScreen(
                                             text = "Proceed Audio Input",
                                             fontSize = 16.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color.White
+                                            color = ThemeColorUtils.white()
                                         )
                                     }
                                 }
@@ -663,20 +604,19 @@ fun ImageInputScreen(
                             IconButton(
                                 onClick = {
                                     selectedImageUri = null
-                                    imageAspectRatio = null
                                 },
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .padding(12.dp)
                                     .background(
-                                        Color.White.copy(alpha = 0.9f),
+                                        ThemeColorUtils.white(alpha = 0.9f),
                                         CircleShape
                                     )
                             ) {
                                 Icon(
                                     Icons.Default.Close,
                                     contentDescription = "Close",
-                                    tint = Color.Black,
+                                    tint = ThemeColorUtils.black(),
                                     modifier = Modifier.size(24.dp)
                                 )
                             }

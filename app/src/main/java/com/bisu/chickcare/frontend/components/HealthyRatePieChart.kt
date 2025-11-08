@@ -7,14 +7,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 enum class ChartType {
     HEALTHY_ONLY,
@@ -63,7 +60,7 @@ fun HealthyRatePieChart(
         Text(
             text = displayTitle,
             style = MaterialTheme.typography.titleSmall,
-            color = Color.Gray,
+            color = ThemeColorUtils.lightGray(Color.Gray),
             fontWeight = FontWeight.Bold
         )
         
@@ -85,7 +82,7 @@ fun HealthyRatePieChart(
                 
                 // Draw background (white/grey for remaining portion)
                 drawArc(
-                    color = Color(0xFFE0E0E0), // Light grey background
+                    color = ThemeColorUtils.lightGray(Color(0xFFE0E0E0)), // Light grey background
                     startAngle = startAngle,
                     sweepAngle = 360f,
                     useCenter = true,
@@ -107,7 +104,7 @@ fun HealthyRatePieChart(
                 
                 // Draw center circle for donut effect
                 drawCircle(
-                    color = Color.White,
+                    color = ThemeColorUtils.white(),
                     radius = radius * 0.5f,
                     center = center
                 )
@@ -155,7 +152,7 @@ private fun LegendItem(label: String, color: Color, value: String) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
         Spacer(modifier = Modifier.height(4.dp))
@@ -163,8 +160,7 @@ private fun LegendItem(label: String, color: Color, value: String) {
             text = value,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
-            color = Color.Black
+            color = ThemeColorUtils.black()
         )
     }
 }
-

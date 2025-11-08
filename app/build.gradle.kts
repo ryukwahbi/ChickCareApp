@@ -66,6 +66,11 @@ android {
     androidResources {
         noCompress.add("tflite")
     }
+    @Suppress("DEPRECATION")
+    kotlinOptions {
+        @Suppress("DEPRECATION")
+        freeCompilerArgs = listOf("-XXLanguage:+PropertyParamAnnotationDefaultTargetMode")
+    }
 }
 
 configurations.all {

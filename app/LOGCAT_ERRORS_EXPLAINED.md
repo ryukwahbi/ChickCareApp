@@ -180,3 +180,13 @@ In Android Studio Logcat:
 **Status:** ✅ All errors are non-critical and expected. Your app is working fine! Test your Firebase operations to confirm! 🎯
 
 
+
+
+
+
+
+
+
+
+
+

@@ -63,6 +63,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,7 +86,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                     Text(
                         "Detection History",
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -93,12 +94,12 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White
+                    containerColor = ThemeColorUtils.white()
                 )
             )
         }
@@ -114,7 +115,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                 Text(
                     text = "No detection history yet.",
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
         } else {
@@ -211,7 +212,7 @@ fun DetectionHistoryItem(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -238,7 +239,7 @@ fun DetectionHistoryItem(
                 DropdownMenu(
                     expanded = isMenuExpanded,
                     onDismissRequest = { onMenuExpandedChange(null) },
-                    modifier = Modifier.background(Color.White)
+                    modifier = Modifier.background(ThemeColorUtils.white())
                 ) {
                     DropdownMenuItem(
                         text = { Text("Public") },
@@ -297,13 +298,13 @@ fun DetectionHistoryItem(
                             text = userName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color = ThemeColorUtils.black()
                         )
                         selectedVisibility?.let { visibility ->
                             Icon(
                                 imageVector = if (visibility == "public") Icons.Default.Public else Icons.Default.Lock,
                                 contentDescription = visibility,
-                                tint = Color.Gray,
+                                tint = ThemeColorUtils.lightGray(Color.Gray),
                                 modifier = Modifier.size(14.dp)
                             )
                         }
@@ -311,7 +312,7 @@ fun DetectionHistoryItem(
                     Text(
                         text = dateString,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
                 
@@ -326,7 +327,7 @@ fun DetectionHistoryItem(
                     Text(
                         text = "Confidence: ${(detection.confidence * 100).toInt()}%",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
             }
@@ -365,4 +366,3 @@ fun DetectionHistoryItem(
         }
     }
 }
-

@@ -47,6 +47,7 @@ import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun FavoritesScreen(navController: NavController) {
                         "Favorites",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -70,13 +71,13 @@ fun FavoritesScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -103,7 +104,7 @@ fun FavoritesScreen(navController: NavController) {
                             Text(
                                 text = "No favorite items found.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -151,7 +152,7 @@ fun FavoriteItemCard(
                 )
             },
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
     ) {
         Row(
             modifier = Modifier
@@ -182,7 +183,7 @@ fun FavoriteItemCard(
                     text = dashboardViewModel.formatDate(entry.timestamp),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black
+                    color = ThemeColorUtils.black()
                 )
                 
                 if (!entry.location.isNullOrEmpty()) {
@@ -192,13 +193,13 @@ fun FavoriteItemCard(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = "Location",
                             modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
+                            tint = ThemeColorUtils.lightGray(Color.Gray)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = entry.location,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -214,4 +215,3 @@ fun FavoriteItemCard(
         }
     }
 }
-

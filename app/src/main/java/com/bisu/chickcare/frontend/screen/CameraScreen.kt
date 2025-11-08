@@ -85,6 +85,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -97,7 +98,7 @@ fun CameraScreen(navController: NavController) {
     val uiState by viewModel.uiState.collectAsState()
     var isCapturing by remember { mutableStateOf(false) }
     var showPermissionDialog by remember { mutableStateOf(false) }
-    var showGrid by remember { mutableStateOf(true) }
+    var showGrid by remember { mutableStateOf(false) }
     var flashMode by remember { mutableIntStateOf(ImageCapture.FLASH_MODE_OFF) }
     var isBackCamera by remember { mutableStateOf(true) }
     
@@ -189,7 +190,7 @@ fun CameraScreen(navController: NavController) {
                         "Capture Image",
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 24.sp,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     ) 
                 },
                 navigationIcon = {
@@ -197,13 +198,13 @@ fun CameraScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack, 
                             contentDescription = "Back",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
-                    titleContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -213,11 +214,11 @@ fun CameraScreen(navController: NavController) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.7f)),
+                    .background(ThemeColorUtils.black(alpha = 0.7f)),
                 contentAlignment = Alignment.Center
             ) {
                 Card(
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.padding(32.dp)
                 ) {
@@ -244,7 +245,7 @@ fun CameraScreen(navController: NavController) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(Color(0xFFE3B386)),
+                    .background(ThemeColorUtils.beige(Color(0xFFE3B386))),
                 contentAlignment = Alignment.TopCenter
             ) {
                 // Camera preview container with 3:4 aspect ratio
@@ -262,9 +263,9 @@ fun CameraScreen(navController: NavController) {
                             .shadow(
                                 elevation = 8.dp,
                                 shape = RoundedCornerShape(12.dp),
-                                spotColor = Color.Black.copy(alpha = 0.2f)
+                                spotColor = ThemeColorUtils.black(alpha = 0.2f)
                             )
-                            .background(Color.Black, RoundedCornerShape(12.dp))
+                            .background(ThemeColorUtils.black(), RoundedCornerShape(12.dp))
                     )
                     
                     // White border - using Box with border to ensure visibility
@@ -273,7 +274,7 @@ fun CameraScreen(navController: NavController) {
                             .fillMaxSize()
                             .border(
                                 width = 6.dp,
-                                color = Color.White,
+                                color = ThemeColorUtils.white(),
                                 shape = RoundedCornerShape(12.dp)
                             )
                     )
@@ -297,7 +298,7 @@ fun CameraScreen(navController: NavController) {
                             onClick = { showGrid = !showGrid },
                             modifier = Modifier
                                 .background(
-                                    Color.Black.copy(alpha = 0.5f),
+                                    ThemeColorUtils.black(alpha = 0.5f),
                                     CircleShape
                                 )
                                 .size(48.dp)
@@ -309,13 +310,13 @@ fun CameraScreen(navController: NavController) {
                                 
                                 // Vertical lines
                                 drawLine(
-                                    Color.White.copy(alpha = 0.7f),
+                                    ThemeColorUtils.white(alpha = 0.7f),
                                     androidx.compose.ui.geometry.Offset(thirdWidth, 0f),
                                     androidx.compose.ui.geometry.Offset(thirdWidth, size.height),
                                     strokeWidth = strokeWidth
                                 )
                                 drawLine(
-                                    Color.White.copy(alpha = 0.7f),
+                                    ThemeColorUtils.white(alpha = 0.7f),
                                     androidx.compose.ui.geometry.Offset(thirdWidth * 2, 0f),
                                     androidx.compose.ui.geometry.Offset(thirdWidth * 2, size.height),
                                     strokeWidth = strokeWidth
@@ -323,13 +324,13 @@ fun CameraScreen(navController: NavController) {
                                 
                                 // Horizontal lines
                                 drawLine(
-                                    Color.White.copy(alpha = 0.7f),
+                                    ThemeColorUtils.white(alpha = 0.7f),
                                     androidx.compose.ui.geometry.Offset(0f, thirdHeight),
                                     androidx.compose.ui.geometry.Offset(size.width, thirdHeight),
                                     strokeWidth = strokeWidth
                                 )
                                 drawLine(
-                                    Color.White.copy(alpha = 0.7f),
+                                    ThemeColorUtils.white(alpha = 0.7f),
                                     androidx.compose.ui.geometry.Offset(0f, thirdHeight * 2),
                                     androidx.compose.ui.geometry.Offset(size.width, thirdHeight * 2),
                                     strokeWidth = strokeWidth
@@ -350,7 +351,7 @@ fun CameraScreen(navController: NavController) {
                             },
                             modifier = Modifier
                                 .background(
-                                    Color.Black.copy(alpha = 0.5f),
+                                    ThemeColorUtils.black(alpha = 0.5f),
                                     CircleShape
                                 )
                                 .size(48.dp)
@@ -362,7 +363,7 @@ fun CameraScreen(navController: NavController) {
                                     else -> Icons.Default.FlashOn
                                 },
                                 contentDescription = "Flash",
-                                tint = Color.White,
+                                tint = ThemeColorUtils.white(),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -374,7 +375,7 @@ fun CameraScreen(navController: NavController) {
                             onClick = { isBackCamera = !isBackCamera },
                             modifier = Modifier
                                 .background(
-                                    Color.Black.copy(alpha = 0.5f),
+                                    ThemeColorUtils.black(alpha = 0.5f),
                                     CircleShape
                                 )
                                 .size(48.dp)
@@ -382,7 +383,7 @@ fun CameraScreen(navController: NavController) {
                             Icon(
                                 Icons.Default.Refresh,
                                 contentDescription = "Flip Camera",
-                                tint = Color.White,
+                                tint = ThemeColorUtils.white(),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -408,7 +409,7 @@ fun CameraScreen(navController: NavController) {
                         if (isCapturing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(80.dp),
-                                color = Color.White,
+                                color = ThemeColorUtils.white(),
                                 strokeWidth = 4.dp
                             )
                         } else {
@@ -447,7 +448,7 @@ fun CameraScreen(navController: NavController) {
                                     .shadow(12.dp, CircleShape),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color.White
+                                    containerColor = ThemeColorUtils.white()
                                 ),
                                 enabled = !isCapturing
                             ) {
@@ -503,7 +504,7 @@ fun CameraScreen(navController: NavController) {
                 Text(
                     "Please grant camera permission to capture photos",
                     fontSize = 16.sp,
-                    color = Color.Gray,
+                    color = ThemeColorUtils.lightGray(Color.Gray),
                     modifier = Modifier.padding(horizontal = 32.dp)
                 )
                 Spacer(modifier = Modifier.height(24.dp))
@@ -534,13 +535,13 @@ fun GridOverlay(modifier: Modifier = Modifier) {
         
         // Vertical lines
         drawLine(
-            Color.White,
+            ThemeColorUtils.white(),
             androidx.compose.ui.geometry.Offset(thirdWidth, 0f),
             androidx.compose.ui.geometry.Offset(thirdWidth, size.height),
             strokeWidth = strokeWidth
         )
         drawLine(
-            Color.White,
+            ThemeColorUtils.white(),
             androidx.compose.ui.geometry.Offset(thirdWidth * 2, 0f),
             androidx.compose.ui.geometry.Offset(thirdWidth * 2, size.height),
             strokeWidth = strokeWidth
@@ -548,13 +549,13 @@ fun GridOverlay(modifier: Modifier = Modifier) {
         
         // Horizontal lines
         drawLine(
-            Color.White,
+            ThemeColorUtils.white(),
             androidx.compose.ui.geometry.Offset(0f, thirdHeight),
             androidx.compose.ui.geometry.Offset(size.width, thirdHeight),
             strokeWidth = strokeWidth
         )
         drawLine(
-            Color.White,
+            ThemeColorUtils.white(),
             androidx.compose.ui.geometry.Offset(0f, thirdHeight * 2),
             androidx.compose.ui.geometry.Offset(size.width, thirdHeight * 2),
             strokeWidth = strokeWidth
@@ -571,7 +572,7 @@ fun FocusIndicator(modifier: Modifier = Modifier) {
         Box(
             modifier = Modifier
                 .size(100.dp)
-                .border(2.dp, Color.White.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .border(2.dp, ThemeColorUtils.white(alpha = 0.6f), RoundedCornerShape(8.dp))
                 .alpha(0f)
         )
     }

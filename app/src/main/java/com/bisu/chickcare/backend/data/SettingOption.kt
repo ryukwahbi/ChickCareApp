@@ -1,10 +1,10 @@
 package com.bisu.chickcare.backend.data
 
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.annotation.DrawableRes
 
 data class SettingOption(
     val title: String,
     val subtitle: String,
-    val icon: ImageVector,
+    @DrawableRes val icon: Int,
     val isLogout: Boolean = false
 )

@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,7 +63,7 @@ fun FarmInsightsScreen(navController: NavController) {
                         "Farm Insights",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -70,13 +71,13 @@ fun FarmInsightsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -146,12 +147,12 @@ fun InsightCard(
     title: String,
     value: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
-    valueColor: Color = Color(0xFF231C16)
+    valueColor: Color = ThemeColorUtils.darkGray(Color(0xFF231C16))
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         shape = RoundedCornerShape(8.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -170,7 +171,7 @@ fun InsightCard(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -183,11 +184,10 @@ fun InsightCard(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = Color(0xFF231C16),
+                    tint = ThemeColorUtils.darkGray(Color(0xFF231C16)),
                     modifier = Modifier.size(32.dp)
                 )
             }
         }
     }
 }
-

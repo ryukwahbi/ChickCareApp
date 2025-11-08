@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,7 +56,7 @@ fun RecentActivityScreen(navController: NavController) {
                         "Recent Activity",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -63,13 +64,13 @@ fun RecentActivityScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -101,12 +102,12 @@ fun RecentActivityScreen(navController: NavController) {
                                     Icons.Default.BarChart,
                                     contentDescription = null,
                                     modifier = Modifier.padding(bottom = 8.dp),
-                                    tint = Color.Gray
+                                    tint = ThemeColorUtils.lightGray(Color.Gray)
                                 )
                                 Text(
                                     text = "No recent activity found.",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Gray
+                                    color = ThemeColorUtils.lightGray(Color.Gray)
                                 )
                             }
                         }
@@ -156,7 +157,7 @@ fun RecentActivityItem(
                 )
             },
         colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         shape = RoundedCornerShape(8.dp),
         elevation = androidx.compose.material3.CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -175,7 +176,7 @@ fun RecentActivityItem(
                     text = "#$index",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
                 Text(
                     text = if (entry.isHealthy) "Healthy" else "Infected",
@@ -188,14 +189,13 @@ fun RecentActivityItem(
             Text(
                 text = "Confidence: ${(entry.confidence * 100).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
             Text(
                 text = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.timestamp)),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
 }
-

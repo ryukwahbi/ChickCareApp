@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import java.text.SimpleDateFormat
 import java.util.*
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class MedicationLog(
     val id: String,
@@ -93,7 +94,7 @@ fun MedicationsLogScreen(navController: NavController) {
                         "Medications Log",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -101,13 +102,13 @@ fun MedicationsLogScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -115,7 +116,7 @@ fun MedicationsLogScreen(navController: NavController) {
             FloatingActionButton(
                 onClick = { /* Add new medication */ },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Medication")
             }
@@ -125,7 +126,7 @@ fun MedicationsLogScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Summary Cards
             Row(
@@ -154,7 +155,7 @@ fun MedicationsLogScreen(navController: NavController) {
 
             PrimaryTabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = Color.White,
+                containerColor = ThemeColorUtils.white(),
                 contentColor = Color(0xFFDA8041)
             ) {
                 tabs.forEachIndexed { index, title ->
@@ -198,7 +199,7 @@ fun MedicationCard(medication: MedicationLog) {
         colors = CardDefaults.cardColors(
             containerColor = if (medication.isActive)
                 Color(0xFFFF9800).copy(alpha = 0.1f)
-            else Color.White
+            else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -241,13 +242,13 @@ fun MedicationCard(medication: MedicationLog) {
                             Text(
                                 text = "Chicken ID: ${medication.chickenId}",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         } else {
                             Text(
                                 text = "Flock Treatment",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -294,20 +295,20 @@ fun MedicationCard(medication: MedicationLog) {
             Text(
                 text = dateFormat.format(Date(medication.date)),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
             if (medication.notes.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Surface(
-                    color = Color(0xFFF5F5DC),
+                    color = ThemeColorUtils.beige(Color(0xFFF5F5DC)),
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "📝 ${medication.notes}",
                         modifier = Modifier.padding(12.dp),
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 }
             }
@@ -319,7 +320,7 @@ fun MedicationCard(medication: MedicationLog) {
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -336,7 +337,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
@@ -351,7 +352,7 @@ private fun InfoRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodySmall,
-            color = Color.Gray,
+            color = ThemeColorUtils.lightGray(Color.Gray),
             modifier = Modifier.weight(1f)
         )
         Text(
@@ -362,4 +363,3 @@ private fun InfoRow(label: String, value: String) {
         )
     }
 }
-

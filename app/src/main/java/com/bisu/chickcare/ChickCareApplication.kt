@@ -1,7 +1,10 @@
 package com.bisu.chickcare
 
 import android.app.Application
+import android.content.Context
 import android.util.Log
+import com.bisu.chickcare.backend.utils.LocaleHelper
+import com.bisu.chickcare.backend.viewmodels.LanguageViewModel
 import com.google.firebase.FirebaseApp
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreSettings
@@ -11,6 +14,9 @@ class ChickCareApplication : Application() {
     
     override fun onCreate() {
         super.onCreate()
+        
+        // Initialize language settings
+        LanguageViewModel.initialize(this)
 
         try {
             if (FirebaseApp.getApps(this).isEmpty()) {
@@ -73,6 +79,10 @@ class ChickCareApplication : Application() {
 
         } catch (_: Exception) {
         }
+    }
+    
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(LocaleHelper.attachBaseContext(base))
     }
     
     companion object {

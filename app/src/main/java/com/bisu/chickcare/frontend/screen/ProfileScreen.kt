@@ -68,21 +68,28 @@ import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
-fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
+fun ProfileScreen(
+    navController: NavController, 
+    viewUserId: String? = null,
+    initialTab: Int = 0
+) {
     val authViewModel: AuthViewModel = viewModel()
     val friendViewModel: FriendViewModel = viewModel()
     val currentUserProfile by authViewModel.userProfile.collectAsState()
     val auth = authViewModel.auth
-    val isViewingOwnProfile = viewUserId == null || viewUserId == auth.currentUser?.uid
+    val currentUserId = auth.currentUser?.uid
+    val isViewingOwnProfile = viewUserId == null || viewUserId == currentUserId
+    val profileUserId = viewUserId ?: currentUserId.orEmpty()
     var displayedProfile by remember { mutableStateOf<UserProfile?>(null) }
     var isLoadingProfile by remember { mutableStateOf(false) }
     val friendSuggestions by friendViewModel.suggestions.collectAsState()
     val suggestionCount = friendSuggestions.size
     val mutualFriends by friendViewModel.friends.collectAsState()
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by remember { mutableIntStateOf(initialTab) }
     var showChangePhotoSheet by remember { mutableStateOf(false) }
     var showChangeCoverSheet by remember { mutableStateOf(false) }
     var showPhotoPreview by remember { mutableStateOf(false) }
@@ -228,7 +235,7 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
@@ -236,13 +243,13 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                     // Only show settings when viewing own profile
                     if (isViewingOwnProfile) {
                         IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color(0xFF231C16))
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = ThemeColorUtils.darkGray(Color(0xFF231C16)))
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -261,6 +268,7 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
                     .padding(innerPadding)
                     .imePadding()
             ) {
@@ -304,15 +312,15 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                 }
 
                 item {
-                    HorizontalDivider()
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)).copy(alpha = 0.4f))
                 }
 
                 item {
                     PrimaryTabRow(
                         selectedTabIndex = selectedTab,
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = Color.White,
-                        contentColor = Color.Black,
+                        containerColor = ThemeColorUtils.white(),
+                        contentColor = ThemeColorUtils.black(),
                         indicator = { }
                     ) {
                         tabs.forEachIndexed { index, title ->
@@ -322,11 +330,11 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                                 text = {
                                     Text(
                                         title,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 },
                                 selectedContentColor = Color(0xFFFA954D),
-                                unselectedContentColor = Color.Black
+                                unselectedContentColor = ThemeColorUtils.black()
                             )
                         }
                     }
@@ -350,7 +358,7 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                 }
 
                 item {
-                    HorizontalDivider()
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)).copy(alpha = 0.4f))
                 }
 
                 item {
@@ -367,7 +375,9 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                                 if (isViewingOwnProfile) {
                                     navController.navigate("post_detection_history")
                                 }
-                            }
+                            },
+                            isViewingOwnProfile = isViewingOwnProfile,
+                            timelineUserId = profileUserId
                         )
                         1 -> AboutTabContent(
                             userProfile = displayedProfile!!,
@@ -451,7 +461,8 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
                     } else {
                         displayedProfile?.photoUrl ?: ""
                     },
-                    onDismiss = { 
+                    aspectRatio = if (previewingCoverPhoto) 16f / 9f else 1f,
+                    onDismiss = {
                         showPhotoPreview = false
                         previewingCoverPhoto = false
                     }
@@ -490,7 +501,7 @@ fun ProfileScreen(navController: NavController, viewUserId: String? = null) {
     }
 }
 
-private fun getTempUri(context: Context): Uri {
+fun getTempUri(context: Context): Uri {
     // Create temp file in cache directory for camera capture
     // File.createTempFile already creates the file, so no need to call createNewFile()
     val tempFile = File.createTempFile(

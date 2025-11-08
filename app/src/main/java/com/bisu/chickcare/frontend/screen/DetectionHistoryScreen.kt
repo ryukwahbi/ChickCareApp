@@ -36,6 +36,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -65,19 +66,22 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.sanitizeToUri
+import com.bisu.chickcare.frontend.utils.sanitizeUriString
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.Locale
 import kotlin.math.roundToInt
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,29 +98,19 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
     // Grant URI permissions for all content URIs in history before loading images
     LaunchedEffect(history) {
         history.forEach { entry ->
-            entry.imageUri?.let { uriString ->
+            val sanitizedString = sanitizeUriString(entry.imageUri, "DetectionHistoryScreen")
+            val uri = sanitizeToUri(entry.imageUri, "DetectionHistoryScreen")
+            if (sanitizedString != null && uri?.scheme == "content") {
                 try {
-                    val decodedUriString = try {
-                        URLDecoder.decode(uriString, StandardCharsets.UTF_8.toString())
-                    } catch (_: Exception) {
-                        uriString
-                    }
-                    val uri = decodedUriString.toUri()
-                    if (uri.scheme == "content") {
-                        try {
-                            context.contentResolver.takePersistableUriPermission(
-                                uri,
-                                Intent.FLAG_GRANT_READ_URI_PERMISSION
-                            )
-                            Log.d("DetectionHistoryScreen", "Taken persistable URI permission for: $decodedUriString")
-                        } catch (e: SecurityException) {
-                            Log.w("DetectionHistoryScreen", "Cannot take persistable permission (may not support it): $decodedUriString - ${e.message}")
-                        } catch (e: Exception) {
-                            Log.w("DetectionHistoryScreen", "Error taking persistable permission: $decodedUriString - ${e.message}")
-                        }
-                    }
+                    context.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                    Log.d("DetectionHistoryScreen", "Taken persistable URI permission for: $sanitizedString")
+                } catch (e: SecurityException) {
+                    Log.w("DetectionHistoryScreen", "Cannot take persistable permission (may not support it): $sanitizedString - ${e.message}")
                 } catch (e: Exception) {
-                    Log.w("DetectionHistoryScreen", "Error parsing URI for permission: ${e.message}")
+                    Log.w("DetectionHistoryScreen", "Error taking persistable permission: $sanitizedString - ${e.message}")
                 }
             }
         }
@@ -150,15 +144,15 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
                         text = "Detection History",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 actions = {
                     TopBarMenu(navController = navController)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         }
@@ -166,6 +160,7 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
                 .padding(paddingValues)
         ) {
             // Segmented Button Row for Tabs
@@ -211,7 +206,7 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(16.dp),
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 } else {
@@ -290,7 +285,7 @@ fun TopBarMenu(navController: NavController) {
             Icon(
                 imageVector = Icons.Default.MoreVert,
                 contentDescription = "More options",
-                tint = Color(0xFF231C16)
+                tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
             )
         }
         DropdownMenu(
@@ -358,7 +353,7 @@ fun DetectionHistoryItemLastDetection(
             .padding(horizontal = 16.dp)
             .clickable(enabled = !showMenu) { onClick() },
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
     ) {
         Row(
             modifier = Modifier
@@ -369,45 +364,44 @@ fun DetectionHistoryItemLastDetection(
             // Circular image with actual captured or uploaded image, or fallback icon
             val imageUriString = entry.imageUri
             if (!imageUriString.isNullOrEmpty()) {
-                // Handle both captured (file://) and uploaded (content://) images
-                val decodedUriString = try {
-                    URLDecoder.decode(imageUriString, StandardCharsets.UTF_8.toString())
-                } catch (_: Exception) {
-                    imageUriString
-                }
-                
-                val imageUri = try {
-                    decodedUriString.toUri()
-                } catch (e: Exception) {
-                    Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
-                    null
-                }
-                
-                if (imageUri != null) {
-                    // Check if URI is file:// (captured) or content:// (uploaded)
-                    val uriType = if (imageUri.scheme == "file") "captured" else if (imageUri.scheme == "content") "uploaded" else "unknown"
-                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
-                    
+                val context = LocalContext.current
+                val sanitizedString = sanitizeUriString(imageUriString, "DetectionHistoryScreen")
+                val imageUri = sanitizeToUri(imageUriString, "DetectionHistoryScreen")
+                if (sanitizedString != null && imageUri != null) {
+                    val uriType = when (imageUri.scheme) {
+                        "file" -> "captured"
+                        "content" -> "uploaded"
+                        else -> "unknown"
+                    }
+                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $sanitizedString")
+
+                    val imageRequest = ImageRequest.Builder(context)
+                        .data(imageUri)
+                        .crossfade(true)
+                        .build()
+
                     AsyncImage(
-                        model = imageUri,
+                        model = imageRequest,
                         contentDescription = "Detection Image",
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE3B386), CircleShape)
+                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
                             .padding(2.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop,
-                        onError = { 
-                            Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
-                            // Show camera icon on error
+                        onError = {
+                            Log.w(
+                                "DetectionHistoryScreen",
+                                "Failed to load image ($uriType): $sanitizedString - ${it.result.throwable.message}"
+                            )
                         },
                         onSuccess = {
-                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
+                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $sanitizedString")
                         }
                     )
                 } else {
-                    // Fallback: Camera icon if URI parsing fails
+                    Log.w("DetectionHistoryScreen", "Image URI invalid: $imageUriString")
                     Box(
                         modifier = Modifier
                             .size(56.dp)
@@ -418,7 +412,7 @@ fun DetectionHistoryItemLastDetection(
                         Icon(
                             imageVector = Icons.Default.CameraAlt,
                             contentDescription = "No Image",
-                            tint = Color.White,
+                            tint = ThemeColorUtils.white(),
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -435,7 +429,7 @@ fun DetectionHistoryItemLastDetection(
                     Icon(
                         imageVector = Icons.Default.CameraAlt,
                         contentDescription = "No Image",
-                        tint = Color.White,
+                        tint = ThemeColorUtils.white(),
                         modifier = Modifier.size(28.dp)
                     )
                 }
@@ -448,7 +442,7 @@ fun DetectionHistoryItemLastDetection(
                     text = dashboardViewModel.formatDate(entry.timestamp),
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium,
-                    color = Color.Black
+                    color = ThemeColorUtils.black()
                 )
                 
                 if (!entry.location.isNullOrEmpty()) {
@@ -458,13 +452,13 @@ fun DetectionHistoryItemLastDetection(
                             imageVector = Icons.Default.LocationOn,
                             contentDescription = "Location",
                             modifier = Modifier.size(16.dp),
-                            tint = Color.Gray
+                            tint = ThemeColorUtils.lightGray(Color.Gray)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
                             text = entry.location,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -476,16 +470,20 @@ fun DetectionHistoryItemLastDetection(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "More options",
-                        tint = Color.Black
+                        tint = ThemeColorUtils.black()
                     )
                 }
                 DropdownMenu(
                     expanded = showMenu,
-                    onDismissRequest = { showMenu = false }
+                    onDismissRequest = { showMenu = false },
+                    modifier = Modifier.background(ThemeColorUtils.white())
                 ) {
                     DropdownMenuItem(
-                        text = { 
-                            Text(if (entry.isFavorite) "Remove from Favorites" else "Add to Favorites")
+                        text = {
+                            Text(
+                                if (entry.isFavorite) "Remove from Favorites" else "Add to Favorites",
+                                color = ThemeColorUtils.black()
+                            )
                         },
                         onClick = {
                             dashboardViewModel.toggleFavorite(entry.id, !entry.isFavorite)
@@ -495,13 +493,20 @@ fun DetectionHistoryItemLastDetection(
                             Icon(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = "Favorites",
-                                tint = if (entry.isFavorite) Color(0xFFFF6B6B) else Color.Gray
+                                tint = if (entry.isFavorite) Color(0xFFFF6B6B) else ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     )
+                    HorizontalDivider(
+                        color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                        thickness = 1.dp
+                    )
                     DropdownMenuItem(
-                        text = { 
-                            Text(if (entry.isArchived) "Unarchive" else "Archive")
+                        text = {
+                            Text(
+                                if (entry.isArchived) "Unarchive" else "Archive",
+                                color = ThemeColorUtils.black()
+                            )
                         },
                         onClick = {
                             dashboardViewModel.toggleArchive(entry.id, !entry.isArchived)
@@ -511,12 +516,16 @@ fun DetectionHistoryItemLastDetection(
                             Icon(
                                 imageVector = Icons.Default.Archive,
                                 contentDescription = "Archives",
-                                tint = if (entry.isArchived) Color(0xFF9E9E9E) else Color.Gray
+                                tint = if (entry.isArchived) Color(0xFF9E9E9E) else ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     )
+                    HorizontalDivider(
+                        color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                        thickness = 1.dp
+                    )
                     DropdownMenuItem(
-                        text = { Text("Move to trash") },
+                        text = { Text("Move to trash", color = ThemeColorUtils.black()) },
                         onClick = {
                             showMenu = false
                             showMoveToTrashDialog = true
@@ -548,15 +557,15 @@ fun DetectionHistoryItemLastDetection(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Move to Trash", color = Color.White)
+                    Text("Move to Trash", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
                 Button(
                     onClick = { showMoveToTrashDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Gray)
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeColorUtils.lightGray(Color.Gray))
                 ) {
-                    Text("Cancel", color = Color.White)
+                    Text("Cancel", color = ThemeColorUtils.white())
                 }
             }
         )
@@ -574,7 +583,7 @@ fun DetectionHistoryItemResult(
             .padding(horizontal = 16.dp)
             .clickable(onClick = onClick),
         elevation = CardDefaults.cardElevation(2.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White)
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
     ) {
         Row(
             modifier = Modifier
@@ -584,46 +593,45 @@ fun DetectionHistoryItemResult(
         ) {
             // Circular image with border - handles both captured (file://) and uploaded (content://) images
             val imageUriString = entry.imageUri
+            val context = LocalContext.current
             if (!imageUriString.isNullOrEmpty()) {
-                // Handle both captured (file://) and uploaded (content://) images
-                val decodedUriString = try {
-                    URLDecoder.decode(imageUriString, StandardCharsets.UTF_8.toString())
-                } catch (_: Exception) {
-                    imageUriString
-                }
-                
-                val imageUri = try {
-                    decodedUriString.toUri()
-                } catch (e: Exception) {
-                    Log.w("DetectionHistoryScreen", "Failed to parse image URI: $decodedUriString - ${e.message}")
-                    null
-                }
-                
-                if (imageUri != null) {
-                    // Check if URI is file:// (captured) or content:// (uploaded)
-                    val uriType = if (imageUri.scheme == "file") "captured" else if (imageUri.scheme == "content") "uploaded" else "unknown"
-                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $decodedUriString")
-                    
+                val sanitizedString = sanitizeUriString(imageUriString, "DetectionHistoryScreen")
+                val imageUri = sanitizeToUri(imageUriString, "DetectionHistoryScreen")
+                if (sanitizedString != null && imageUri != null) {
+                    val uriType = when (imageUri.scheme) {
+                        "file" -> "captured"
+                        "content" -> "uploaded"
+                        else -> "unknown"
+                    }
+                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $sanitizedString")
+
+                    val imageRequest = ImageRequest.Builder(context)
+                        .data(imageUri)
+                        .crossfade(true)
+                        .build()
+
                     AsyncImage(
-                        model = imageUri,
+                        model = imageRequest,
                         contentDescription = "Detection Image",
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE3B386), CircleShape)
+                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
                             .padding(2.dp)
                             .clip(CircleShape),
                         contentScale = ContentScale.Crop,
-                        onError = { 
-                            Log.w("DetectionHistoryScreen", "Failed to load image ($uriType): $decodedUriString - ${it.result.throwable.message}")
-                            // Show status icon on error
+                        onError = {
+                            Log.w(
+                                "DetectionHistoryScreen",
+                                "Failed to load image ($uriType): $sanitizedString - ${it.result.throwable.message}"
+                            )
                         },
                         onSuccess = {
-                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $decodedUriString")
+                            Log.d("DetectionHistoryScreen", "Successfully loaded $uriType image: $sanitizedString")
                         }
                     )
                 } else {
-                    // Fallback: Status icon if URI parsing fails
+                    Log.w("DetectionHistoryScreen", "Image URI invalid for result card: $imageUriString")
                     Icon(
                         imageVector = if (entry.isHealthy) Icons.Default.CheckCircle else Icons.Default.Cancel,
                         contentDescription = "Status Icon",
@@ -631,13 +639,12 @@ fun DetectionHistoryItemResult(
                         modifier = Modifier
                             .size(56.dp)
                             .clip(CircleShape)
-                            .background(Color(0xFFE3B386), CircleShape)
+                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
                             .padding(2.dp)
                             .clip(CircleShape)
                     )
                 }
             } else {
-                // Fallback: Status icon if no image available
                 Icon(
                     imageVector = if (entry.isHealthy) Icons.Default.CheckCircle else Icons.Default.Cancel,
                     contentDescription = "Status Icon",
@@ -645,7 +652,7 @@ fun DetectionHistoryItemResult(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE3B386), CircleShape)
+                        .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
                         .padding(2.dp)
                         .clip(CircleShape)
                 )
@@ -669,7 +676,7 @@ fun DetectionHistoryItemResult(
                 Text(
                     text = "Confidence: ${(entry.confidence * 100).toInt()}%",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
         }

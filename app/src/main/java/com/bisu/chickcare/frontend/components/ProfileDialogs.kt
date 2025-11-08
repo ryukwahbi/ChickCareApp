@@ -6,11 +6,14 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -60,6 +63,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.data.UserProfile
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,32 +113,71 @@ fun SheetActionRow(
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = Color.Black)
+        Icon(icon, contentDescription = null, tint = ThemeColorUtils.black())
         Spacer(modifier = Modifier.width(12.dp))
         Text(label, style = MaterialTheme.typography.titleMedium)
     }
 }
 
 @Composable
-fun PhotoPreviewDialog(imageModel: Any, onDismiss: () -> Unit) {
-    AlertDialog(
+fun PhotoPreviewDialog(
+    imageModel: Any,
+    onDismiss: () -> Unit,
+    aspectRatio: Float? = null
+) {
+    Dialog(
         onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(onClick = onDismiss) { Text("Close") }
-        },
-        text = {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth()) {
-                AsyncImage(
-                    model = imageModel,
-                    contentDescription = "Current Profile Photo",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp)),
-                    contentScale = ContentScale.Crop
-                )
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .wrapContentHeight(),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
+            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                val imageShape = RoundedCornerShape(20.dp)
+                var imageModifier = Modifier
+                    .fillMaxWidth()
+                    .clip(imageShape)
+
+                imageModifier = if (aspectRatio != null) {
+                    imageModifier.aspectRatio(aspectRatio)
+                } else {
+                    imageModifier.wrapContentHeight()
+                }
+
+                Box(
+                    modifier = imageModifier,
+                    contentAlignment = Alignment.Center
+                ) {
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = "Photo preview",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+
+                TextButton(onClick = onDismiss) {
+                    Text("Close", color = Color(0xFF9C4A0C))
+                }
             }
         }
-    )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -180,19 +223,19 @@ fun EditProfileDialog(
     )
     
     val textFieldColors = OutlinedTextFieldDefaults.colors(
-        focusedTextColor = Color.Black,
-        unfocusedTextColor = Color.Black,
+        focusedTextColor = ThemeColorUtils.black(),
+        unfocusedTextColor = ThemeColorUtils.black(),
         cursorColor = Color(0xFF1A1818),
-        focusedContainerColor = Color.White,
-        unfocusedContainerColor = Color.White,
+        focusedContainerColor = ThemeColorUtils.white(),
+        unfocusedContainerColor = ThemeColorUtils.white(),
         focusedBorderColor = Color(0xFF3F3E3D),
         unfocusedBorderColor = Color(0xFF000000),
         focusedLabelColor = Color(0xFF3F3E3D),
         unfocusedLabelColor = Color(0xFF000000),
         errorBorderColor = Color.Red,
         errorLabelColor = Color.Red,
-        disabledTextColor = Color.Gray,
-        disabledBorderColor = Color.LightGray,
+        disabledTextColor = ThemeColorUtils.lightGray(Color.Gray),
+        disabledBorderColor = ThemeColorUtils.lightGray(Color.LightGray),
         disabledContainerColor = Color(0xFFF5F5F5)
     )
     
@@ -214,7 +257,7 @@ fun EditProfileDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color.White
+                containerColor = ThemeColorUtils.white()
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -239,7 +282,7 @@ fun EditProfileDialog(
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = Color.Black
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 }
@@ -265,7 +308,7 @@ fun EditProfileDialog(
                                 text = "READ ONLY:",
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                         
@@ -332,8 +375,8 @@ fun EditProfileDialog(
                                     },
                                     shape = RoundedCornerShape(12.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        focusedTextColor = if (gender.isEmpty()) Color.Gray else Color.Black,
-                                        unfocusedTextColor = if (gender.isEmpty()) Color.Gray else Color.Black,
+                                        focusedTextColor = if (gender.isEmpty()) ThemeColorUtils.lightGray(Color.Gray) else ThemeColorUtils.black(),
+                                        unfocusedTextColor = if (gender.isEmpty()) ThemeColorUtils.lightGray(Color.Gray) else ThemeColorUtils.black(),
                                         focusedBorderColor = Color(0xFF3F3E3D),
                                         unfocusedBorderColor = Color(0xFF000000),
                                         focusedLabelColor = Color(0xFF3F3E3D),
@@ -563,7 +606,7 @@ fun EditProfileDialog(
                         .height(50.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF4CAF50),
-                        contentColor = Color.White
+                        contentColor = ThemeColorUtils.white()
                     ),
                     shape = RoundedCornerShape(12.dp)
                 ) {

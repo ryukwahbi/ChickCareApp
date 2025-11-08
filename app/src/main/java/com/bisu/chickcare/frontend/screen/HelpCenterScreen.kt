@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -88,6 +89,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -179,7 +181,6 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                             }
                         }
 
-                        @Suppress("Deprecation")
                         override fun onError(utteranceId: String?) {
                             // Speech error - update state on main thread
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -368,12 +369,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                         text = "Help Center",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color.Black
+                        color = ThemeColorUtils.black()
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color.Black
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -381,6 +382,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
                 .padding(paddingValues)
                 .padding(innerPadding)
                 .clickable(
@@ -412,13 +414,13 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 22.sp
                                 ),
-                                color = Color(0xFF231C16)
+                                color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "How can we help you today?",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -445,18 +447,18 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 }
                             },
-                            label = { Text("How can we help you?", color = Color.Black) },
+                            label = { Text("How can we help you?", color = ThemeColorUtils.black()) },
                             placeholder = { Text("Search for help...") },
                             modifier = Modifier.fillMaxWidth(),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                focusedTextColor = Color.Black,
-                                unfocusedTextColor = Color.Black,
-                                focusedBorderColor = Color.Black,
-                                unfocusedBorderColor = Color.Gray,
-                                focusedLabelColor = Color.Black,
-                                unfocusedLabelColor = Color.Gray
+                                focusedContainerColor = ThemeColorUtils.white(),
+                                unfocusedContainerColor = ThemeColorUtils.white(),
+                                focusedTextColor = ThemeColorUtils.black(),
+                                unfocusedTextColor = ThemeColorUtils.black(),
+                                focusedBorderColor = ThemeColorUtils.black(),
+                                unfocusedBorderColor = ThemeColorUtils.lightGray(Color.Gray),
+                                focusedLabelColor = ThemeColorUtils.black(),
+                                unfocusedLabelColor = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         )
 
@@ -468,7 +470,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                         ) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
@@ -487,7 +489,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                             Icon(
                                                 Icons.Default.Search,
                                                 contentDescription = null,
-                                                tint = Color.Gray,
+                                                tint = ThemeColorUtils.lightGray(Color.Gray),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(modifier = Modifier.width(12.dp))
@@ -522,7 +524,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 },
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.White
+                                containerColor = ThemeColorUtils.surface(Color.White)
                             ),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -537,12 +539,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         ),
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                     Text(
                                         text = "Get instant help from our support team",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 }
                             }
@@ -576,7 +578,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 },
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.White
+                                containerColor = ThemeColorUtils.surface(Color.White)
                             ),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -591,12 +593,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         ),
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                     Text(
                                         text = "Critical information you need to know",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Black
+                                        color = ThemeColorUtils.black()
                                     )
                                 }
                             }
@@ -609,7 +611,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                     item {
                         Column {
                             HorizontalDivider(
-                                color = Color.Gray.copy(alpha = 0.3f),
+                                color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -618,7 +620,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = Color.Black
+                                color = ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -660,7 +662,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                     item {
                         Column {
                             HorizontalDivider(
-                                color = Color.Gray.copy(alpha = 0.3f),
+                                color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f),
                                 modifier = Modifier.padding(vertical = 8.dp)
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -669,7 +671,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = Color.Black,
+                                color = ThemeColorUtils.black(),
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                             LazyRow(
@@ -765,7 +767,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 24.sp
                                 ),
-                                color = Color.Black
+                                color = ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -774,17 +776,17 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     fontStyle = FontStyle.Italic,
                                     fontWeight = FontWeight.Normal
                                 ),
-                                color = Color.Black
+                                color = ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(5.dp))
-                            HorizontalDivider(color = Color.Black.copy(alpha = 0.3f))
+                            HorizontalDivider(color = ThemeColorUtils.black(alpha = 0.3f))
                             Spacer(modifier = Modifier.height(8.dp))
                             // Facebook Contact
                             ContactInfoRowWithLogo(
                                 label = "ChickCare Support Team",
                                 value = "Facebook",
                                 labelColor = Color(0xFF064575),
-                                valueColor = Color.Black,
+                                valueColor = ThemeColorUtils.black(),
                                 logoResId = R.drawable.facebook_logo,
                                 onClick = {
                                     val intent = Intent(
@@ -800,7 +802,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 label = "chickcaresupp0rt@gmail.com",
                                 value = "Gmail",
                                 labelColor = Color(0xFFAB2626),
-                                valueColor = Color.Black,
+                                valueColor = ThemeColorUtils.black(),
                                 logoResId = R.drawable.gmail_log,
                                 onClick = {
                                     val intent = Intent(
@@ -837,7 +839,7 @@ fun CategoryChip(
             Icon(
                 category.icon,
                 contentDescription = null,
-                tint = Color.Black,
+                tint = ThemeColorUtils.black(),
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(8.dp))
@@ -846,19 +848,19 @@ fun CategoryChip(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 ),
-                color = Color.Black
+                color = ThemeColorUtils.black()
             )
             if (topicCount > 0) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Surface(
                     shape = CircleShape,
-                    color = Color.Black.copy(alpha = 0.1f)
+                    color = Color(0xFFD32F2F)
                 ) {
                     Text(
                         text = "$topicCount",
                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                         fontSize = 10.sp,
-                        color = Color.Black,
+                        color = ThemeColorUtils.white(),
                         fontWeight = FontWeight.Bold
                     )
                 }
@@ -920,7 +922,7 @@ fun HelpTopicCard(
             .fillMaxWidth()
             .clickable(onClick = onExpandToggle),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFF5F5F5)
+            containerColor = ThemeColorUtils.surface(Color(0xFFF5F5F5))
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -941,20 +943,20 @@ fun HelpTopicCard(
                         if (topic.isPopular) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Badge(containerColor = Color(0xFFFF5722)) {
-                                Text("Popular", fontSize = 8.sp, color = Color.White)
+                                Text("Popular", fontSize = 8.sp, color = ThemeColorUtils.white())
                             }
                         }
                         if (topic.isEmergency) {
                             Spacer(modifier = Modifier.width(6.dp))
                             Badge(containerColor = Color(0xFFD32F2F)) {
-                                Text("Urgent", fontSize = 8.sp, color = Color.White)
+                                Text("Urgent", fontSize = 8.sp, color = ThemeColorUtils.white())
                             }
                         }
                     }
                     Text(
                         text = topic.category.title,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
             }
@@ -965,7 +967,7 @@ fun HelpTopicCard(
             ) {
                 Column {
                     Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(color = Color.Gray.copy(alpha = 0.3f))
+                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f))
                     Spacer(modifier = Modifier.height(12.dp))
                     // Content with sound icon for all cards
                     if (ttsReady && tts != null) {

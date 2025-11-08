@@ -50,7 +50,7 @@ fun SettingsScreen(navController: NavController) {
         SettingOption("Notifications", "Customize alert preferences", Icons.Default.Notifications),
         SettingOption("Theme", "Switch between light and dark modes", Icons.Default.DarkMode),
         SettingOption("About", "View app version and information", Icons.Default.Info),
-        SettingOption("Logout", "Sign out of your account", Icons.AutoMirrored.Filled.ExitToApp, isLogout = true)
+        SettingOption("Logout", Icons.AutoMirrored.Filled.ExitToApp, isLogout = true)
     )
 
     Scaffold(

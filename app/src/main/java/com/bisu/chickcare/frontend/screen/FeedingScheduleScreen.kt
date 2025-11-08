@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import java.text.SimpleDateFormat
 import java.util.*
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class FeedingSchedule(
     val id: String,
@@ -93,7 +94,7 @@ fun FeedingScheduleScreen(navController: NavController) {
                         "Feeding Schedule",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -101,13 +102,13 @@ fun FeedingScheduleScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -115,7 +116,7 @@ fun FeedingScheduleScreen(navController: NavController) {
             FloatingActionButton(
                 onClick = { /* Add new schedule */ },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Schedule")
             }
@@ -125,7 +126,7 @@ fun FeedingScheduleScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             // Summary Cards
             Row(
@@ -168,7 +169,7 @@ fun FeedingScheduleScreen(navController: NavController) {
                     modifier = Modifier.padding(16.dp),
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color.White
+                    color = ThemeColorUtils.white()
                 )
             }
 
@@ -206,7 +207,7 @@ fun FeedingScheduleCard(
         colors = CardDefaults.cardColors(
             containerColor = if (schedule.isCompleted) 
                 Color(0xFF4CAF50).copy(alpha = 0.1f) 
-            else Color.White
+            else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
@@ -270,7 +271,7 @@ fun FeedingScheduleCard(
                         Text(
                             text = schedule.targetGroup,
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                     
@@ -285,7 +286,7 @@ fun FeedingScheduleCard(
                             contentDescription = if (schedule.isCompleted) "Mark incomplete" else "Mark complete",
                             tint = if (schedule.isCompleted) 
                                 Color(0xFF4CAF50) 
-                            else Color.Gray,
+                            else ThemeColorUtils.lightGray(Color.Gray),
                             modifier = Modifier.size(28.dp)
                         )
                     }
@@ -314,14 +315,14 @@ fun FeedingScheduleCard(
                 if (schedule.notes.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Surface(
-                        color = Color(0xFFF5F5DC),
+                        color = ThemeColorUtils.beige(Color(0xFFF5F5DC)),
                         shape = RoundedCornerShape(8.dp)
                     ) {
                         Text(
                             text = "📝 ${schedule.notes}",
                             modifier = Modifier.padding(12.dp),
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color(0xFF231C16)
+                            color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 }
@@ -334,7 +335,7 @@ fun FeedingScheduleCard(
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -351,7 +352,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
@@ -363,7 +364,7 @@ fun InfoBadge(label: String, value: String, color: Color) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall,
-            color = Color.Gray
+            color = ThemeColorUtils.lightGray(Color.Gray)
         )
         Spacer(modifier = Modifier.height(2.dp))
         Surface(
@@ -380,4 +381,3 @@ fun InfoBadge(label: String, value: String, color: Color) {
         }
     }
 }
-

@@ -78,6 +78,8 @@ class FriendViewModel : ViewModel() {
                     toUserId = toUserId,
                     notificationRepository = notificationRepository
                 )
+                // Optimistically remove the user from the suggestions list so the UI badge updates immediately
+                _suggestions.value = _suggestions.value.filterNot { it.userId == toUserId }
                 // Reload pending requests after sending (to update if user sent request to someone)
                 loadPendingFriendRequests()
                 callback(true, "Friend request sent to $toUserName")

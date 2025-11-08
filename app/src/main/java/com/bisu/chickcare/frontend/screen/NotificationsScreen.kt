@@ -63,6 +63,7 @@ import com.bisu.chickcare.backend.viewmodels.FriendViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,7 +110,7 @@ fun NotificationsScreen(navController: NavController) {
                             ) {
                                 Text(
                                     if (unreadCount > 10) "10+" else "$unreadCount",
-                                    color = Color.White,
+                                    color = ThemeColorUtils.white(),
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -121,7 +122,7 @@ fun NotificationsScreen(navController: NavController) {
                             Text(
                                 "($pendingRequestsCount pending)",
                                 fontSize = 12.sp,
-                                color = Color.Gray,
+                                color = ThemeColorUtils.lightGray(Color.Gray),
                                 fontWeight = FontWeight.Normal
                             )
                         }
@@ -143,7 +144,7 @@ fun NotificationsScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
+                    containerColor = ThemeColorUtils.white(),
                     titleContentColor = Color(0xFF000000)
                 )
             )
@@ -235,7 +236,7 @@ fun NotificationItem(
             .fillMaxWidth()
             .clickable { onRead() },
         colors = CardDefaults.cardColors(
-            containerColor = if (isUnread) Color.White else Color(0xFFFAFAFA)
+            containerColor = if (isUnread) ThemeColorUtils.white() else Color(0xFFFAFAFA)
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isUnread) 4.dp else 2.dp
@@ -288,7 +289,7 @@ fun NotificationItem(
                             text = notification.message,
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 13.sp,
-                            color = Color.Gray,
+                            color = ThemeColorUtils.lightGray(Color.Gray),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -309,7 +310,7 @@ fun NotificationItem(
                 Text(
                     text = formatTimestamp(notification.timestamp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = Color.Gray,
+                    color = ThemeColorUtils.lightGray(Color.Gray),
                     fontSize = 11.sp
                 )
                 
@@ -369,20 +370,20 @@ fun EmptyNotificationsState() {
             imageVector = Icons.Default.Notifications,
             contentDescription = null,
             modifier = Modifier.size(80.dp),
-            tint = Color.Gray.copy(alpha = 0.5f)
+            tint = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.5f)
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = "No notifications yet",
             style = MaterialTheme.typography.titleLarge,
-            color = Color.Gray,
+            color = ThemeColorUtils.lightGray(Color.Gray),
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "You'll see notifications here when you receive them",
             style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray.copy(alpha = 0.7f)
+            color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.7f)
         )
     }
 }

@@ -50,6 +50,7 @@ import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.frontend.utils.Dimens
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import androidx.compose.foundation.ExperimentalFoundationApi as ExperimentalFoundationApiImport
 
 @OptIn(ExperimentalFoundationApiImport::class)
@@ -71,7 +72,7 @@ fun ChickenGalleryCard() {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.PaddingLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
         elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -117,7 +118,7 @@ fun ChickenGalleryCard() {
                     },
                     modifier = Modifier
                         .background(
-                            Color.Black.copy(alpha = 0.5f),
+                            ThemeColorUtils.black(alpha = 0.5f),
                             androidx.compose.foundation.shape.CircleShape
                         )
                         .size(36.dp)
@@ -125,7 +126,7 @@ fun ChickenGalleryCard() {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Previous",
-                        tint = Color.White,
+                        tint = ThemeColorUtils.white(),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -145,7 +146,7 @@ fun ChickenGalleryCard() {
                     },
                     modifier = Modifier
                         .background(
-                            Color.Black.copy(alpha = 0.5f),
+                            ThemeColorUtils.black(alpha = 0.5f),
                             androidx.compose.foundation.shape.CircleShape
                         )
                         .size(36.dp)
@@ -153,7 +154,7 @@ fun ChickenGalleryCard() {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "Next",
-                        tint = Color.White,
+                        tint = ThemeColorUtils.white(),
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -207,7 +208,7 @@ fun StatsSummaryCard(
         // One card with two charts: Healthy (green) and Unhealthy (red)
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
@@ -239,7 +240,6 @@ fun StatsSummaryCard(
 fun DetectionHistoryCard(
     detectionHistory: List<DetectionEntry>,
     onViewAllClicked: () -> Unit,
-    onItemClicked: (DetectionEntry) -> Unit,
     dashboardViewModel: DashboardViewModel = viewModel()
 ) {
     Card(
@@ -248,7 +248,7 @@ fun DetectionHistoryCard(
             .padding(horizontal = Dimens.PaddingLarge),
         elevation = CardDefaults.cardElevation(Dimens.CardElevation),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         )
     ) {
         Column(modifier = Modifier.padding(Dimens.PaddingLarge)) {
@@ -266,7 +266,6 @@ fun DetectionHistoryCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .padding(vertical = Dimens.PaddingSmall)
-                            .clickable { onItemClicked(entry) }
                     ) {
                         Icon(
                             imageVector = if (entry.isHealthy) Icons.Default.CheckCircle else Icons.Default.Cancel,
@@ -278,13 +277,16 @@ fun DetectionHistoryCard(
                             dashboardViewModel.formatDate(entry.timestamp),
                             modifier = Modifier.weight(1f)
                         )
-                        Text(entry.result, fontWeight = FontWeight.Bold)
+                        Text(
+                            text = formatDetectionResult(entry.result),
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
                 if (detectionHistory.size > 3) {
                     Text(
                         text = "View all...",
-                        color = Color.Gray,
+                        color = ThemeColorUtils.lightGray(Color.Gray),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
                             .padding(top = Dimens.PaddingMedium)
@@ -297,13 +299,31 @@ fun DetectionHistoryCard(
     }
 }
 
+private fun formatDetectionResult(rawResult: String): String {
+    val trimmed = rawResult.trim()
+    val parts = trimmed.split(" ", limit = 2)
+    return if (parts.size == 2) {
+        val label = parts[0].trim().trimEnd(':')
+        val percentage = parts[1]
+            .replace("%%", "%")
+            .replace("�", "%")
+            .replace("%", "")
+            .trim()
+            .trimStart('(')
+            .trimEnd(')')
+        "$label: $percentage%"
+    } else {
+        trimmed.replace("�", "%")
+    }
+}
+
 @Composable
 fun FarmTipsCard(navController: NavController) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = Dimens.PaddingLarge),
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
         elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -341,7 +361,7 @@ fun FarmTipsCard(navController: NavController) {
             
             Text(
                 text = "See more...",
-                color = Color.Gray,
+                color = ThemeColorUtils.lightGray(Color.Gray),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .clickable { navController.navigate("farm_tips") }
@@ -360,7 +380,7 @@ fun StatCard(
 ) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.9f)),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
         elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
     ) {
         Column(
@@ -372,7 +392,7 @@ fun StatCard(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
             Text(
                 text = value,

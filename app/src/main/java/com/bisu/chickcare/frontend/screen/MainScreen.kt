@@ -40,6 +40,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,7 +74,7 @@ fun CustomTabBar(navController: NavController) {
     )
 
     val iconAndTextColor = Color(0xFF26201C)
-    val selectedColor = Color.White
+    val selectedColor = ThemeColorUtils.white()
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -132,7 +133,7 @@ fun CustomTabBar(navController: NavController) {
                             badge = {
                                 if (tab.route == "detection_history" && newHistoryCount > 0) {
                                     Badge(containerColor = Color.Red) { 
-                                        Text("$newHistoryCount", color = Color.White) 
+                                        Text("$newHistoryCount", color = ThemeColorUtils.white()) 
                                     }
                                 }
                             }

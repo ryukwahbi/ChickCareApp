@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Egg
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
@@ -76,6 +77,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.frontend.utils.Dimens
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import kotlinx.coroutines.launch
 
 data class TabItem(val route: String, val icon: ImageVector, val label: String)
@@ -100,7 +102,7 @@ fun DashboardTopAppBar(
                     text = "For you",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color(0xFF000000)
+                    color = ThemeColorUtils.black()
                 )
                 IconButton(
                     onClick = { onExpandedChange(!expanded) },
@@ -109,13 +111,13 @@ fun DashboardTopAppBar(
                     Icon(
                         if (expanded) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
                         contentDescription = "Filter",
-                        tint = Color(0xFF000000)
+                        tint = ThemeColorUtils.black()
                     )
                 }
                 androidx.compose.material3.DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { onExpandedChange(false) },
-                    modifier = Modifier.background(Color.White)
+                    modifier = Modifier.background(ThemeColorUtils.white())
                 ) {
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Announcements") },
@@ -126,7 +128,7 @@ fun DashboardTopAppBar(
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.Gray.copy(alpha = 0.3f)
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
                     )
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Tips & Tricks") },
@@ -137,7 +139,7 @@ fun DashboardTopAppBar(
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.Gray.copy(alpha = 0.3f)
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
                     )
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Recent Activity") },
@@ -148,7 +150,7 @@ fun DashboardTopAppBar(
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.Gray.copy(alpha = 0.3f)
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
                     )
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("My Favorites") },
@@ -159,7 +161,7 @@ fun DashboardTopAppBar(
                     )
                     HorizontalDivider(
                         thickness = 1.dp,
-                        color = Color.Gray.copy(alpha = 0.3f)
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
                     )
                     androidx.compose.material3.DropdownMenuItem(
                         text = { Text("Farm Insights") },
@@ -185,32 +187,32 @@ fun DashboardTopAppBar(
                         ) { 
                             Text(
                                 if (notificationCount > 10) "10+" else "$notificationCount",
-                                color = Color.White,
+                                color = ThemeColorUtils.white(),
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
                     }
                 },
                 modifier = Modifier
-                    .offset(x = (-11).dp, y = (4).dp)
+                    .offset(x = (-11).dp, y = (1).dp)
             ) {
                 IconButton(
                     onClick = onNotificationsClicked,
                     modifier = Modifier
-                        .background(Color(0xFFE0E0E0), CircleShape)
+                        .background(ThemeColorUtils.lightGray(Color(0xFFE0E0E0)), CircleShape)
                         .size(48.dp)
                 ) {
                     Icon(
                         Icons.Default.Notifications, 
                         contentDescription = "Notifications", 
-                        tint = Color(0xFF000000),
+                        tint = ThemeColorUtils.black(),
                         modifier = Modifier.size(24.dp)
                     )
                 }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = Color.White,
+            containerColor = ThemeColorUtils.white(),
             titleContentColor = Color(0xFF8B4513)
         )
     )
@@ -231,13 +233,13 @@ fun CustomTabBar(navController: NavController, bottomBarHeight: Dp) {
         TabItem("profile", Icons.Default.Person, "Profile")
     )
 
-    val iconAndTextColor = Color(0xFF26201C)
+    val iconAndTextColor = ThemeColorUtils.black()
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(bottomBarHeight)
-            .background(Color(0xFFD2B48C))
+            .background(ThemeColorUtils.beige(Color(0xFFD2B48C)))
     ) {
         Row(
             modifier = Modifier
@@ -268,7 +270,7 @@ fun CustomTabBar(navController: NavController, bottomBarHeight: Dp) {
                         badge = {
                             if (tab.route == "detection_history" && newHistoryCount > 0) {
                                 Badge(containerColor = Color.Red) { 
-                                    Text("$newHistoryCount", color = Color.White) 
+                                    Text("$newHistoryCount", color = ThemeColorUtils.white()) 
                                 }
                             }
                         }
@@ -362,7 +364,24 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
+                        )
+                    )
+                }
+
+                item {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Bookmark, contentDescription = null) },
+                        label = { Text("Saved") },
+                        selected = false,
+                        onClick = {
+                            navController.navigate("saved_posts") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            }
+                            scope.launch { drawerState.close() }
+                        },
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -379,7 +398,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -396,7 +415,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -413,7 +432,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -430,7 +449,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -447,7 +466,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -464,7 +483,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -481,7 +500,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -498,7 +517,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -515,7 +534,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -532,7 +551,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -549,7 +568,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -566,7 +585,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -583,7 +602,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             scope.launch { drawerState.close() }
                         },
                         colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
                     )
                 }

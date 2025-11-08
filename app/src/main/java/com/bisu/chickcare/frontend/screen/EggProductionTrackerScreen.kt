@@ -66,6 +66,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,7 +115,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         "Egg Production Tracker",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -122,13 +123,13 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -139,7 +140,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                     showAddDialog = true
                 },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Record")
             }
@@ -149,7 +150,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             Column {
                 // Summary Cards
@@ -195,14 +196,14 @@ fun EggProductionTrackerScreen(navController: NavController) {
                                 text = "Today's Production",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = ThemeColorUtils.white()
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                ProductionStat("Total Eggs", todayRecord.totalEggs.toString(), Color.White)
+                                ProductionStat("Total Eggs", todayRecord.totalEggs.toString(), ThemeColorUtils.white())
                                 ProductionStat("Healthy", todayRecord.healthyEggs.toString(), Color(0xFF4CAF50))
                                 ProductionStat("Broken", todayRecord.brokenEggs.toString(), Color(0xFFFF9800))
                             }
@@ -211,7 +212,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                                 Text(
                                     text = "📝 ${todayRecord.notes}",
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = 0.9f)
+                                    color = ThemeColorUtils.white(alpha = 0.9f)
                                 )
                             }
                         }
@@ -225,7 +226,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
                         elevation = CardDefaults.cardElevation(2.dp)
                     ) {
                         Row(
@@ -245,7 +246,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                                 Text(
                                     text = "Production Rate",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.Gray
+                                    color = ThemeColorUtils.lightGray(Color.Gray)
                                 )
                                 Text(
                                     text = "$healthyPercentage% Healthy Eggs",
@@ -297,13 +298,13 @@ fun EggProductionTrackerScreen(navController: NavController) {
                                             Icons.Default.Egg,
                                             contentDescription = null,
                                             modifier = Modifier.size(64.dp),
-                                            tint = Color.Gray
+                                            tint = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
                                             "No egg production records found",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = Color.Gray
+                                            color = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                     }
                                 }
@@ -522,7 +523,7 @@ fun EggProductionCard(
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Row(
@@ -557,7 +558,7 @@ fun EggProductionCard(
                 Text(
                     text = record.coopLocation,
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
                 if (record.brokenEggs > 0) {
                     Text(
@@ -583,7 +584,7 @@ fun EggProductionCard(
                     Text(
                         text = "eggs",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
@@ -600,14 +601,14 @@ fun EggProductionCard(
 
         if (record.notes.isNotEmpty()) {
             Surface(
-                color = Color(0xFFF5F5DC),
+                color = ThemeColorUtils.beige(Color(0xFFF5F5DC)),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "📝 ${record.notes}",
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFF231C16)
+                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             }
         }
@@ -618,7 +619,7 @@ fun EggProductionCard(
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -635,7 +636,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }

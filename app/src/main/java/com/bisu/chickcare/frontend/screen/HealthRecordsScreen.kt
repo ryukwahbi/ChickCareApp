@@ -67,6 +67,7 @@ import com.bisu.chickcare.backend.viewmodels.HealthRecordsViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,7 +88,7 @@ fun HealthRecordsScreen(navController: NavController) {
                         "Health Records",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF231C16)
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
@@ -95,13 +96,13 @@ fun HealthRecordsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = Color(0xFF231C16)
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = Color(0xFF231C16)
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
         },
@@ -112,7 +113,7 @@ fun HealthRecordsScreen(navController: NavController) {
                     showAddDialog = true
                 },
                 containerColor = Color(0xFFDA8041),
-                contentColor = Color.White
+                contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Health Record")
             }
@@ -122,7 +123,7 @@ fun HealthRecordsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFF5F5DC))
+                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
         ) {
             Column {
                 // Summary Cards
@@ -210,13 +211,13 @@ fun HealthRecordsScreen(navController: NavController) {
                                             Icons.Default.LocalHospital,
                                             contentDescription = null,
                                             modifier = Modifier.size(64.dp),
-                                            tint = Color.Gray
+                                            tint = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                         Spacer(modifier = Modifier.height(16.dp))
                                         Text(
                                             "No health records found",
                                             style = MaterialTheme.typography.bodyLarge,
-                                            color = Color.Gray
+                                            color = ThemeColorUtils.lightGray(Color.Gray)
                                         )
                                     }
                                 }
@@ -444,12 +445,12 @@ fun HealthRecordCard(
         "RECOVERING" -> Color(0xFFFF9800)
         "SICK" -> Color(0xFFFF5722)
         "CRITICAL" -> Color(0xFFD32F2F)
-        else -> Color.Gray
+        else -> ThemeColorUtils.lightGray(Color.Gray)
     }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(2.dp)
     ) {
         Column(
@@ -487,7 +488,7 @@ fun HealthRecordCard(
                         Text(
                             text = "ID: ${record.chickenId}",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -526,7 +527,7 @@ fun HealthRecordCard(
             Text(
                 text = "Symptoms: ${record.symptoms}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -534,7 +535,7 @@ fun HealthRecordCard(
             Text(
                 text = "Treatment: ${record.treatment}",
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
             if (record.veterinarian != null) {
@@ -552,7 +553,7 @@ fun HealthRecordCard(
             Text(
                 text = dateFormat.format(Date(record.date)),
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }
@@ -562,7 +563,7 @@ fun HealthRecordCard(
 private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Column(
@@ -579,7 +580,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodySmall,
-                color = Color.Gray
+                color = ThemeColorUtils.lightGray(Color.Gray)
             )
         }
     }

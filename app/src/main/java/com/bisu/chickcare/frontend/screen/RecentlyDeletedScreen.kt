@@ -57,6 +57,7 @@ import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,7 +121,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.White,
+                    containerColor = ThemeColorUtils.white(),
                     titleContentColor = Color(0xFF8B4513)
                 )
             )
@@ -149,10 +150,10 @@ fun RecentlyDeletedScreen(navController: NavController) {
                             Icons.Default.Restore,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Recover All", color = Color.White)
+                        Text("Recover All", color = ThemeColorUtils.white())
                     }
                     Button(
                         onClick = { showDeleteSelectedDialog = true },
@@ -163,10 +164,10 @@ fun RecentlyDeletedScreen(navController: NavController) {
                             Icons.Default.Delete,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete All", color = Color.White)
+                        Text("Delete All", color = ThemeColorUtils.white())
                     }
                 }
             } else if (selectionMode) {
@@ -186,10 +187,10 @@ fun RecentlyDeletedScreen(navController: NavController) {
                             Icons.Default.Restore,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Recover All", color = Color.White)
+                        Text("Recover All", color = ThemeColorUtils.white())
                     }
                     Button(
                         onClick = { showDeleteAllDialog = true },
@@ -200,10 +201,10 @@ fun RecentlyDeletedScreen(navController: NavController) {
                             Icons.Default.Delete,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = Color.White
+                            tint = ThemeColorUtils.white()
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete All", color = Color.White)
+                        Text("Delete All", color = ThemeColorUtils.white())
                     }
                 }
             }
@@ -225,7 +226,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                             Text(
                                 text = "No deleted items found.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = Color.Gray
+                                color = ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -271,7 +272,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
-                    Text("Restore All", color = Color.White)
+                    Text("Restore All", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -297,7 +298,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Delete All", color = Color.White)
+                    Text("Delete All", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -326,7 +327,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
                 ) {
-                    Text("Restore", color = Color.White)
+                    Text("Restore", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -355,7 +356,7 @@ fun RecentlyDeletedScreen(navController: NavController) {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("Delete", color = Color.White)
+                    Text("Delete", color = ThemeColorUtils.white())
                 }
             },
             dismissButton = {
@@ -391,7 +392,7 @@ fun DeletedItemCard(
                 }
             },
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected && selectionMode) Color(0xFFE3F2FD) else Color.White
+            containerColor = if (isSelected && selectionMode) Color(0xFFE3F2FD) else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
     ) {
@@ -441,7 +442,7 @@ fun DeletedItemCard(
                 Text(
                     text = dateFormat.format(Date(entry.timestamp)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.Gray
+                    color = ThemeColorUtils.lightGray(Color.Gray)
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -486,4 +487,3 @@ fun DeletedItemCard(
         }
     }
 }
-

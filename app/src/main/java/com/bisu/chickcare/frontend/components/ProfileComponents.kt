@@ -4,6 +4,9 @@ import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,7 +23,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
@@ -47,6 +54,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -63,6 +71,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.data.UserProfile
@@ -71,6 +81,7 @@ import com.bisu.chickcare.backend.repository.PostRepository
 import com.bisu.chickcare.backend.repository.TimelinePost
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import kotlinx.coroutines.launch
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @Composable
 fun CoverPhotoSection(
@@ -128,11 +139,11 @@ fun CoverPhotoSection(
             Icon(
                 Icons.Default.CameraAlt,
                 contentDescription = if (coverPhotoUrl != null) "Change cover photo" else "Add cover photo",
-                tint = Color.White,
+                tint = ThemeColorUtils.white(),
                 modifier = Modifier
-                    .size(40.dp)
-                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                    .padding(6.dp)
+                    .size(36.dp)
+                    .background(ThemeColorUtils.black(alpha = 0.6f), CircleShape)
+                    .padding(8.dp)
             )
         }
     }
@@ -156,7 +167,7 @@ fun ProfilePictureAndNameSection(
                     modifier = Modifier
                         .size(140.dp)
                         .clip(CircleShape)
-                        .border(4.dp, Color(0xFF3A3939), CircleShape),
+                        .border(4.dp, ThemeColorUtils.darkGray(Color(0xFF3A3939)), CircleShape),
                     contentScale = ContentScale.Crop
                 )
             } else {
@@ -165,7 +176,7 @@ fun ProfilePictureAndNameSection(
                         .size(140.dp)
                         .clip(CircleShape)
                         .background(Color(0xFFE1E0E0))
-                        .border(3.dp, Color(0xFF3A3939), CircleShape),
+                        .border(3.dp, ThemeColorUtils.darkGray(Color(0xFF3A3939)), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -176,7 +187,7 @@ fun ProfilePictureAndNameSection(
                     )
                 }
             }
-
+            
             if (isUploading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(140.dp),
@@ -184,20 +195,20 @@ fun ProfilePictureAndNameSection(
                     strokeWidth = 4.dp
                 )
             }
-
+            
             IconButton(
                 onClick = onProfilePhotoClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .size(48.dp)
-                    .background(Color.White, CircleShape)
-                    .border(2.dp, Color(0xFF3A3939), CircleShape)
+                    .size(44.dp)
+                    .background(ThemeColorUtils.white(), CircleShape)
+                    .border(2.dp, ThemeColorUtils.darkGray(Color(0xFF3A3939)), CircleShape)
             ) {
                 Icon(
                     Icons.Default.CameraAlt,
                     contentDescription = if (userProfile.photoUrl != null) "Change photo" else "Add photo",
                     tint = Color(0xFF2F2E2E),
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -206,7 +217,7 @@ fun ProfilePictureAndNameSection(
             text = userProfile.fullName,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF26201C)
+            color = ThemeColorUtils.black()
         )
     }
 }
@@ -216,15 +227,29 @@ fun FriendSuggestionsSection(
     suggestionCount: Int,
     onClick: () -> Unit
 ) {
+    val shape = RoundedCornerShape(12.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(12.dp),
+            .clip(shape)
+            .indication(interactionSource, ripple(bounded = true))
+            .clickable(
+                onClick = onClick,
+                interactionSource = interactionSource
+            ),
+        shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.surface(Color.White)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = if (isPressed) 8.dp else 5.dp,
+            pressedElevation = 8.dp,
+            hoveredElevation = 6.dp,
+            focusedElevation = 6.dp
+        )
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -236,10 +261,10 @@ fun FriendSuggestionsSection(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Friend Suggested",
+                    text = "Suggestions",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF26201C)
+                    color = ThemeColorUtils.black()
                 )
                 if (suggestionCount > 0) {
                     BadgedBox(
@@ -249,7 +274,7 @@ fun FriendSuggestionsSection(
                             ) {
                                 Text(
                                     text = suggestionCount.toString(),
-                                    color = Color.White,
+                                    color = ThemeColorUtils.white(),
                                     style = MaterialTheme.typography.labelSmall
                                 )
                             }
@@ -264,13 +289,13 @@ fun FriendSuggestionsSection(
                 Text(
                     text = "No friend suggestions",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray
+                    color = ThemeColorUtils.black(alpha = 0.7f)
                 )
             } else {
                 Text(
-                    text = "$suggestionCount new friend is suggested for you.",
+                    text = "$suggestionCount new friend suggestions available",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color(0xFF464644)
+                    color = ThemeColorUtils.darkGray(Color(0xFF464644))
                 )
             }
         }
@@ -280,7 +305,9 @@ fun FriendSuggestionsSection(
 @Composable
 fun PostsSection(
     userProfile: UserProfile,
-    onNavigateToPost: () -> Unit
+    onNavigateToPost: () -> Unit,
+    isViewingOwnProfile: Boolean,
+    timelineUserId: String
 ) {
     var postText by remember { mutableStateOf("") }
     var showAudienceDialog by remember { mutableStateOf(false) }
@@ -288,9 +315,14 @@ fun PostsSection(
     val postRepository = remember { PostRepository() }
     val authViewModel: AuthViewModel = viewModel()
     val auth = authViewModel.auth
-    val userId = auth.currentUser?.uid ?: ""
-    val timelinePostsFlow = remember(userId) {
-        postRepository.getUserTimelinePosts(userId, includePrivate = true)
+    val currentUserId = auth.currentUser?.uid ?: ""
+    val targetTimelineUserId = timelineUserId.ifEmpty { currentUserId }
+    val includePrivatePosts = isViewingOwnProfile && targetTimelineUserId == currentUserId
+    val timelinePostsFlow = remember(targetTimelineUserId, includePrivatePosts) {
+        postRepository.getUserTimelinePosts(
+            targetTimelineUserId,
+            includePrivate = includePrivatePosts
+        )
     }
     val timelinePosts by timelinePostsFlow.collectAsState(initial = emptyList())
     Column(
@@ -301,139 +333,140 @@ fun PostsSection(
             text = "Posts",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = Color(0xFF26201C)
+            color = ThemeColorUtils.black()
         )
         
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(
-                containerColor = Color.White
-            ),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+        if (isViewingOwnProfile) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = ThemeColorUtils.surface(Color.White)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                Column(
+                    modifier = Modifier.padding(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        if (userProfile.photoUrl != null && userProfile.photoUrl.isNotEmpty()) {
-                            AsyncImage(
-                                model = userProfile.photoUrl,
-                                contentDescription = userProfile.fullName,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFE1E0E0)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    Icons.Default.Person,
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                        ) {
+                            if (userProfile.photoUrl != null && userProfile.photoUrl.isNotEmpty()) {
+                                AsyncImage(
+                                    model = userProfile.photoUrl,
                                     contentDescription = userProfile.fullName,
-                                    tint = Color(0xFF464343),
-                                    modifier = Modifier.size(24.dp)
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape),
+                                    contentScale = ContentScale.Crop
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                        .background(Color(0xFFE1E0E0)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = userProfile.fullName,
+                                        tint = Color(0xFF464343),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
-                    }
-                    
-                    IconButton(
-                        onClick = onNavigateToPost,
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(
-                                Color(0xFFF5F5F5),
-                                RoundedCornerShape(8.dp)
+                        
+                        IconButton(
+                            onClick = onNavigateToPost,
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(
+                                    ThemeColorUtils.surface(Color(0xFFF5F5F5)),
+                                    RoundedCornerShape(8.dp)
+                                )
+                        ) {
+                            Icon(
+                                Icons.Default.PostAdd,
+                                contentDescription = "Create post from detection history",
+                                tint = Color(0xFF1C1B1B),
+                                modifier = Modifier.size(24.dp)
                             )
-                    ) {
-                        Icon(
-                            Icons.Default.PostAdd,
-                            contentDescription = "Create post from detection history",
-                            tint = Color(0xFF1C1B1B),
-                            modifier = Modifier.size(24.dp)
+                        }
+                        
+                        OutlinedTextField(
+                            value = postText,
+                            onValueChange = { postText = it },
+                            placeholder = { 
+                                Text(
+                                    "Write a post...",
+                                    color = ThemeColorUtils.black(alpha = 0.6f)
+                                ) 
+                            },
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 40.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedContainerColor = ThemeColorUtils.surface(Color(0xFFF9F9F9)),
+                                unfocusedContainerColor = ThemeColorUtils.surface(Color(0xFFF9F9F9)),
+                                focusedBorderColor = Color.Transparent,
+                                unfocusedBorderColor = Color.Transparent,
+                                focusedTextColor = ThemeColorUtils.black(),
+                                unfocusedTextColor = ThemeColorUtils.black()
+                            ),
+                            shape = RoundedCornerShape(20.dp),
+                            singleLine = false,
+                            maxLines = 3
                         )
-                    }
-                    
-                    OutlinedTextField(
-                        value = postText,
-                        onValueChange = { postText = it },
-                        placeholder = { 
+                        
+                        Button(
+                            onClick = {
+                                if (postText.trim().isNotEmpty()) {
+                                    showAudienceDialog = true
+                                }
+                            },
+                            modifier = Modifier.heightIn(min = 40.dp),
+                            enabled = postText.trim().isNotEmpty(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFD4B48C),
+                                disabledContainerColor = Color(0xFFDA9969).copy(alpha = 0.5f)
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 2.dp
+                            ),
+                            shape = RoundedCornerShape(20.dp)
+                        ) {
                             Text(
-                                "Write a post...",
-                                color = Color.Gray
-                            ) 
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = 40.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = Color(0xFFF9F9F9),
-                            unfocusedContainerColor = Color(0xFFF9F9F9),
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            focusedTextColor = Color.Black,
-                            unfocusedTextColor = Color.Black
-                        ),
-                        shape = RoundedCornerShape(20.dp),
-                        singleLine = false,
-                        maxLines = 3
-                    )
-                    
-                    Button(
-                        onClick = {
-                            if (postText.trim().isNotEmpty()) {
-                                showAudienceDialog = true
-                            }
-                        },
-                        modifier = Modifier.heightIn(min = 40.dp),
-                        enabled = postText.trim().isNotEmpty(),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD4B48C),
-                            disabledContainerColor = Color(0xFFDA9969).copy(alpha = 0.5f)
-                        ),
-                        elevation = ButtonDefaults.buttonElevation(
-                            defaultElevation = 2.dp
-                        ),
-                        shape = RoundedCornerShape(20.dp)
-                    ) {
-                        Text(
-                            text = "Post",
-                            style = MaterialTheme.typography.labelLarge,
-                            fontWeight = FontWeight.SemiBold,
-                            color = Color.Black
-                        )
+                                text = "Post",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.SemiBold,
+                                color = ThemeColorUtils.black()
+                            )
+                        }
                     }
                 }
             }
         }
         
-        HorizontalDivider(
-            modifier = Modifier.padding(vertical = 8.dp),
-            color = Color.Gray.copy(alpha = 0.3f),
-            thickness = 1.dp
-        )
-        
         if (timelinePosts.isEmpty()) {
+            val emptyStateMessage = if (isViewingOwnProfile) {
+                "No posts yet. Create your first post!"
+            } else {
+                "No posts from ${userProfile.fullName.ifEmpty { "this user" }} yet."
+            }
             Text(
-                text = "No posts yet. Create your first post!",
+                text = emptyStateMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color.Gray,
+                color = ThemeColorUtils.black(alpha = 0.7f),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         } else {
@@ -442,7 +475,48 @@ fun PostsSection(
                 modifier = Modifier.padding(vertical = 8.dp)
             ) {
                 timelinePosts.forEach { post ->
-                    TimelinePostItem(post = post)
+                    TimelinePostItem(
+                        post = post,
+                        onDelete = { postId ->
+                            scope.launch {
+                                try {
+                                    val currentUserId = auth.currentUser?.uid ?: return@launch
+                                    postRepository.deletePost(currentUserId, postId)
+                                } catch (e: Exception) {
+                                    Log.e("PostsSection", "Error deleting post: ${e.message}")
+                                }
+                            }
+                        },
+                        onChangeAudience = { postId, newVisibility ->
+                            scope.launch {
+                                try {
+                                    val currentUserId = auth.currentUser?.uid ?: return@launch
+                                    postRepository.updatePostVisibility(currentUserId, postId, newVisibility)
+                                } catch (e: Exception) {
+                                    Log.e("PostsSection", "Error changing audience: ${e.message}")
+                                }
+                            }
+                        },
+                        onSavePost = { postId ->
+                            scope.launch {
+                                try {
+                                    val currentUserId = auth.currentUser?.uid ?: return@launch
+                                    val postToSave = timelinePosts.find { it.id == postId }
+                                    if (postToSave != null) {
+                                        val originalUserId = postToSave.userId
+                                        if (postToSave.isSaved) {
+                                        postRepository.unsavePost(currentUserId, originalUserId, postId)
+                                        } else {
+                                            postRepository.savePost(currentUserId, originalUserId, postId, postToSave)
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Log.e("PostsSection", "Error saving post: ${e.message}")
+                                }
+                            }
+                        },
+                        userId = currentUserId
+                    )
                 }
             }
         }
@@ -451,13 +525,13 @@ fun PostsSection(
     LaunchedEffect(Unit) {
     }
     
-    if (showAudienceDialog) {
+    if (showAudienceDialog && isViewingOwnProfile) {
         AudienceSelectionDialog(
             onDismiss = { showAudienceDialog = false },
             onPost = { visibility ->
                 scope.launch {
                     try {
-                        val userId = auth.currentUser?.uid ?: return@launch
+                        val userId = currentUserId.takeIf { it.isNotEmpty() } ?: return@launch
                         postRepository.createTextPost(
                             userId = userId,
                             userName = userProfile.fullName,
@@ -519,7 +593,7 @@ fun AudienceSelectionDialog(
                         Text(
                             "Anyone can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -544,7 +618,7 @@ fun AudienceSelectionDialog(
                         Text(
                             "Only you can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -563,14 +637,14 @@ fun AudienceSelectionDialog(
             ) {
                 Text(
                     "Post",
-                    color = Color.Black,
+                    color = ThemeColorUtils.black(),
                     fontWeight = FontWeight.SemiBold
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = Color.Black)
+                Text("Cancel", color = ThemeColorUtils.black())
             }
         }
     )
@@ -578,18 +652,28 @@ fun AudienceSelectionDialog(
 
 @Composable
 fun TimelinePostItem(
-    post: TimelinePost
+    post: TimelinePost,
+    onDelete: (String) -> Unit,
+    onChangeAudience: (String, String) -> Unit,
+    onSavePost: (String) -> Unit,
+    userId: String
 ) {
+    var showMenu by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var showAudienceDialog by remember { mutableStateOf(false) }
     val dateFormat = remember { java.text.SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", java.util.Locale.getDefault()) }
     val dateString = remember(post.timestamp) {
         dateFormat.format(java.util.Date(post.timestamp))
     }
     
+    // Only show menu if the post belongs to the current user
+    val isOwnPost = post.userId == userId
+    
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -638,20 +722,89 @@ fun TimelinePostItem(
                             text = post.userName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = Color.Black
+                            color = ThemeColorUtils.black()
                         )
                         Icon(
                             imageVector = if (post.visibility == "public") Icons.Default.Public else Icons.Default.Lock,
                             contentDescription = post.visibility,
-                            tint = Color.Gray,
+                            tint = ThemeColorUtils.black(alpha = 0.6f),
                             modifier = Modifier.size(14.dp)
                         )
                     }
                     Text(
                         text = dateString,
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.black(alpha = 0.6f)
                     )
+                }
+                
+                // Three-dot menu button (only show for own posts)
+                if (isOwnPost) {
+                    Box {
+                        IconButton(
+                            onClick = { showMenu = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = ThemeColorUtils.black(),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete Post") },
+                                onClick = {
+                                    showMenu = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = null,
+                                        tint = Color.Red
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(if (post.visibility == "public") "Change to Private" else "Change to Public")
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    showAudienceDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (post.visibility == "public") Icons.Default.Lock else Icons.Default.Public,
+                                        contentDescription = null,
+                                        tint = ThemeColorUtils.black()
+                                    )
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { 
+                                    Text(if (post.isSaved) "Unsave Post" else "Save Post")
+                                },
+                                onClick = {
+                                    showMenu = false
+                                    onSavePost(post.id)
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        if (post.isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
+                                        contentDescription = null,
+                                        tint = ThemeColorUtils.black()
+                                    )
+                                }
+                            )
+                        }
+                    }
                 }
             }
             
@@ -659,7 +812,7 @@ fun TimelinePostItem(
                 Text(
                     text = post.content,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Black
+                    color = ThemeColorUtils.black()
                 )
             }
             
@@ -675,7 +828,7 @@ fun TimelinePostItem(
                     Text(
                         text = "Confidence: ${(post.confidence * 100).toInt()}%",
                         style = MaterialTheme.typography.bodySmall,
-                        color = Color.Gray
+                        color = ThemeColorUtils.black(alpha = 0.6f)
                     )
                 }
                 
@@ -693,6 +846,239 @@ fun TimelinePostItem(
             }
         }
     }
+    
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        DeletePostConfirmationDialog(
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                onDelete(post.id)
+                showDeleteDialog = false
+            }
+        )
+    }
+    
+    // Change audience dialog
+    if (showAudienceDialog) {
+        ChangeAudienceDialog(
+            currentVisibility = post.visibility,
+            onDismiss = { showAudienceDialog = false },
+            onConfirm = { newVisibility ->
+                onChangeAudience(post.id, newVisibility)
+                showAudienceDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+fun DeletePostConfirmationDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = ThemeColorUtils.white()
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header with title and X button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Delete Post",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeColorUtils.black()
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Confirmation message
+                Text(
+                    text = "Are you sure you want to delete this post? This action cannot be undone. The detection history will remain intact.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                )
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // Delete Button
+                Button(
+                    onClick = onConfirm,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFEF5350),
+                        contentColor = ThemeColorUtils.white()
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Delete", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChangeAudienceDialog(
+    currentVisibility: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var selectedVisibility by remember { mutableStateOf(if (currentVisibility == "public") "private" else "public") }
+    
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = ThemeColorUtils.white()
+            ),
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp)
+            ) {
+                // Header with title and X button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Change Audience",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeColorUtils.black()
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                HorizontalDivider()
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Public option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedVisibility = "public" },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RadioButton(
+                        selected = selectedVisibility == "public",
+                        onClick = { selectedVisibility = "public" }
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Public",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Anyone can see this post",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.black(alpha = 0.6f)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Private option
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { selectedVisibility = "private" },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    RadioButton(
+                        selected = selectedVisibility == "private",
+                        onClick = { selectedVisibility = "private" }
+                    )
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Private",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            "Only you can see this post",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.black(alpha = 0.6f)
+                        )
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(20.dp))
+                
+                // Save Button
+                Button(
+                    onClick = { onConfirm(selectedVisibility) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF4CAF50),
+                        contentColor = ThemeColorUtils.white()
+                    ),
+                    shape = RoundedCornerShape(8.dp)
+                ) {
+                    Text("Save", fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -703,7 +1089,7 @@ fun MutualFriendsSection(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -725,7 +1111,7 @@ fun MutualFriendsSection(
                     text = "${mutualFriends.size}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF090705)
+                    color = ThemeColorUtils.black()
                 )
             }
             
@@ -733,7 +1119,7 @@ fun MutualFriendsSection(
                 Text(
                     text = "No friends yet. Start adding friends!",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = Color.Gray,
+                    color = ThemeColorUtils.black(alpha = 0.7f),
                     fontStyle = FontStyle.Italic
                 )
             } else {
@@ -787,7 +1173,7 @@ fun FriendAvatarItem(
                 .size(60.dp)
                 .clip(CircleShape)
                 .background(Color(0xFFF5F5F5))
-                .border(2.dp, Color(0xFFE0E0E0), CircleShape),
+                .border(2.dp, ThemeColorUtils.lightGray(Color(0xFFE0E0E0)), CircleShape),
             contentAlignment = Alignment.Center
         ) {
             if (friend.photoUrl != null && friend.photoUrl.isNotEmpty()) {
@@ -846,7 +1232,7 @@ fun InfoRow(
         ) {
             Text(
                 text = value,
-                color = if (isEmpty) Color.Gray else Color.Unspecified,
+                color = if (isEmpty) ThemeColorUtils.black(alpha = 0.6f) else ThemeColorUtils.black(),
                 fontStyle = if (isEmpty) FontStyle.Italic else FontStyle.Normal,
                 modifier = Modifier.weight(1f)
             )
@@ -862,7 +1248,7 @@ fun InfoRow(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Privacy settings",
-                        tint = Color.Black,
+                        tint = ThemeColorUtils.black(),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -881,7 +1267,7 @@ fun InfoRow(
                             Icon(
                                 if (currentPrivacy == "public") Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (currentPrivacy == "public") Color(0xFF6366F1) else Color.Gray
+                                tint = if (currentPrivacy == "public") Color(0xFF6366F1) else ThemeColorUtils.black(alpha = 0.5f)
                             )
                         }
                     )
@@ -895,7 +1281,7 @@ fun InfoRow(
                             Icon(
                                 if (currentPrivacy == "friends") Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (currentPrivacy == "friends") Color(0xFF6366F1) else Color.Gray
+                                tint = if (currentPrivacy == "friends") Color(0xFF6366F1) else ThemeColorUtils.black(alpha = 0.5f)
                             )
                         }
                     )
@@ -909,7 +1295,7 @@ fun InfoRow(
                             Icon(
                                 if (currentPrivacy == "private") Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
                                 contentDescription = null,
-                                tint = if (currentPrivacy == "private") Color(0xFF6366F1) else Color.Gray
+                                tint = if (currentPrivacy == "private") Color(0xFF6366F1) else ThemeColorUtils.black(alpha = 0.5f)
                             )
                         }
                     )
@@ -918,4 +1304,3 @@ fun InfoRow(
         }
     }
 }
-
