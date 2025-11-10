@@ -28,7 +28,7 @@ object ShareUtils {
             context.packageManager.getApplicationLabel(context.applicationInfo).toString()
         }
 
-        val defaultGoogleDriveUrl = googleDriveUrl ?: "https://drive.google.com/file/d/18tv97VNrGv7Uz4a81GylBtGEQxHTBSKT/view?usp=sharing"
+        val defaultGoogleDriveUrl = googleDriveUrl ?: "https://drive.google.com/file/d/16Mes2a0bkHlOHyaTM5fmJSwrKkJwFGkW/view?usp=drive_link"
         
         downloadUrl ?: defaultGoogleDriveUrl
         
