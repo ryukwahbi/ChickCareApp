@@ -304,7 +304,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         ),
         HelpTopic(
             "How to Use Detection Feature",
-            "1. Open the Detection screen from the bottom navigation\n2. Take a photo of your chicken using the camera button\n3. Or record audio of chicken sounds (coughing, sneezing)\n4. Wait for AI analysis (usually 10-30 seconds)\n5. Review the results and recommendations\n6. Save important detections to your history",
+            "1. Open the Detection screen from the bottom navigation\n2. Take a photo of your chicken using the camera button\n3. Then record audio of chicken sounds (coughing, sneezing)\n4. Wait for AI analysis (usually 10-30 seconds)\n5. Review the results and recommendations\n6. Save important detections to your history",
             HelpCategory.APP_GUIDE,
             Icons.Default.CameraAlt,
             isPopular = false

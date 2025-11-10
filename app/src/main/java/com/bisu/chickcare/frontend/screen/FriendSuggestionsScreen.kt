@@ -109,7 +109,15 @@ fun FriendSuggestionsScreen(navController: NavController) {
                     }
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -234,7 +242,7 @@ fun FriendSuggestionItem(
                 modifier = Modifier.clickable(onClick = onViewProfile)
             ) {
                 AsyncImage(
-                    model = suggestion.photoUrl ?: R.drawable.chicken_icon,
+                    model = suggestion.photoUrl ?: R.drawable.default_avatar,
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(64.dp)

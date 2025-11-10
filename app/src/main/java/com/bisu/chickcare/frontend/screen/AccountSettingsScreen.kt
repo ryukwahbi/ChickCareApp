@@ -69,9 +69,9 @@ import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.components.ChangePasswordDialog
 import com.bisu.chickcare.frontend.components.EditEmailDialog
 import com.bisu.chickcare.frontend.components.EditFullNameDialog
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.yalantis.ucrop.UCrop
 import com.bisu.chickcare.frontend.components.ProfilePicturePickerDialog as ProfilePictureDialog
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,7 +80,6 @@ fun AccountSettingsScreen(navController: NavController) {
     val userProfile by authViewModel.userProfile.collectAsState()
     val currentUser = authViewModel.auth.currentUser
     val context = LocalContext.current
-
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showEditEmailDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }

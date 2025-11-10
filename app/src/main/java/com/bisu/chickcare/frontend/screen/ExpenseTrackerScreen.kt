@@ -10,9 +10,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -31,12 +33,12 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,14 +62,15 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.repository.Expense
 import com.bisu.chickcare.backend.viewmodels.ExpenseTrackerViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 enum class ExpenseCategory(val displayName: String, val color: Color) {
     FEED("Feed", Color(0xFFFF9800)),
@@ -88,8 +91,6 @@ fun getCategoryColor(category: String): Color {
 fun ExpenseTrackerScreen(navController: NavController) {
     val viewModel: ExpenseTrackerViewModel = viewModel()
     val expenses by viewModel.expenses.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    
     var showAddDialog by remember { mutableStateOf(false) }
     var editingExpense by remember { mutableStateOf<Expense?>(null) }
 
@@ -112,7 +113,15 @@ fun ExpenseTrackerScreen(navController: NavController) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -132,7 +141,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                     editingExpense = null
                     showAddDialog = true
                 },
-                containerColor = Color(0xFFDA8041),
+                containerColor = Color(0xFF8F8C8A),
                 contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Expense")
@@ -143,7 +152,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             Column {
                 // Summary Cards
@@ -160,7 +169,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = String.format(Locale.getDefault(), "₱%.2f", totalExpenses),
@@ -183,7 +192,7 @@ fun ExpenseTrackerScreen(navController: NavController) {
                     ) {
                         Column(
                             modifier = Modifier.padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                            horizontalAlignment = Alignment.Start
                         ) {
                             Text(
                                 text = String.format(Locale.getDefault(), "₱%.2f", monthlyExpenses),
@@ -236,6 +245,14 @@ fun ExpenseTrackerScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
+                    thickness = 1.dp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Recent Expenses
                 Text(
@@ -247,58 +264,49 @@ fun ExpenseTrackerScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (isLoading && expenses.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFFDA8041))
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (expenses.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (expenses.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            Icons.Default.AttachMoney,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            "No expenses recorded",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                    }
+                                    Icon(
+                                        Icons.Default.AttachMoney,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "No expenses recorded",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
                                 }
                             }
-                        } else {
-                            items(expenses.sortedByDescending { it.date }, key = { it.id }) { expense ->
-                                ExpenseCard(
-                                    expense = expense,
-                                    onEdit = {
-                                        editingExpense = expense
-                                        showAddDialog = true
-                                    },
-                                    onDelete = {
-                                        viewModel.deleteExpense(expense.id)
-                                    }
-                                )
-                            }
+                        }
+                    } else {
+                        items(expenses.sortedByDescending { it.date }, key = { it.id }) { expense ->
+                            ExpenseCard(
+                                expense = expense,
+                                onEdit = {
+                                    editingExpense = expense
+                                    showAddDialog = true
+                                },
+                                onDelete = {
+                                    viewModel.deleteExpense(expense.id)
+                                }
+                            )
                         }
                     }
                 }
@@ -332,257 +340,276 @@ fun ExpenseInputDialog(
 ) {
     var description by remember { mutableStateOf(expense?.description ?: "") }
     var amount by remember { mutableStateOf(expense?.amount?.toString() ?: "") }
-    var selectedCategory by remember { 
-        mutableStateOf(expense?.category ?: ExpenseCategory.OTHER.displayName) 
+    var selectedCategory by remember {
+        mutableStateOf(expense?.category ?: ExpenseCategory.OTHER.displayName)
     }
     var paymentMethod by remember { mutableStateOf(expense?.paymentMethod ?: "") }
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
+                .fillMaxSize()
+                .wrapContentSize(Alignment.Center)
         ) {
-            Column(
+            Card(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(24.dp)
-                    .verticalScroll(rememberScrollState())
+                    .width(485.dp)
+                    .heightIn(max = 580.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp)
+                        .verticalScroll(rememberScrollState())
                 ) {
-                    Text(
-                        text = if (expense == null) "Add Expense" else "Edit Expense",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text("Description *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = amount,
-                    onValueChange = { amount = it },
-                    label = { Text("Amount (₱) *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    leadingIcon = {
-                        Text("₱", color = Color(0xFFDA8041), fontWeight = FontWeight.Bold)
-                    }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Category Dropdown
-                var expanded by remember { mutableStateOf(false) }
-                val categories = ExpenseCategory.entries.map { it.displayName }
-                
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { expanded = !expanded }
-                ) {
-                    OutlinedTextField(
-                        value = selectedCategory,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Category *") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                    )
-                    ExposedDropdownMenu(
-                        expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        categories.forEach { category ->
-                            DropdownMenuItem(
-                                text = { Text(category) },
-                                onClick = {
-                                    selectedCategory = category
-                                    expanded = false
-                                }
-                            )
+                        Text(
+                            text = if (expense == null) "Add Expense" else "Edit Expense",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Close")
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                OutlinedTextField(
-                    value = paymentMethod,
-                    onValueChange = { paymentMethod = it },
-                    label = { Text("Payment Method *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    placeholder = { Text("Cash, Card, etc.") }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Button(
-                    onClick = {
-                        val amountValue = amount.toDoubleOrNull()
-                        if (description.isNotBlank() && amountValue != null && amountValue > 0 && paymentMethod.isNotBlank()) {
-                            val newExpense = Expense(
-                                id = expense?.id ?: "",
-                                category = selectedCategory,
-                                amount = amountValue,
-                                date = expense?.date ?: System.currentTimeMillis(),
-                                description = description.trim(),
-                                paymentMethod = paymentMethod.trim()
-                            )
-                            onSave(newExpense)
-                        }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = description.isNotBlank() && 
-                              (amount.toDoubleOrNull() != null) && 
-                              ((amount.toDoubleOrNull() ?: 0.0) > 0) && 
-                              paymentMethod.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDA8041)
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("Description *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
                     )
-                ) {
-                    Text("Save", modifier = Modifier.padding(vertical = 8.dp))
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = amount,
+                        onValueChange = { amount = it },
+                        label = { Text("Amount (₱) *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        leadingIcon = {
+                            Text("₱", color = Color(0xFFDA8041), fontWeight = FontWeight.Bold)
+                        }
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Category Dropdown
+                    var expanded by remember { mutableStateOf(false) }
+                    val categories = ExpenseCategory.entries.map { it.displayName }
+
+                    ExposedDropdownMenuBox(
+                        expanded = expanded,
+                        onExpandedChange = { expanded = !expanded }
+                    ) {
+                        OutlinedTextField(
+                            value = selectedCategory,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Category *") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            categories.forEach { category ->
+                                DropdownMenuItem(
+                                    text = { Text(category) },
+                                    onClick = {
+                                        selectedCategory = category
+                                        expanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    OutlinedTextField(
+                        value = paymentMethod,
+                        onValueChange = { paymentMethod = it },
+                        label = { Text("Payment Method *") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        placeholder = { Text("Cash, Card, etc.") }
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            val amountValue = amount.toDoubleOrNull()
+                            if (description.isNotBlank() && amountValue != null && amountValue > 0 && paymentMethod.isNotBlank()) {
+                                val newExpense = Expense(
+                                    id = expense?.id ?: "",
+                                    category = selectedCategory,
+                                    amount = amountValue,
+                                    date = expense?.date ?: System.currentTimeMillis(),
+                                    description = description.trim(),
+                                    paymentMethod = paymentMethod.trim()
+                                )
+                                onSave(newExpense)
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = description.isNotBlank() &&
+                                (amount.toDoubleOrNull() != null) &&
+                                ((amount.toDoubleOrNull() ?: 0.0) > 0) &&
+                                paymentMethod.isNotBlank(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66BB1F)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Save", modifier = Modifier.padding(vertical = 8.dp))
+                    }
                 }
             }
         }
     }
 }
 
-@Composable
-fun CategoryRow(category: String, amount: Double, percentage: Int, color: Color) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Surface(
-            color = color.copy(alpha = 0.1f),
-            shape = CircleShape
-        ) {
-            Icon(
-                Icons.Default.AttachMoney,
-                contentDescription = null,
-                modifier = Modifier
-                    .padding(8.dp)
-                    .size(24.dp),
-                tint = color
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = category,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = "$percentage% of total",
-                style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
-            )
-        }
-        Text(
-            text = String.format(Locale.getDefault(), "₱%.2f", amount),
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Bold,
-            color = color
-        )
-    }
-}
-
-@Composable
-fun ExpenseCard(
-    expense: Expense,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-    val categoryColor = getCategoryColor(expense.category)
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
+    @Composable
+    fun CategoryRow(category: String, amount: Double, percentage: Int, color: Color) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = categoryColor.copy(alpha = 0.2f),
+                color = color.copy(alpha = 0.1f),
                 shape = CircleShape
             ) {
                 Icon(
                     Icons.Default.AttachMoney,
                     contentDescription = null,
                     modifier = Modifier
-                        .padding(12.dp)
-                        .size(32.dp),
-                    tint = categoryColor
+                        .padding(8.dp)
+                        .size(24.dp),
+                    tint = color
                 )
             }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
+            Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = expense.description,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = expense.category,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = categoryColor,
+                    text = category,
+                    style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    text = "${dateFormat.format(Date(expense.date))} • ${expense.paymentMethod}",
+                    text = "$percentage% of total",
                     style = MaterialTheme.typography.bodySmall,
                     color = ThemeColorUtils.lightGray(Color.Gray)
                 )
             }
+            Text(
+                text = String.format(Locale.getDefault(), "₱%.2f", amount),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+    }
 
-            Column(
-                horizontalAlignment = Alignment.End
+    @Composable
+    fun ExpenseCard(
+        expense: Expense,
+        onEdit: () -> Unit,
+        onDelete: () -> Unit
+    ) {
+        val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val categoryColor = getCategoryColor(expense.category)
+
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
+            elevation = CardDefaults.cardElevation(2.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF2196F3), modifier = Modifier.size(20.dp))
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF44336), modifier = Modifier.size(20.dp))
-                    }
+                Surface(
+                    color = categoryColor.copy(alpha = 0.2f),
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        Icons.Default.AttachMoney,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .padding(12.dp)
+                            .size(32.dp),
+                        tint = categoryColor
+                    )
                 }
-                Text(
-                    text = String.format(Locale.getDefault(), "₱%.2f", expense.amount),
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    color = Color(0xFFF44336)
-                )
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = expense.description,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = expense.category,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = categoryColor,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Text(
+                        text = "${dateFormat.format(Date(expense.date))} • ${expense.paymentMethod}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ThemeColorUtils.lightGray(Color.Gray)
+                    )
+                }
+
+                Column(
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Row {
+                        IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit",
+                                tint = Color(0xFF7EC6E3),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                        IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
+                            Icon(
+                                Icons.Default.Delete,
+                                contentDescription = "Delete",
+                                tint = Color(0xFFEA7B76),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                    Text(
+                        text = String.format(Locale.getDefault(), "₱%.2f", expense.amount),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF44336)
+                    )
+                }
             }
         }
     }
-}

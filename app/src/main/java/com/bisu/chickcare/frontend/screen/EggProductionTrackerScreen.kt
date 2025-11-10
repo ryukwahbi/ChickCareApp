@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -32,9 +33,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -58,23 +59,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.repository.EggProductionRecord
 import com.bisu.chickcare.backend.viewmodels.EggProductionViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EggProductionTrackerScreen(navController: NavController) {
     val viewModel: EggProductionViewModel = viewModel()
     val records by viewModel.eggProductionRecords.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    
     var showAddDialog by remember { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<EggProductionRecord?>(null) }
 
@@ -87,17 +87,17 @@ fun EggProductionTrackerScreen(navController: NavController) {
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
-    
+
     val endOfDay = startOfDay + (24 * 60 * 60 * 1000)
-    val todayRecord = records.firstOrNull { 
-        it.date >= startOfDay && it.date < endOfDay 
+    val todayRecord = records.firstOrNull {
+        it.date >= startOfDay && it.date < endOfDay
     }
-    
+
     val weeklyRecords = records.take(7)
     val weeklyAverage = if (weeklyRecords.isNotEmpty()) {
         weeklyRecords.map { it.totalEggs }.average()
     } else 0.0
-    
+
     val monthlyRecords = records.filter {
         (today - it.date) < (30L * 24 * 60 * 60 * 1000)
     }
@@ -112,14 +112,22 @@ fun EggProductionTrackerScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        "Egg Production Tracker",
+                        "Egg Production",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -139,7 +147,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                     editingRecord = null
                     showAddDialog = true
                 },
-                containerColor = Color(0xFFDA8041),
+                containerColor = Color(0xFF8F8C8A),
                 contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Record")
@@ -150,7 +158,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             Column {
                 // Summary Cards
@@ -179,6 +187,14 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         modifier = Modifier.weight(1f)
                     )
                 }
+
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
+                    thickness = 1.dp
+                )
 
                 // Today's Details Card
                 if (todayRecord != null) {
@@ -270,58 +286,49 @@ fun EggProductionTrackerScreen(navController: NavController) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                if (isLoading && records.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFFDA8041))
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (records.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (records.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Egg,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            "No egg production records found",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                    }
+                                    Icon(
+                                        Icons.Default.Egg,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "No egg production records found",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
                                 }
                             }
-                        } else {
-                            items(records, key = { it.id }) { record ->
-                                EggProductionCard(
-                                    record = record,
-                                    onEdit = {
-                                        editingRecord = record
-                                        showAddDialog = true
-                                    },
-                                    onDelete = {
-                                        viewModel.deleteEggProductionRecord(record.id)
-                                    }
-                                )
-                            }
+                        }
+                    } else {
+                        items(records, key = { it.id }) { record ->
+                            EggProductionCard(
+                                record = record,
+                                onEdit = {
+                                    editingRecord = record
+                                    showAddDialog = true
+                                },
+                                onDelete = {
+                                    viewModel.deleteEggProductionRecord(record.id)
+                                }
+                            )
                         }
                     }
                 }
@@ -358,12 +365,15 @@ fun EggProductionInputDialog(
     var coopLocation by remember { mutableStateOf(record?.coopLocation ?: "") }
     var notes by remember { mutableStateOf(record?.notes ?: "") }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
+                .width(550.dp)
+                .heightIn(max = 580.dp),
+            shape = RoundedCornerShape(10.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -390,7 +400,7 @@ fun EggProductionInputDialog(
 
                 OutlinedTextField(
                     value = totalEggs,
-                    onValueChange = { 
+                    onValueChange = {
                         totalEggs = it
                         // Auto-calculate broken eggs if not set
                         val total = it.toIntOrNull() ?: 0
@@ -409,7 +419,7 @@ fun EggProductionInputDialog(
 
                 OutlinedTextField(
                     value = healthyEggs,
-                    onValueChange = { 
+                    onValueChange = {
                         healthyEggs = it
                         // Auto-calculate broken eggs
                         val total = totalEggs.toIntOrNull() ?: 0
@@ -464,8 +474,8 @@ fun EggProductionInputDialog(
                         val total = totalEggs.toIntOrNull() ?: 0
                         val healthy = healthyEggs.toIntOrNull() ?: 0
                         val broken = brokenEggs.toIntOrNull() ?: 0
-                        
-                        if (total > 0 && healthy >= 0 && broken >= 0 && 
+
+                        if (total > 0 && healthy >= 0 && broken >= 0 &&
                             (healthy + broken) <= total && coopLocation.isNotBlank()) {
                             val newRecord = EggProductionRecord(
                                 id = record?.id ?: "",
@@ -480,12 +490,11 @@ fun EggProductionInputDialog(
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = ((totalEggs.toIntOrNull() ?: 0) > 0) && 
-                              ((healthyEggs.toIntOrNull() ?: 0) >= 0) && 
+                    enabled = ((totalEggs.toIntOrNull() ?: 0) > 0) &&
+                              ((healthyEggs.toIntOrNull() ?: 0) >= 0) &&
                               coopLocation.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDA8041)
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66BB1F)),
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text("Save", modifier = Modifier.padding(vertical = 8.dp))
                 }
@@ -590,10 +599,20 @@ fun EggProductionCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 Column {
                     IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF2196F3), modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = Color(0xFF7EC6E3),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                     IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF44336), modifier = Modifier.size(20.dp))
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color(0xFFEA7B76),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
@@ -601,7 +620,7 @@ fun EggProductionCard(
 
         if (record.notes.isNotEmpty()) {
             Surface(
-                color = ThemeColorUtils.beige(Color(0xFFF5F5DC)),
+                color = ThemeColorUtils.surface(Color.White),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -624,7 +643,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = count.toString(),

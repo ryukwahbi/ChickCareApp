@@ -22,24 +22,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Help
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Egg
-import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.LocalHospital
-import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.MedicalServices
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -313,10 +310,28 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                 .fillMaxSize()
                 .padding(8.dp)
         ) {
+            val itemShape = RoundedCornerShape(10.dp)
             Row(
                 modifier = Modifier
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
                     .fillMaxWidth()
-                    .padding(8.dp),
+                    .padding(start = 5.dp, end = 8.dp, top = 8.dp, bottom = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(
@@ -363,6 +378,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -380,6 +396,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -397,6 +414,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -414,6 +432,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -431,6 +450,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -448,6 +468,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -465,6 +486,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -482,6 +504,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -499,6 +522,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -516,6 +540,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -525,7 +550,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                 item {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Egg, contentDescription = null) },
-                        label = { Text("Egg Production Tracker") },
+                        label = { Text("Egg Production") },
                         selected = false,
                         onClick = {
                             navController.navigate("egg_production") {
@@ -533,23 +558,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.AutoMirrored.Filled.TrendingUp, contentDescription = null) },
-                        label = { Text("Growth Monitoring") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("growth_monitoring") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -567,6 +576,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -584,6 +594,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
                         )
@@ -601,42 +612,9 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.LocationCity, contentDescription = null) },
-                        label = { Text("Coop Management") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("coop_management") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Grass, contentDescription = null) },
-                        label = { Text("Breeding Records") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("breeding_records") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
                         )
                     )
                 }
@@ -652,6 +630,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             }
                             scope.launch { drawerState.close() }
                         },
+                        shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
                             selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
                         )
@@ -672,6 +651,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                 onClick = {
                     scope.launch { drawerState.close() }
                 },
+                shape = itemShape,
                 colors = NavigationDrawerItemDefaults.colors(
                     selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
                 )
@@ -687,6 +667,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                     }
                     scope.launch { drawerState.close() }
                 },
+                shape = itemShape,
                 colors = NavigationDrawerItemDefaults.colors(
                     selectedContainerColor = Color(0xFFD2B48C).copy(alpha = 0.3f)
                 )

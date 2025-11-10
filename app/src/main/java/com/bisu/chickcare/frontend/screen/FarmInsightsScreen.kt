@@ -46,8 +46,6 @@ fun FarmInsightsScreen(navController: NavController) {
     val dashboardViewModel: DashboardViewModel = viewModel()
     val uiState by dashboardViewModel.uiState.collectAsState()
     val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
-    
-    // Calculate insights
     val totalDetections = detectionHistory.size
     val healthyCount = detectionHistory.count { it.isHealthy }
     val infectedCount = detectionHistory.count { !it.isHealthy }
@@ -67,7 +65,15 @@ fun FarmInsightsScreen(navController: NavController) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",

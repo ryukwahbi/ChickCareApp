@@ -128,7 +128,15 @@ fun DiseaseDatabaseScreen(navController: NavController) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -147,7 +155,7 @@ fun DiseaseDatabaseScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             // Info Banner
             Card(
@@ -185,6 +193,15 @@ fun DiseaseDatabaseScreen(navController: NavController) {
                     }
                 }
             }
+
+            HorizontalDivider(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
+                thickness = 1.dp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Resources List
             LazyColumn(

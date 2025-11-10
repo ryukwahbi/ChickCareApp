@@ -2,6 +2,8 @@ package com.bisu.chickcare
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,56 +21,53 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.backend.utils.LocaleHelper
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.screen.AboutScreen
+import com.bisu.chickcare.frontend.screen.AccountSettingsScreen
 import com.bisu.chickcare.frontend.screen.ActionScreen
+import com.bisu.chickcare.frontend.screen.AnnouncementsScreen
 import com.bisu.chickcare.frontend.screen.ArchivesScreen
 import com.bisu.chickcare.frontend.screen.AudioInputScreen
 import com.bisu.chickcare.frontend.screen.CameraScreen
 import com.bisu.chickcare.frontend.screen.DashboardScreen
 import com.bisu.chickcare.frontend.screen.DetectionHistoryScreen
+import com.bisu.chickcare.frontend.screen.DiseaseDatabaseScreen
+import com.bisu.chickcare.frontend.screen.EggProductionTrackerScreen
+import com.bisu.chickcare.frontend.screen.ExpenseTrackerScreen
+import com.bisu.chickcare.frontend.screen.FarmInsightsScreen
 import com.bisu.chickcare.frontend.screen.FarmTipsScreen
 import com.bisu.chickcare.frontend.screen.FavoritesScreen
+import com.bisu.chickcare.frontend.screen.FeedingScheduleScreen
 import com.bisu.chickcare.frontend.screen.FriendSuggestionsScreen
+import com.bisu.chickcare.frontend.screen.HealthRecordsScreen
 import com.bisu.chickcare.frontend.screen.HelpCenterScreen
 import com.bisu.chickcare.frontend.screen.HistoryResultScreen
+import com.bisu.chickcare.frontend.screen.LanguageSettingsScreen
 import com.bisu.chickcare.frontend.screen.LastDetectionDetailScreen
 import com.bisu.chickcare.frontend.screen.LoginScreen
 import com.bisu.chickcare.frontend.screen.MainScreen
 import com.bisu.chickcare.frontend.screen.ManageProfilesScreen
+import com.bisu.chickcare.frontend.screen.MedicationsLogScreen
+import com.bisu.chickcare.frontend.screen.NotificationSettingsScreen
 import com.bisu.chickcare.frontend.screen.NotificationsScreen
 import com.bisu.chickcare.frontend.screen.PostDetectionHistoryScreen
+import com.bisu.chickcare.frontend.screen.PrivacyPolicyScreen
 import com.bisu.chickcare.frontend.screen.ProcessingScreen
 import com.bisu.chickcare.frontend.screen.ProfileScreen
-import com.bisu.chickcare.frontend.screen.RecentlyDeletedScreen
-import com.bisu.chickcare.frontend.screen.ResetPasswordScreen
-import com.bisu.chickcare.frontend.screen.SavedPostsScreen
-import com.bisu.chickcare.frontend.screen.ResultScreen
-import com.bisu.chickcare.frontend.screen.SettingsScreen
-import com.bisu.chickcare.frontend.screen.AccountSettingsScreen
-import com.bisu.chickcare.frontend.screen.SecurityPrivacyScreen
-import com.bisu.chickcare.frontend.screen.NotificationSettingsScreen
-import com.bisu.chickcare.frontend.screen.AboutScreen
-import com.bisu.chickcare.frontend.screen.LanguageSettingsScreen
-import com.bisu.chickcare.frontend.screen.PrivacyPolicyScreen
-import com.bisu.chickcare.frontend.screen.TermsOfServiceScreen
-import com.bisu.chickcare.frontend.screen.SignupScreen
-import com.bisu.chickcare.frontend.screen.TrashScreen
-import com.bisu.chickcare.frontend.screen.WelcomeScreen
-import com.bisu.chickcare.frontend.screen.HealthRecordsScreen
-import com.bisu.chickcare.frontend.screen.VaccinationScheduleScreen
-import com.bisu.chickcare.frontend.screen.FeedingScheduleScreen
-import com.bisu.chickcare.frontend.screen.EggProductionTrackerScreen
-import com.bisu.chickcare.frontend.screen.GrowthMonitoringScreen
-import com.bisu.chickcare.frontend.screen.ExpenseTrackerScreen
-import com.bisu.chickcare.frontend.screen.DiseaseDatabaseScreen
-import com.bisu.chickcare.frontend.screen.MedicationsLogScreen
-import com.bisu.chickcare.frontend.screen.CoopManagementScreen
-import com.bisu.chickcare.frontend.screen.BreedingRecordsScreen
-import com.bisu.chickcare.frontend.screen.ReportsAnalyticsScreen
 import com.bisu.chickcare.frontend.screen.RecentActivityScreen
-import com.bisu.chickcare.frontend.screen.FarmInsightsScreen
-import com.bisu.chickcare.frontend.screen.AnnouncementsScreen
-import com.bisu.chickcare.backend.utils.LocaleHelper
+import com.bisu.chickcare.frontend.screen.RecentlyDeletedScreen
+import com.bisu.chickcare.frontend.screen.ReportsAnalyticsScreen
+import com.bisu.chickcare.frontend.screen.ResetPasswordScreen
+import com.bisu.chickcare.frontend.screen.ResultScreen
+import com.bisu.chickcare.frontend.screen.SavedPostsScreen
+import com.bisu.chickcare.frontend.screen.SecurityPrivacyScreen
+import com.bisu.chickcare.frontend.screen.SettingsScreen
+import com.bisu.chickcare.frontend.screen.SignupScreen
+import com.bisu.chickcare.frontend.screen.TermsOfServiceScreen
+import com.bisu.chickcare.frontend.screen.TrashScreen
+import com.bisu.chickcare.frontend.screen.VaccinationScheduleScreen
+import com.bisu.chickcare.frontend.screen.WelcomeScreen
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -123,12 +122,27 @@ class MainActivity : ComponentActivity() {
                     val authViewModel: AuthViewModel = viewModel()
                     val dashboardViewModel: com.bisu.chickcare.backend.viewmodels.DashboardViewModel = viewModel()
 
+                    // Handle deep links and initial navigation
                     LaunchedEffect(Unit) {
-                        if (authViewModel.auth.currentUser != null) {
-                            dashboardViewModel.updateActiveStatus()
-                            navController.navigate("dashboard") {
-                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        val hasDeepLink = intent.data != null
+                        
+                        if (hasDeepLink) {
+                            handleDeepLink(intent, navController, authViewModel)
+                        } else {
+                            // Normal app launch - navigate to dashboard if authenticated
+                            if (authViewModel.auth.currentUser != null) {
+                                dashboardViewModel.updateActiveStatus()
+                                navController.navigate("dashboard") {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                }
                             }
+                        }
+                    }
+                    
+                    // Handle new intents (when app is already running and receives a new deep link)
+                    LaunchedEffect(intent) {
+                        if (intent.data != null) {
+                            handleDeepLink(intent, navController, authViewModel)
                         }
                     }
 
@@ -229,12 +243,9 @@ class MainActivity : ComponentActivity() {
                         composable("vaccination_schedule") { VaccinationScheduleScreen(navController) }
                         composable("feeding_schedule") { FeedingScheduleScreen(navController) }
                         composable("egg_production") { EggProductionTrackerScreen(navController) }
-                        composable("growth_monitoring") { GrowthMonitoringScreen(navController) }
                         composable("expense_tracker") { ExpenseTrackerScreen(navController) }
                         composable("disease_database") { DiseaseDatabaseScreen(navController) }
                         composable("medications_log") { MedicationsLogScreen(navController) }
-                        composable("coop_management") { CoopManagementScreen(navController) }
-                        composable("breeding_records") { BreedingRecordsScreen(navController) }
                         composable("reports_analytics") { ReportsAnalyticsScreen(navController) }
 
                         composable("detection_history") {
@@ -437,6 +448,97 @@ class MainActivity : ComponentActivity() {
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+    
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+    }
+    
+    /**
+     * Handle deep link intents
+     */
+    private fun handleDeepLink(
+        intent: Intent?,
+        navController: androidx.navigation.NavController,
+        authViewModel: AuthViewModel
+    ) {
+        val data: Uri? = intent?.data
+        if (data != null) {
+            android.util.Log.d("MainActivity", "Deep link received: $data")
+            
+            // Check if user is authenticated
+            val isAuthenticated = authViewModel.auth.currentUser != null
+            
+            // Parse the deep link path
+            val path = data.path ?: ""
+            val host = data.host ?: ""
+            
+            when {
+                // Handle download links
+                path.contains("download", ignoreCase = true) || host.contains("download", ignoreCase = true) -> {
+                    // Navigate to a download screen or show download dialog
+                    // For now, we'll just log it - you can add a download screen later
+                    android.util.Log.d("MainActivity", "Download link clicked")
+                }
+                
+                // Handle dashboard links
+                path.contains("dashboard", ignoreCase = true) || host.contains("dashboard", ignoreCase = true) -> {
+                    if (isAuthenticated) {
+                        navController.navigate("dashboard") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                }
+                
+                // Handle profile links
+                path.contains("profile", ignoreCase = true) || host.contains("profile", ignoreCase = true) -> {
+                    val userId = data.getQueryParameter("userId")
+                    if (isAuthenticated) {
+                        if (userId != null) {
+                            navController.navigate("view_profile?userId=$userId") {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate("profile") {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        }
+                    } else {
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                }
+                
+                // Handle detection history links
+                path.contains("history", ignoreCase = true) || host.contains("history", ignoreCase = true) -> {
+                    if (isAuthenticated) {
+                        navController.navigate("detection_history") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    } else {
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                }
+                
+                // Default: navigate to welcome or dashboard based on auth status
+                else -> {
+                    if (isAuthenticated) {
+                        navController.navigate("dashboard") {
+                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        }
+                    }
+                    // If not authenticated, stay on welcome screen
                 }
             }
         }

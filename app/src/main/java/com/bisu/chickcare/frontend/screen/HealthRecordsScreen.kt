@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -26,11 +27,11 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalHospital
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -38,6 +39,7 @@ import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -45,6 +47,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -64,18 +67,17 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.repository.HealthRecord
 import com.bisu.chickcare.backend.viewmodels.HealthRecordsViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HealthRecordsScreen(navController: NavController) {
     val viewModel: HealthRecordsViewModel = viewModel()
     val records by viewModel.healthRecords.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    
+
     var showAddDialog by remember { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<HealthRecord?>(null) }
     var selectedFilter by remember { mutableStateOf("All") }
@@ -92,7 +94,15 @@ fun HealthRecordsScreen(navController: NavController) {
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(
+                        onClick = {
+                            navController.navigate("dashboard") {
+                                popUpTo("dashboard") { inclusive = false }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -112,7 +122,7 @@ fun HealthRecordsScreen(navController: NavController) {
                     editingRecord = null
                     showAddDialog = true
                 },
-                containerColor = Color(0xFFDA8041),
+                containerColor = Color(0xFF8F8C8A),
                 contentColor = ThemeColorUtils.white()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add Health Record")
@@ -123,7 +133,7 @@ fun HealthRecordsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFF5F5DC)))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             Column {
                 // Summary Cards
@@ -136,19 +146,19 @@ fun HealthRecordsScreen(navController: NavController) {
                     SummaryCard(
                         title = "Healthy",
                         count = records.count { it.status == "HEALTHY" },
-                        color = Color(0xFF4CAF50),
+                        color = Color(0xFF84DA85),
                         modifier = Modifier.weight(1f)
                     )
                     SummaryCard(
                         title = "Recovering",
                         count = records.count { it.status == "RECOVERING" },
-                        color = Color(0xFFFF9800),
+                        color = Color(0xFFFCCA68),
                         modifier = Modifier.weight(1f)
                     )
                     SummaryCard(
                         title = "Sick",
                         count = records.count { it.status == "SICK" },
-                        color = Color(0xFFF44336),
+                        color = Color(0xFFE55A4F),
                         modifier = Modifier.weight(1f)
                     )
                 }
@@ -167,74 +177,111 @@ fun HealthRecordsScreen(navController: NavController) {
                             onClick = { selectedFilter = filter },
                             label = { Text(filter) },
                             colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFFDA8041).copy(alpha = 0.3f),
-                                selectedLabelColor = Color(0xFFDA8041)
+                                selectedContainerColor = Color(0xFF171A1A).copy(alpha = 0.3f),
+                                selectedLabelColor = Color(0xFF171A1A),
+                                containerColor = Color.Transparent
                             )
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
+                    thickness = 1.dp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
 
                 // Records List
                 val filteredRecords = if (selectedFilter == "All") {
                     records
                 } else {
-                    records.filter { it.status == selectedFilter.uppercase() }
+                    records.filter { it.status == selectedFilter.uppercase(Locale.getDefault()) }
                 }
 
-                if (isLoading && records.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = Color(0xFFDA8041))
-                    }
-                } else {
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        if (filteredRecords.isEmpty()) {
-                            item {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(32.dp),
-                                    contentAlignment = Alignment.Center
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (filteredRecords.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally
                                 ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(
-                                            Icons.Default.LocalHospital,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(64.dp),
-                                            tint = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            "No health records found",
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = ThemeColorUtils.lightGray(Color.Gray)
-                                        )
-                                    }
+                                    Icon(
+                                        Icons.Default.LocalHospital,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(64.dp),
+                                        tint = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    Text(
+                                        "No health records found",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = ThemeColorUtils.lightGray(Color.Gray)
+                                    )
                                 }
                             }
-                        } else {
-                            items(filteredRecords, key = { it.id }) { record ->
-                                HealthRecordCard(
-                                    record = record,
-                                    onEdit = {
-                                        editingRecord = record
-                                        showAddDialog = true
-                                    },
-                                    onDelete = {
+                        }
+                    } else {
+                        items(filteredRecords, key = { it.id }) { record ->
+                    var showDeleteDialog by remember { mutableStateOf(false) }
+
+                    if (showDeleteDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showDeleteDialog = false },
+                            title = {
+                                Text("Delete health record?", fontWeight = FontWeight.Bold)
+                            },
+                            text = {
+                                Text("This will permanently remove \"${record.condition}\" from your records.")
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
                                         viewModel.deleteHealthRecord(record.id)
-                                    }
-                                )
+                                        showDeleteDialog = false
+                                    },
+                                    colors = ButtonDefaults.textButtonColors(
+                                        contentColor = Color(0xFFF44336)
+                                    )
+                                ) {
+                                    Text("Delete", fontWeight = FontWeight.Bold)
+                                }
+                            },
+                            dismissButton = {
+                                TextButton(
+                                    onClick = { showDeleteDialog = false },
+                                    colors = ButtonDefaults.textButtonColors(
+                                        contentColor = ThemeColorUtils.lightGray(Color(0xFF757575))
+                                    )
+                                ) {
+                                    Text("Cancel")
+                                }
                             }
+                        )
+                    }
+
+                            HealthRecordCard(
+                                record = record,
+                                onEdit = {
+                                    editingRecord = record
+                                    showAddDialog = true
+                                },
+                                onDelete = {
+                            showDeleteDialog = true
+                                }
+                            )
                         }
                     }
                 }
@@ -266,25 +313,29 @@ fun HealthRecordInputDialog(
     onDismiss: () -> Unit,
     onSave: (HealthRecord) -> Unit
 ) {
-    var chickenId by remember { mutableStateOf(record?.chickenId ?: "") }
-    var chickenName by remember { mutableStateOf(record?.chickenName ?: "") }
-    var condition by remember { mutableStateOf(record?.condition ?: "") }
+    var observedCondition by remember { mutableStateOf(record?.condition ?: "") }
     var symptoms by remember { mutableStateOf(record?.symptoms ?: "") }
-    var treatment by remember { mutableStateOf(record?.treatment ?: "") }
-    var veterinarian by remember { mutableStateOf(record?.veterinarian ?: "") }
+    var intervention by remember { mutableStateOf(record?.treatment ?: "") }
+    var caretaker by remember { mutableStateOf(record?.veterinarian ?: "") }
     var selectedStatus by remember { mutableStateOf(record?.status ?: "HEALTHY") }
+    val statusOptions = listOf(
+        "HEALTHY" to "Healthy",
+        "RECOVERING" to "Recovering",
+        "SICK" to "Sick",
+        "CRITICAL" to "Critical"
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp)
+                .width(550.dp)
+                .heightIn(max = 580.dp),
+            shape = RoundedCornerShape(10.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp)
+                    .padding(18.dp)
                     .verticalScroll(rememberScrollState())
             ) {
                 Row(
@@ -305,29 +356,9 @@ fun HealthRecordInputDialog(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = chickenId,
-                    onValueChange = { chickenId = it },
-                    label = { Text("Chicken ID *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = chickenName,
-                    onValueChange = { chickenName = it },
-                    label = { Text("Chicken Name *") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = condition,
-                    onValueChange = { condition = it },
-                    label = { Text("Condition *") },
+                    value = observedCondition,
+                    onValueChange = { observedCondition = it },
+                    label = { Text("Observed Condition *") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -337,7 +368,7 @@ fun HealthRecordInputDialog(
                 OutlinedTextField(
                     value = symptoms,
                     onValueChange = { symptoms = it },
-                    label = { Text("Symptoms *") },
+                    label = { Text("Symptoms / Notes *") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4
@@ -346,9 +377,9 @@ fun HealthRecordInputDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = treatment,
-                    onValueChange = { treatment = it },
-                    label = { Text("Treatment *") },
+                    value = intervention,
+                    onValueChange = { intervention = it },
+                    label = { Text("Treatment / Medication *") },
                     modifier = Modifier.fillMaxWidth(),
                     minLines = 2,
                     maxLines = 4
@@ -357,9 +388,9 @@ fun HealthRecordInputDialog(
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
-                    value = veterinarian,
-                    onValueChange = { veterinarian = it },
-                    label = { Text("Veterinarian (Optional)") },
+                    value = caretaker,
+                    onValueChange = { caretaker = it },
+                    label = { Text("Handled By (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -368,30 +399,30 @@ fun HealthRecordInputDialog(
 
                 // Status Dropdown
                 var expanded by remember { mutableStateOf(false) }
-                val statuses = listOf("HEALTHY", "RECOVERING", "SICK", "CRITICAL")
-                
+
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
                 ) {
                     OutlinedTextField(
-                        value = selectedStatus,
+                        value = statusOptions.firstOrNull { it.first == selectedStatus }?.second ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("Status *") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier
+                            .menuAnchor()
                             .fillMaxWidth()
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false }
                     ) {
-                        statuses.forEach { status ->
+                        statusOptions.forEach { (value, label) ->
                             DropdownMenuItem(
-                                text = { Text(status) },
+                                text = { Text(label) },
                                 onClick = {
-                                    selectedStatus = status
+                                    selectedStatus = value
                                     expanded = false
                                 }
                             )
@@ -403,28 +434,29 @@ fun HealthRecordInputDialog(
 
                 Button(
                     onClick = {
-                        if (chickenId.isNotBlank() && chickenName.isNotBlank() && 
-                            condition.isNotBlank() && symptoms.isNotBlank() && treatment.isNotBlank()) {
+                        if (observedCondition.isNotBlank() && symptoms.isNotBlank() && intervention.isNotBlank()) {
+                            val autoId = record?.chickenId?.takeIf { it.isNotBlank() }
+                                ?: "HR-${System.currentTimeMillis()}"
+                            val autoLabel = record?.chickenName?.takeIf { it.isNotBlank() }
+                                ?: "Entry ${SimpleDateFormat("MMM dd • HH:mm", Locale.getDefault()).format(Date())}"
                             val newRecord = HealthRecord(
                                 id = record?.id ?: "",
-                                chickenId = chickenId.trim(),
-                                chickenName = chickenName.trim(),
+                                chickenId = autoId,
+                                chickenName = autoLabel,
                                 date = record?.date ?: System.currentTimeMillis(),
-                                condition = condition.trim(),
+                                condition = observedCondition.trim(),
                                 symptoms = symptoms.trim(),
-                                treatment = treatment.trim(),
-                                veterinarian = veterinarian.takeIf { it.isNotBlank() },
+                                treatment = intervention.trim(),
+                                veterinarian = caretaker.takeIf { it.isNotBlank() },
                                 status = selectedStatus
                             )
                             onSave(newRecord)
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = chickenId.isNotBlank() && chickenName.isNotBlank() && 
-                              condition.isNotBlank() && symptoms.isNotBlank() && treatment.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFDA8041)
-                    )
+                    enabled = observedCondition.isNotBlank() && symptoms.isNotBlank() && intervention.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66BB1F)),
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text("Save", modifier = Modifier.padding(vertical = 8.dp))
                 }
@@ -441,10 +473,10 @@ fun HealthRecordCard(
 ) {
     val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
     val statusColor = when (record.status) {
-        "HEALTHY" -> Color(0xFF4CAF50)
-        "RECOVERING" -> Color(0xFFFF9800)
-        "SICK" -> Color(0xFFFF5722)
-        "CRITICAL" -> Color(0xFFD32F2F)
+        "HEALTHY" -> Color(0xFF86D387)
+        "RECOVERING" -> Color(0xFFF1C894)
+        "SICK" -> Color(0xFFB0664F)
+        "CRITICAL" -> Color(0xFFD00B0B)
         else -> ThemeColorUtils.lightGray(Color.Gray)
     }
 
@@ -461,43 +493,56 @@ fun HealthRecordCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(statusColor.copy(alpha = 0.2f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.LocalHospital,
+                        contentDescription = null,
+                        tint = statusColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(statusColor.copy(alpha = 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            Icons.Default.LocalHospital,
-                            contentDescription = null,
-                            tint = statusColor,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = record.condition.ifBlank { "Health Record" },
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                    if (record.chickenId.isNotBlank()) {
                         Text(
-                            text = record.chickenName,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Text(
-                            text = "ID: ${record.chickenId}",
+                            text = "Reference: ${record.chickenId}",
                             style = MaterialTheme.typography.bodySmall,
                             color = ThemeColorUtils.lightGray(Color.Gray)
+                        )
+                    }
+                    if (!record.veterinarian.isNullOrBlank()) {
+                        Text(
+                            text = "Handled by: ${record.veterinarian}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color(0xFF1A1412),
+                            fontWeight = FontWeight.Medium
                         )
                     }
                 }
                 Row {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(0xFF2196F3))
+                        Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color(
+                            0xFF94DE55
+                        )
+                        )
                     }
                     IconButton(onClick = onDelete) {
-                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(0xFFF44336))
+                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color(
+                            0xFFF85C55
+                        )
+                        )
                     }
                 }
                 Surface(
@@ -515,6 +560,11 @@ fun HealthRecordCard(
             }
 
             Spacer(modifier = Modifier.height(12.dp))
+
+            HorizontalDivider(
+                color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)).copy(alpha = 0.6f),
+                thickness = 1.dp
+            )
 
             Text(
                 text = "Condition: ${record.condition}",
@@ -538,16 +588,6 @@ fun HealthRecordCard(
                 color = ThemeColorUtils.lightGray(Color.Gray)
             )
 
-            if (record.veterinarian != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Veterinarian: ${record.veterinarian}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = Color(0xFFDA8041),
-                    fontWeight = FontWeight.Medium
-                )
-            }
-
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
@@ -568,7 +608,7 @@ private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modif
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.Start
         ) {
             Text(
                 text = count.toString(),
