@@ -142,13 +142,14 @@ fun WeatherUpdateCard() {
                     Text(
                         "Weather Update",
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black()
                     )
                     if (location.isNotEmpty() && location != "Loading...") {
                         Text(
                             location,
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.lightGray(Color.Gray),
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                             modifier = Modifier.padding(top = 2.dp)
                         )
                     }
@@ -157,14 +158,14 @@ fun WeatherUpdateCard() {
                     Text(
                         "Today",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray),
+                        color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                         modifier = Modifier.padding(end = 8.dp)
                     )
                     IconButton(onClick = { weatherViewModel.fetchWeather(useCelsius = useCelsius) }) {
                         Icon(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = "Refresh weather",
-                            tint = Color(0xFF000000)
+                            tint = ThemeColorUtils.black()
                         )
                     }
                     Row(
@@ -176,8 +177,8 @@ fun WeatherUpdateCard() {
                     ) {
                         val selectedBg = ThemeColorUtils.white()
                         val unselectedBg = Color(0xFFF1F1F1)
-                        val selectedColor = Color(0xFF000000)
-                        val unselectedColor = ThemeColorUtils.lightGray(Color(0xFF666666))
+                        val selectedColor = ThemeColorUtils.black()
+                        val unselectedColor = ThemeColorUtils.darkGray(Color(0xFF666666))
 
                         Box(
                             modifier = Modifier
@@ -224,7 +225,7 @@ fun WeatherUpdateCard() {
                     Text(
                         "Loading weather...",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
+                        color = ThemeColorUtils.darkGray(Color(0xFF666666))
                     )
                 }
             } else {
@@ -241,7 +242,7 @@ fun WeatherUpdateCard() {
                         Text(
                             "Location is off. Using default city.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.lightGray(Color.Gray),
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                             modifier = Modifier.weight(1f)
                         )
                         Text(
@@ -276,13 +277,14 @@ fun WeatherUpdateCard() {
                                 if (useCelsius) "°C" else "°F",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
+                                color = ThemeColorUtils.black(),
                                 modifier = Modifier.padding(top = 8.dp)
                             )
                         }
                         Text(
                             weatherCondition,
                             style = MaterialTheme.typography.bodyLarge,
-                            color = ThemeColorUtils.lightGray(Color.Gray),
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                             modifier = Modifier.padding(top = 4.dp)
                         )
                     }
@@ -326,7 +328,7 @@ fun WeatherUpdateCard() {
                     Text(
                         "Next hours",
                         style = MaterialTheme.typography.labelSmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray),
+                        color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                     LazyRow(
@@ -343,9 +345,9 @@ fun WeatherUpdateCard() {
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier.padding(horizontal = 4.dp)
                             ) {
-                                Text(hour, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.lightGray(Color.Gray))
-                                Text("$t°", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold)
-                                Text(condition, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.lightGray(Color.Gray))
+                                Text(hour, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.darkGray(Color(0xFF666666)))
+                                Text("$t°", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = ThemeColorUtils.black())
+                                Text(condition, style = MaterialTheme.typography.labelSmall, color = ThemeColorUtils.darkGray(Color(0xFF666666)))
                                 Text("$pop%", style = MaterialTheme.typography.labelSmall, color = Color(0xFF2196F3))
                             }
                         }
@@ -375,12 +377,13 @@ fun RowScope.WeatherInfoItem(
         Text(
             value,
             style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.SemiBold
+            fontWeight = FontWeight.SemiBold,
+            color = ThemeColorUtils.black()
         )
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = ThemeColorUtils.lightGray(Color.Gray)
+            color = ThemeColorUtils.darkGray(Color(0xFF666666))
         )
     }
 }

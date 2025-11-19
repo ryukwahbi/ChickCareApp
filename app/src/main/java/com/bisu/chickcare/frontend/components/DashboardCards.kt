@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.components
 
+import android.annotation.SuppressLint
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
@@ -163,49 +164,93 @@ fun ChickenGalleryCard() {
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun StatsSummaryCard(
-    totalChickens: Int,
     totalDetections: Int,
     healthyRate: Double,
+    unhealthyRate: Double = 0.0,
     imageDetections: Int,
-    audioDetections: Int
+    audioDetections: Int,
+    detectionHistory: List<DetectionEntry> = emptyList()
 ) {
+    val calendar = java.util.Calendar.getInstance()
+    calendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+    calendar.set(java.util.Calendar.MINUTE, 0)
+    calendar.set(java.util.Calendar.SECOND, 0)
+    calendar.set(java.util.Calendar.MILLISECOND, 0)
+    val startOfDay = calendar.timeInMillis
+    
+    // Filter today's detections and calculate sum of all confidence percentages
+    val todaysDetections = remember(detectionHistory, startOfDay) {
+        detectionHistory.filter { it.timestamp >= startOfDay }
+    }
+    
+    val dailySum = remember(todaysDetections) {
+        if (todaysDetections.isNotEmpty()) {
+            // Sum all confidence percentages from today's detections
+            // Each confidence is multiplied by 100 to convert to percentage, then summed
+            todaysDetections.sumOf { it.confidence * 100.0 }
+        } else {
+            0.0
+        }
+    }
+    
     Column(
         modifier = Modifier.padding(horizontal = Dimens.PaddingLarge),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp),
+                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
+                elevation = CardDefaults.cardElevation(defaultElevation = Dimens.CardElevation)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(Dimens.PaddingLarge)
+                        .fillMaxWidth()
+                        .fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        text = "Daily Average",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = ThemeColorUtils.darkGray(Color(0xFF666666))
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = if (dailySum == dailySum.toInt().toDouble()) {
+                            "${dailySum.toInt()}%"
+                        } else {
+                            "${String.format("%.1f", dailySum)}%"
+                        },
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (todaysDetections.isNotEmpty()) ThemeColorUtils.black() else ThemeColorUtils.darkGray(Color(0xFF666666))
+                    )
+                }
+            }
             StatCard(
-                title = "Today's Detections",
-                value = totalChickens.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                title = "Total Detections",
-                value = totalDetections.toString(),
-                modifier = Modifier.weight(1f)
+                title = "Today's Detection",
+                value = todaysDetections.size.toString(),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(120.dp)
             )
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            StatCard(
-                title = "Image Scans",
-                value = imageDetections.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            StatCard(
-                title = "Audio Scans",
-                value = audioDetections.toString(),
-                modifier = Modifier.weight(1f)
-            )
-        }
-        // One card with two charts: Healthy (green) and Unhealthy (red)
+        StatCard(
+            title = "Overall Detections",
+            value = (imageDetections + audioDetections).toString(),
+            modifier = Modifier.fillMaxWidth()
+        )
         Card(
             modifier = Modifier.fillMaxWidth(),
             colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
@@ -218,16 +263,16 @@ fun StatsSummaryCard(
                     .padding(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // First chart: Healthy only (GREEN)
                 HealthyRatePieChart(
                     healthyRate = healthyRate,
+                    unhealthyRate = unhealthyRate,
                     chartType = ChartType.HEALTHY_ONLY,
                     modifier = Modifier.weight(1f)
                 )
                 
-                // Second chart: Unhealthy only (RED)
                 HealthyRatePieChart(
                     healthyRate = healthyRate,
+                    unhealthyRate = unhealthyRate,
                     chartType = ChartType.UNHEALTHY_ONLY,
                     modifier = Modifier.weight(1f)
                 )
@@ -252,13 +297,18 @@ fun DetectionHistoryCard(
         )
     ) {
         Column(modifier = Modifier.padding(Dimens.PaddingLarge)) {
-            Text("Recent Detections", style = MaterialTheme.typography.titleLarge)
+            Text(
+                "Recent Detections",
+                style = MaterialTheme.typography.titleLarge,
+                color = ThemeColorUtils.black()
+            )
             Spacer(modifier = Modifier.height(12.dp))
             if (detectionHistory.isEmpty()) {
                 Text(
                     "No recent detections found.",
                     modifier = Modifier.align(Alignment.CenterHorizontally),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = ThemeColorUtils.black()
                 )
             } else {
                 detectionHistory.take(3).forEach { entry ->
@@ -275,18 +325,20 @@ fun DetectionHistoryCard(
                         Spacer(modifier = Modifier.width(Dimens.PaddingMedium))
                         Text(
                             dashboardViewModel.formatDate(entry.timestamp),
-                            modifier = Modifier.weight(1f)
+                            modifier = Modifier.weight(1f),
+                            color = ThemeColorUtils.black()
                         )
                         Text(
                             text = formatDetectionResult(entry.result),
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.Bold,
+                            color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFEF5350)
                         )
                     }
                 }
                 if (detectionHistory.size > 3) {
                     Text(
                         text = "View all...",
-                        color = ThemeColorUtils.lightGray(Color.Gray),
+                        color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier
                             .padding(top = Dimens.PaddingMedium)
@@ -329,9 +381,10 @@ fun FarmTipsCard(navController: NavController) {
     ) {
         Column(modifier = Modifier.padding(Dimens.PaddingLarge)) {
             Text(
-                "Farm Tips",
+                "Best Practices",
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = ThemeColorUtils.black()
             )
             Spacer(modifier = Modifier.height(Dimens.PaddingMedium))
             
@@ -341,19 +394,23 @@ fun FarmTipsCard(navController: NavController) {
             ) {
                 Text(
                     "1. Ensure proper ventilation to prevent respiratory issues.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ThemeColorUtils.black()
                 )
                 Text(
                     "2. Provide clean water daily to maintain chicken health.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ThemeColorUtils.black()
                 )
                 Text(
                     "3. Monitor chicken behavior daily using image and audio detection.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ThemeColorUtils.black()
                 )
                 Text(
                     "4. Keep the coop clean and dry to prevent diseases.",
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = ThemeColorUtils.black()
                 )
             }
             
@@ -361,7 +418,7 @@ fun FarmTipsCard(navController: NavController) {
             
             Text(
                 text = "See more...",
-                color = ThemeColorUtils.lightGray(Color.Gray),
+                color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                 style = MaterialTheme.typography.bodyMedium,
                 modifier = Modifier
                     .clickable { navController.navigate("farm_tips") }
@@ -386,19 +443,21 @@ fun StatCard(
         Column(
             modifier = Modifier
                 .padding(Dimens.PaddingLarge)
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .fillMaxWidth()
+                .fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
+                color = ThemeColorUtils.darkGray(Color(0xFF666666))
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
-                color = valueColor
+                color = if (valueColor == Color.Unspecified) ThemeColorUtils.black() else valueColor
             )
         }
     }

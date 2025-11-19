@@ -371,7 +371,7 @@ fun EggProductionInputDialog(
     ) {
         Card(
             modifier = Modifier
-                .width(550.dp)
+                .width(370.dp)
                 .heightIn(max = 580.dp),
             shape = RoundedCornerShape(10.dp)
         ) {

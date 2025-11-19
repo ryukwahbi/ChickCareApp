@@ -75,6 +75,14 @@ class NotificationRepository {
         }
     }
     
+    suspend fun deleteNotification(userId: String, notificationId: String) {
+        usersCollection.document(userId)
+            .collection("notifications")
+            .document(notificationId)
+            .delete()
+            .await()
+    }
+    
     suspend fun addNotification(
         userId: String,
         type: NotificationType,

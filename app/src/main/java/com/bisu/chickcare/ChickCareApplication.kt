@@ -17,6 +17,9 @@ class ChickCareApplication : Application() {
         
         // Initialize language settings
         LanguageViewModel.initialize(this)
+        
+        // Initialize theme preference
+        com.bisu.chickcare.backend.viewmodels.ThemeViewModel.initialize(this)
 
         try {
             if (FirebaseApp.getApps(this).isEmpty()) {

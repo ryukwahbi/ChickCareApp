@@ -13,6 +13,7 @@ data class DashboardUiState(
     val totalChickens: Int = 0,
     val totalDetections: Int = 0,
     val healthyRate: Double = 0.0,
+    val unhealthyRate: Double = 0.0, // Independent unhealthy rate calculation
     val imageDetections: Int = 0,
     val audioDetections: Int = 0,
     val imageTrendData: List<TrendDataPoint> = emptyList(),

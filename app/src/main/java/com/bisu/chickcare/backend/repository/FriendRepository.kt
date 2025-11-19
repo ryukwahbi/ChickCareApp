@@ -11,7 +11,9 @@ data class FriendSuggestion(
     val email: String,
     val photoUrl: String? = null,
     val lastActive: Long = 0L,
-    val mutualFriendsCount: Int = 0
+    val mutualFriendsCount: Int = 0,
+    val isPinned: Boolean? = null,
+    val notificationsMuted: Boolean? = null
 )
 
 data class FriendRequest(
@@ -57,23 +59,41 @@ class FriendRepository {
             val friendIds = friendsSnapshot.documents.map { it.id }.toSet()
             Log.d("FriendRepository", "Current user has ${friendIds.size} friends")
             
-            // Get pending requests (both sent and received)
-            val pendingRequestsSnapshot = usersCollection.document(currentUserId)
+            // Get all friend requests (pending, accepted, declined) to filter them out
+            val allRequestsSnapshot = usersCollection.document(currentUserId)
                 .collection("friendRequests")
-                .whereEqualTo("status", "pending")
                 .get(source)
                 .await()
             
-            val pendingRequestIds = pendingRequestsSnapshot.documents
+            // Get IDs of users with pending or accepted requests
+            val pendingRequestIds = allRequestsSnapshot.documents
+                .filter { it.getString("status") == "pending" }
                 .mapNotNull { it.getString("fromUserId") }
                 .toSet()
-            Log.d("FriendRepository", "Current user has ${pendingRequestIds.size} pending requests")
             
-            // Filter out current user, existing friends, and pending requests
+            val acceptedRequestIds = allRequestsSnapshot.documents
+                .filter { it.getString("status") == "accepted" }
+                .mapNotNull { it.getString("fromUserId") }
+                .toSet()
+            
+            Log.d("FriendRepository", "Current user has ${pendingRequestIds.size} pending requests and ${acceptedRequestIds.size} accepted requests")
+            
+            // Get blocked users
+            val blockedUsersSnapshot = usersCollection.document(currentUserId)
+                .collection("blockedUsers")
+                .get(source)
+                .await()
+            
+            val blockedUserIds = blockedUsersSnapshot.documents.map { it.id }.toSet()
+            Log.d("FriendRepository", "Current user has ${blockedUserIds.size} blocked users")
+            
+            // Filter out current user, existing friends, pending/accepted requests, and blocked users
             val filteredDocuments = allUsers.documents
                 .filter { it.id != currentUserId }
-                .filter { it.id !in friendIds }
-                .filter { it.id !in pendingRequestIds }
+                .filter { it.id !in friendIds } // Already friends - exclude
+                .filter { it.id !in pendingRequestIds } // Pending requests - exclude
+                .filter { it.id !in acceptedRequestIds } // Accepted requests (should be in friends, but double-check) - exclude
+                .filter { it.id !in blockedUserIds } // Blocked users - exclude
             
             Log.d("FriendRepository", "After filtering: ${filteredDocuments.size} potential suggestions")
             
@@ -159,8 +179,8 @@ class FriendRepository {
         notificationRepository?.addNotification(
             userId = toUserId,
             type = NotificationType.FRIEND_REQUEST,
-            title = "New Friend Request",
-            message = "$fromUserName sent you a friend request",
+            title = fromUserName, // Use full name as title
+            message = "sent you a friend request",
             senderId = fromUserId,
             senderName = fromUserName,
             relatedEntityId = requestDocRef.id,
@@ -176,7 +196,6 @@ class FriendRepository {
         notificationRepository: NotificationRepository? = null
     ) {
         val currentUser = usersCollection.document(currentUserId)
-        val friendUser = usersCollection.document(friendUserId)
         
         // Get the request to find the original sender (fromUserId)
         val requestDoc = currentUser.collection("friendRequests")
@@ -187,23 +206,32 @@ class FriendRepository {
         val requestData = requestDoc.data
         val fromUserId = requestData?.get("fromUserId") as? String // The person who sent the request
         
+        // Use fromUserId from the request (more reliable than parameter)
+        val actualFriendUserId = fromUserId ?: friendUserId
+        val friendUser = usersCollection.document(actualFriendUserId)
+        
+        // Get friend's name from request or use provided name
+        val actualFriendName = (requestData?.get("fromUserName") as? String) ?: friendName
+        
         // Update request status
         currentUser.collection("friendRequests")
             .document(requestId)
             .update("status", "accepted")
             .await()
         
-        // Get current user's name for notification
+        // Get current user's name for notification and friend record
         val currentUserDoc = currentUser.get().await()
         val currentUserName = currentUserDoc.data?.get("fullName") as? String ?: "User"
         
         // Add to friends collection for both users
         currentUser.collection("friends")
-            .document(friendUserId)
+            .document(actualFriendUserId)
             .set(hashMapOf(
-                "friendId" to friendUserId,
-                "friendName" to friendName,
-                "addedAt" to System.currentTimeMillis()
+                "friendId" to actualFriendUserId,
+                "friendName" to actualFriendName,
+                "addedAt" to System.currentTimeMillis(),
+                "isPinned" to false,
+                "notificationsMuted" to false
             ))
             .await()
         
@@ -212,22 +240,22 @@ class FriendRepository {
             .set(hashMapOf(
                 "friendId" to currentUserId,
                 "friendName" to currentUserName,
-                "addedAt" to System.currentTimeMillis()
+                "addedAt" to System.currentTimeMillis(),
+                "isPinned" to false,
+                "notificationsMuted" to false
             ))
             .await()
         
         // Send notification to the person who originally sent the request (fromUserId)
-        if (notificationRepository != null && fromUserId != null) {
-            notificationRepository.addNotification(
-                userId = fromUserId,
-                type = NotificationType.FRIEND_ACCEPT,
-                title = "Friend Request Accepted",
-                message = "$currentUserName accepted your friend request",
-                senderId = currentUserId,
-                senderName = currentUserName,
-                relatedEntityId = requestId
-            )
-        }
+        notificationRepository?.addNotification(
+            userId = actualFriendUserId,
+            type = NotificationType.FRIEND_ACCEPT,
+            title = "Friend Request Accepted",
+            message = "$currentUserName accepted your friend request",
+            senderId = currentUserId,
+            senderName = currentUserName,
+            relatedEntityId = requestId
+        )
     }
     
     suspend fun declineFriendRequest(requestId: String, currentUserId: String) {
@@ -292,24 +320,341 @@ class FriendRepository {
     
     suspend fun getFriends(userId: String): List<FriendSuggestion> {
         return try {
+            Log.d("FriendRepository", "Loading friends for user: $userId")
             val friendsSnapshot = usersCollection.document(userId)
                 .collection("friends")
                 .get()
                 .await()
             
+            Log.d("FriendRepository", "Found ${friendsSnapshot.size()} friend documents")
+            
             friendsSnapshot.documents.mapNotNull { friendDoc ->
-                val friendId = friendDoc.getString("friendId") ?: return@mapNotNull null
-                val friendData = usersCollection.document(friendId).get().await().data
+                // Use document ID as primary source (consistent with getFriendSuggestions)
+                // Document ID is the friend's user ID when stored via acceptFriendRequest
+                val friendId = friendDoc.id.ifEmpty { 
+                    friendDoc.getString("friendId") ?: return@mapNotNull null
+                }
                 
-                FriendSuggestion(
-                    userId = friendId,
-                    fullName = friendData?.get("fullName") as? String ?: "Unknown",
-                    email = friendData?.get("email") as? String ?: "",
-                    photoUrl = friendData?.get("photoUrl") as? String,
-                    lastActive = (friendData?.get("lastActive") as? Long) ?: 0L
-                )
+                if (friendId.isEmpty()) {
+                    Log.w("FriendRepository", "Friend document ${friendDoc.id} has no valid friendId")
+                    return@mapNotNull null
+                }
+                
+                Log.d("FriendRepository", "Processing friend: $friendId (docId: ${friendDoc.id})")
+                
+                try {
+                    val friendData = usersCollection.document(friendId).get().await().data
+                    
+                    if (friendData == null) {
+                        Log.w("FriendRepository", "Friend $friendId profile not found")
+                        return@mapNotNull null
+                    }
+                    
+                    // Get isPinned and notificationsMuted from the friend document in friends collection
+                    val isPinned = friendDoc.getBoolean("isPinned") ?: false
+                    val notificationsMuted = friendDoc.getBoolean("notificationsMuted") ?: false
+                    
+                    FriendSuggestion(
+                        userId = friendId,
+                        fullName = friendData["fullName"] as? String ?: "Unknown",
+                        email = friendData["email"] as? String ?: "",
+                        photoUrl = friendData["photoUrl"] as? String,
+                        lastActive = (friendData["lastActive"] as? Long) ?: 0L,
+                        isPinned = isPinned,
+                        notificationsMuted = notificationsMuted
+                    )
+                } catch (e: Exception) {
+                    Log.e("FriendRepository", "Error loading friend $friendId: ${e.message}", e)
+                    null
+                }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error loading friends: ${e.message}", e)
+            emptyList()
+        }
+    }
+    
+    /**
+     * Unfriend a user - removes friend relationship from both users
+     */
+    suspend fun unfriend(currentUserId: String, friendUserId: String) {
+        try {
+            // Remove from current user's friends
+            usersCollection.document(currentUserId)
+                .collection("friends")
+                .document(friendUserId)
+                .delete()
+                .await()
+            
+            // Remove from friend's friends
+            usersCollection.document(friendUserId)
+                .collection("friends")
+                .document(currentUserId)
+                .delete()
+                .await()
+            
+            Log.d("FriendRepository", "Unfriended: $currentUserId and $friendUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error unfriending: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Block a user - adds to blocked list and removes from friends
+     */
+    suspend fun blockUser(currentUserId: String, blockedUserId: String, blockedUserName: String) {
+        try {
+            // Add to blocked users collection
+            usersCollection.document(currentUserId)
+                .collection("blockedUsers")
+                .document(blockedUserId)
+                .set(hashMapOf(
+                    "blockedUserId" to blockedUserId,
+                    "blockedUserName" to blockedUserName,
+                    "blockedAt" to System.currentTimeMillis()
+                ))
+                .await()
+            
+            // Remove from friends if they were friends
+            try {
+                usersCollection.document(currentUserId)
+                    .collection("friends")
+                    .document(blockedUserId)
+                    .delete()
+                    .await()
+                
+                usersCollection.document(blockedUserId)
+                    .collection("friends")
+                    .document(currentUserId)
+                    .delete()
+                    .await()
+            } catch (_: Exception) {
+                // Not friends, ignore
+                Log.d("FriendRepository", "User was not a friend, skipping friend removal")
+            }
+            
+            Log.d("FriendRepository", "Blocked user: $blockedUserId by $currentUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error blocking user: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Unblock a user
+     */
+    suspend fun unblockUser(currentUserId: String, unblockedUserId: String) {
+        try {
+            usersCollection.document(currentUserId)
+                .collection("blockedUsers")
+                .document(unblockedUserId)
+                .delete()
+                .await()
+            
+            Log.d("FriendRepository", "Unblocked user: $unblockedUserId by $currentUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error unblocking user: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Check if a user is blocked
+     */
+    suspend fun isBlocked(currentUserId: String, targetUserId: String): Boolean {
+        return try {
+            val blockedDoc = usersCollection.document(currentUserId)
+                .collection("blockedUsers")
+                .document(targetUserId)
+                .get()
+                .await()
+            blockedDoc.exists()
+        } catch (e: Exception) {
+            Log.w("FriendRepository", "Error checking if blocked: ${e.message}")
+            false
+        }
+    }
+    
+    /**
+     * Pin a friend (mark as favorite/important)
+     */
+    suspend fun pinFriend(currentUserId: String, friendUserId: String) {
+        try {
+            usersCollection.document(currentUserId)
+                .collection("friends")
+                .document(friendUserId)
+                .update("isPinned", true, "pinnedAt", System.currentTimeMillis())
+                .await()
+            
+            Log.d("FriendRepository", "Pinned friend: $friendUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error pinning friend: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Unpin a friend
+     */
+    suspend fun unpinFriend(currentUserId: String, friendUserId: String) {
+        try {
+            usersCollection.document(currentUserId)
+                .collection("friends")
+                .document(friendUserId)
+                .update("isPinned", false)
+                .await()
+            
+            Log.d("FriendRepository", "Unpinned friend: $friendUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error unpinning friend: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Mute notifications from a friend
+     */
+    suspend fun muteFriendNotifications(currentUserId: String, friendUserId: String) {
+        try {
+            usersCollection.document(currentUserId)
+                .collection("friends")
+                .document(friendUserId)
+                .update("notificationsMuted", true, "mutedAt", System.currentTimeMillis())
+                .await()
+            
+            Log.d("FriendRepository", "Muted notifications from friend: $friendUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error muting friend notifications: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Unmute notifications from a friend
+     */
+    suspend fun unmuteFriendNotifications(currentUserId: String, friendUserId: String) {
+        try {
+            usersCollection.document(currentUserId)
+                .collection("friends")
+                .document(friendUserId)
+                .update("notificationsMuted", false)
+                .await()
+            
+            Log.d("FriendRepository", "Unmuted notifications from friend: $friendUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error unmuting friend notifications: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Report a user
+     */
+    suspend fun reportUser(
+        reporterUserId: String,
+        reportedUserId: String,
+        reportedUserName: String,
+        reason: String,
+        description: String? = null
+    ) {
+        try {
+            val reportData = hashMapOf(
+                "reporterUserId" to reporterUserId,
+                "reportedUserId" to reportedUserId,
+                "reportedUserName" to reportedUserName,
+                "reason" to reason,
+                "description" to (description ?: ""),
+                "timestamp" to System.currentTimeMillis(),
+                "status" to "pending"
+            )
+            
+            firestore.collection("reports")
+                .add(reportData)
+                .await()
+            
+            Log.d("FriendRepository", "Reported user: $reportedUserId by $reporterUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error reporting user: ${e.message}", e)
+            throw e
+        }
+    }
+    
+    /**
+     * Get mutual friends between two users
+     */
+    suspend fun getMutualFriends(user1Id: String, user2Id: String): List<FriendSuggestion> {
+        return try {
+            val user1Friends = usersCollection.document(user1Id)
+                .collection("friends")
+                .get()
+                .await()
+                .documents.map { it.getString("friendId") ?: it.id }
+                .toSet()
+            
+            val user2Friends = usersCollection.document(user2Id)
+                .collection("friends")
+                .get()
+                .await()
+                .documents.map { it.getString("friendId") ?: it.id }
+                .toSet()
+            
+            val mutualFriendIds = user1Friends.intersect(user2Friends)
+            
+            mutualFriendIds.mapNotNull { friendId ->
+                try {
+                    val friendData = usersCollection.document(friendId).get().await().data
+                    FriendSuggestion(
+                        userId = friendId,
+                        fullName = friendData?.get("fullName") as? String ?: "Unknown",
+                        email = friendData?.get("email") as? String ?: "",
+                        photoUrl = friendData?.get("photoUrl") as? String,
+                        lastActive = (friendData?.get("lastActive") as? Long) ?: 0L
+                    )
+                } catch (e: Exception) {
+                    Log.w("FriendRepository", "Error fetching mutual friend $friendId: ${e.message}")
+                    null
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error getting mutual friends: ${e.message}", e)
+            emptyList()
+        }
+    }
+    
+    /**
+     * Get list of blocked users
+     */
+    suspend fun getBlockedUsers(currentUserId: String): List<Pair<String, String>> {
+        return try {
+            // Try with orderBy first, fallback to simple get if it fails
+            val blockedSnapshot = try {
+                usersCollection.document(currentUserId)
+                    .collection("blockedUsers")
+                    .orderBy("blockedAt", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .get()
+                    .await()
+            } catch (e: Exception) {
+                // If orderBy fails (e.g., missing index or field), try without ordering
+                Log.w("FriendRepository", "OrderBy failed, using simple query: ${e.message}")
+                usersCollection.document(currentUserId)
+                    .collection("blockedUsers")
+                    .get()
+                    .await()
+            }
+            
+            val blockedUsers = blockedSnapshot.documents.mapNotNull { doc ->
+                val blockedUserId = doc.getString("blockedUserId") ?: doc.id
+                val blockedUserName = doc.getString("blockedUserName") ?: "Unknown"
+                val blockedAt = doc.getLong("blockedAt") ?: 0L
+                Triple(blockedUserId, blockedUserName, blockedAt)
+            }
+            
+            // Sort by blockedAt in memory if we got it without orderBy
+            blockedUsers.sortedByDescending { it.third }
+                .map { it.first to it.second }
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error loading blocked users: ${e.message}", e)
             emptyList()
         }
     }

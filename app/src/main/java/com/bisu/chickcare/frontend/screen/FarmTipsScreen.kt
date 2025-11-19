@@ -5,6 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -149,7 +151,7 @@ fun FarmTipsScreen(navController: NavController) {
                         text = "Farm Tips & Best Practices",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -165,25 +167,33 @@ fun FarmTipsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFDEC2A6))
-                .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
+            HorizontalDivider(
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
+                thickness = 1.dp
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
             item {
                 // Header with carousel
                 TipsCarouselHeader(
@@ -201,6 +211,7 @@ fun FarmTipsScreen(navController: NavController) {
                 FarmTipCard(tip = tip)
             }
         }
+        }
     }
 }
 
@@ -214,9 +225,16 @@ fun TipsCarouselHeader(
     
     Card(
         modifier = modifier.height(200.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
+        colors = CardDefaults.cardColors(
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
+        )
     ) {
         Box(
             modifier = Modifier
@@ -353,9 +371,16 @@ fun TipsCarouselHeader(
 fun FarmTipCard(tip: FarmTip) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
+        colors = CardDefaults.cardColors(
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
+        )
     ) {
         Row(
             modifier = Modifier
@@ -386,7 +411,8 @@ fun FarmTipCard(tip: FarmTip) {
                     Text(
                         text = tip.title,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black()
                     )
                     Box(
                         modifier = Modifier
@@ -418,7 +444,7 @@ fun FarmTipCard(tip: FarmTip) {
                 Text(
                     text = tip.description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.lightGray(Color.Gray)
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
         }

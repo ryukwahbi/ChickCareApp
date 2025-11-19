@@ -308,7 +308,7 @@ fun VaccinationInputDialog(
         ) {
             Card(
                 modifier = Modifier
-                    .width(485.dp)
+                    .width(370.dp)
                     .heightIn(max = 580.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))

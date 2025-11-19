@@ -147,7 +147,7 @@ fun PhotoPreviewDialog(
                     .fillMaxWidth()
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(24.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 val imageShape = RoundedCornerShape(20.dp)
                 var imageModifier = Modifier
@@ -172,8 +172,16 @@ fun PhotoPreviewDialog(
                     )
                 }
 
-                TextButton(onClick = onDismiss) {
-                    Text("Close", color = Color(0xFF9C4A0C))
+                // Close text aligned to bottom-right
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Close", color = Color(0xFF9C4A0C))
+                    }
                 }
             }
         }

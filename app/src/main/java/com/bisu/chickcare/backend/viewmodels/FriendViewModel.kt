@@ -103,12 +103,15 @@ class FriendViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
+                // Always create notification repository if not provided
+                val notificationRepo = notificationRepository ?: com.bisu.chickcare.backend.repository.NotificationRepository()
+                
                 friendRepository.acceptFriendRequest(
                     requestId, 
                     currentUserId, 
                     friendUserId, 
                     friendName,
-                    notificationRepository
+                    notificationRepo
                 )
                 // Reload friends list after accepting
                 loadFriends()
@@ -201,6 +204,244 @@ class FriendViewModel : ViewModel() {
                 android.util.Log.e("FriendViewModel", "Error loading pending requests: ${e.message}", e)
                 _pendingRequests.value = emptyList()
                 callback(false, emptyList(), "Failed to load friend requests: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Unfriend a user
+     */
+    fun unfriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.unfriend(currentUserId, friendUserId)
+                loadFriends() // Reload friends list
+                callback(true, "Friend removed successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error unfriending: ${e.message}", e)
+                callback(false, "Failed to remove friend: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Block a user
+     */
+    fun blockUser(blockedUserId: String, blockedUserName: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.blockUser(currentUserId, blockedUserId, blockedUserName)
+                loadFriends() // Reload friends list
+                callback(true, "User blocked successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error blocking user: ${e.message}", e)
+                callback(false, "Failed to block user: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Pin a friend
+     */
+    fun pinFriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.pinFriend(currentUserId, friendUserId)
+                loadFriends() // Reload to update UI with new pin status
+                callback(true, "Friend pinned")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error pinning friend: ${e.message}", e)
+                callback(false, "Failed to pin friend: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Unpin a friend
+     */
+    fun unpinFriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.unpinFriend(currentUserId, friendUserId)
+                loadFriends()
+                callback(true, "Friend unpinned")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error unpinning friend: ${e.message}", e)
+                callback(false, "Failed to unpin friend: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Mute notifications from a friend
+     */
+    fun muteFriendNotifications(friendUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.muteFriendNotifications(currentUserId, friendUserId)
+                loadFriends() // Reload to update UI with new mute status
+                callback(true, "Notifications muted")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error muting notifications: ${e.message}", e)
+                callback(false, "Failed to mute notifications: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Unmute notifications from a friend
+     */
+    fun unmuteFriendNotifications(friendUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.unmuteFriendNotifications(currentUserId, friendUserId)
+                loadFriends() // Reload to update UI with new mute status
+                callback(true, "Notifications unmuted")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error unmuting notifications: ${e.message}", e)
+                callback(false, "Failed to unmute notifications: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Report a user
+     */
+    fun reportUser(
+        reportedUserId: String,
+        reportedUserName: String,
+        reason: String,
+        description: String? = null,
+        callback: (Boolean, String) -> Unit
+    ) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.reportUser(
+                    currentUserId,
+                    reportedUserId,
+                    reportedUserName,
+                    reason,
+                    description
+                )
+                callback(true, "User reported successfully. Thank you for keeping our community safe.")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error reporting user: ${e.message}", e)
+                callback(false, "Failed to report user: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Get mutual friends
+     */
+    fun getMutualFriends(friendUserId: String, callback: (Boolean, List<FriendSuggestion>, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, emptyList(), "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val mutualFriends = friendRepository.getMutualFriends(currentUserId, friendUserId)
+                callback(true, mutualFriends, "")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error getting mutual friends: ${e.message}", e)
+                callback(false, emptyList(), "Failed to load mutual friends: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Unblock a user
+     */
+    fun unblockUser(blockedUserId: String, callback: (Boolean, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.unblockUser(currentUserId, blockedUserId)
+                callback(true, "User unblocked successfully")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error unblocking user: ${e.message}", e)
+                callback(false, "Failed to unblock user: ${e.message}")
+            }
+        }
+    }
+    
+    /**
+     * Check if a user is blocked
+     */
+    fun checkIfBlocked(targetUserId: String, callback: (Boolean) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false)
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val isBlocked = friendRepository.isBlocked(currentUserId, targetUserId)
+                callback(isBlocked)
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error checking if blocked: ${e.message}", e)
+                callback(false)
+            }
+        }
+    }
+    
+    /**
+     * Get blocked users list
+     */
+    fun loadBlockedUsers(callback: (Boolean, List<Pair<String, String>>, String) -> Unit) {
+        val currentUserId = auth.currentUser?.uid ?: run {
+            callback(false, emptyList(), "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val blockedUsers = friendRepository.getBlockedUsers(currentUserId)
+                callback(true, blockedUsers, "")
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error loading blocked users: ${e.message}", e)
+                callback(false, emptyList(), "Failed to load blocked users: ${e.message}")
             }
         }
     }

@@ -26,11 +26,15 @@ import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.frontend.screen.AboutScreen
 import com.bisu.chickcare.frontend.screen.AccountSettingsScreen
 import com.bisu.chickcare.frontend.screen.ActionScreen
+import com.bisu.chickcare.frontend.screen.ActiveFriendsScreen
 import com.bisu.chickcare.frontend.screen.AnnouncementsScreen
 import com.bisu.chickcare.frontend.screen.ArchivesScreen
 import com.bisu.chickcare.frontend.screen.AudioInputScreen
+import com.bisu.chickcare.frontend.screen.BlockedUsersScreen
 import com.bisu.chickcare.frontend.screen.CameraScreen
+import com.bisu.chickcare.frontend.screen.ChatScreen
 import com.bisu.chickcare.frontend.screen.DashboardScreen
+import com.bisu.chickcare.frontend.screen.MessagesListScreen
 import com.bisu.chickcare.frontend.screen.DetectionHistoryScreen
 import com.bisu.chickcare.frontend.screen.DiseaseDatabaseScreen
 import com.bisu.chickcare.frontend.screen.EggProductionTrackerScreen
@@ -68,6 +72,7 @@ import com.bisu.chickcare.frontend.screen.TermsOfServiceScreen
 import com.bisu.chickcare.frontend.screen.TrashScreen
 import com.bisu.chickcare.frontend.screen.VaccinationScheduleScreen
 import com.bisu.chickcare.frontend.screen.WelcomeScreen
+import com.bisu.chickcare.frontend.screen.YourFriendsScreen
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -232,6 +237,27 @@ class MainActivity : ComponentActivity() {
                         composable("notifications") { NotificationsScreen(navController) }
                         composable("manage_profiles") { ManageProfilesScreen(navController) }
                         composable("friend_suggestions") { FriendSuggestionsScreen(navController) }
+                        composable("friends") { YourFriendsScreen(navController) }
+                        composable("active_friends") { ActiveFriendsScreen(navController) }
+                        composable("blocked_users") { BlockedUsersScreen(navController) }
+                        composable("messages") { MessagesListScreen(navController) }
+                        composable(
+                            route = "chat?userId={userId}&userName={userName}",
+                            arguments = listOf(
+                                navArgument("userId") {
+                                    type = NavType.StringType
+                                    nullable = true
+                                },
+                                navArgument("userName") {
+                                    type = NavType.StringType
+                                    nullable = true
+                                }
+                            )
+                        ) { backStackEntry ->
+                            val userId = backStackEntry.arguments?.getString("userId")
+                            val userName = backStackEntry.arguments?.getString("userName")
+                            ChatScreen(navController = navController, userId = userId, userName = userName)
+                        }
                         composable("farm_tips") { FarmTipsScreen(navController) }
                         composable("post_detection_history") { PostDetectionHistoryScreen(navController) }
                         composable("recently_deleted") { RecentlyDeletedScreen(navController) }
@@ -518,7 +544,6 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 
-                // Handle detection history links
                 path.contains("history", ignoreCase = true) || host.contains("history", ignoreCase = true) -> {
                     if (isAuthenticated) {
                         navController.navigate("detection_history") {
@@ -531,14 +556,12 @@ class MainActivity : ComponentActivity() {
                     }
                 }
                 
-                // Default: navigate to welcome or dashboard based on auth status
                 else -> {
                     if (isAuthenticated) {
                         navController.navigate("dashboard") {
                             popUpTo(navController.graph.startDestinationId) { inclusive = true }
                         }
                     }
-                    // If not authenticated, stay on welcome screen
                 }
             }
         }

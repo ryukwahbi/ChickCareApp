@@ -129,7 +129,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
             ) {
                 HelpQuestionCard(
                     question = "How does the app detect bronchitis?",
-                    onClick = { /* TODO: Expand or navigate to detailed explanation */ },
+                    onClick = {},
                     modifier = Modifier.weight(1f)
                 )
                 HelpQuestionCard(

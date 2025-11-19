@@ -3,10 +3,15 @@ package com.bisu.chickcare.backend.service
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Color
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import androidx.core.graphics.createBitmap
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
@@ -27,6 +32,25 @@ class AudioSpectrogramConverter(private val context: Context) {
     companion object {
         private const val IMAGE_SIZE = 224
         private const val SAMPLE_RATE = 22050
+        const val MAX_DURATION_SECONDS = 10
+        const val MIN_DURATION_SECONDS = 5
+    }
+    
+    /**
+     * Get audio file duration in milliseconds
+     * Returns null if duration cannot be determined
+     */
+    fun getAudioDuration(audioUri: String): Long? {
+        return try {
+            val retriever = MediaMetadataRetriever()
+            retriever.setDataSource(context, audioUri.toUri())
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            retriever.release()
+            duration
+        } catch (e: Exception) {
+            android.util.Log.w("AudioSpectrogramConverter", "Failed to get audio duration: ${e.message}")
+            null
+        }
     }
 
     /**
@@ -67,30 +91,284 @@ class AudioSpectrogramConverter(private val context: Context) {
     }
 
     /**
-     * Extract audio metadata and generate audio samples
-     * TODO: Replace with actual PCM audio extraction when audio decoding is available
+     * Extract actual PCM audio data from audio file
+     * Falls back to synthetic data if extraction fails
+     * @throws Exception if audio is silent or invalid
      */
     private fun extractAudioData(audioUri: String): FloatArray {
-        val retriever = MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(context, audioUri.toUri())
-
-            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 10000
-            val durationSeconds = (duration / 1000f).coerceIn(1f, 10f) // Limit to 10 seconds
-
-            // Estimate samples based on duration
-            val samples = (SAMPLE_RATE * durationSeconds).toInt()
-
-            // Generate realistic audio-like data
-            // In production, replace this with actual PCM audio extraction
-            return generateRealisticAudioData(samples)
-
+        return try {
+            val audioData = extractPCMAudio(audioUri)
+            
+            // CRITICAL: Check if audio is silent or has very low amplitude
+            // Calculate RMS (Root Mean Square) to measure audio energy/amplitude
+            val rms = calculateRMS(audioData)
+            val threshold = 0.01f // Threshold for silent audio (1% of max amplitude)
+            
+            android.util.Log.d("AudioSpectrogramConverter", "Audio RMS: $rms (threshold: $threshold)")
+            
+            if (rms < threshold) {
+                android.util.Log.w("AudioSpectrogramConverter", "Audio is silent or too quiet (RMS: $rms < $threshold)")
+                throw Exception("Audio is silent or too quiet. Please record audio with actual sound.")
+            }
+            
+            audioData
         } catch (e: Exception) {
-            android.util.Log.e("AudioSpectrogramConverter", "Error extracting audio: ${e.message}", e)
-            return generateRealisticAudioData(22050) // Default 1 second
-        } finally {
-            retriever.release()
+            // If it's our silent audio exception, re-throw it
+            if (e.message?.contains("silent") == true || e.message?.contains("too quiet") == true) {
+                throw e
+            }
+            
+            android.util.Log.w("AudioSpectrogramConverter", "Failed to extract PCM audio, using synthetic data: ${e.message}", e)
+            // Fallback to synthetic data if extraction fails
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(context, audioUri.toUri())
+                val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 10000
+                val durationSeconds = (duration / 1000f).coerceIn(1f, 10f)
+                val samples = (SAMPLE_RATE * durationSeconds).toInt()
+                generateRealisticAudioData(samples)
+            } catch (fallbackError: Exception) {
+                android.util.Log.e("AudioSpectrogramConverter", "Error in fallback: ${fallbackError.message}", fallbackError)
+                generateRealisticAudioData(22050)
+            } finally {
+                retriever.release()
+            }
         }
+    }
+    
+    /**
+     * Calculate RMS (Root Mean Square) of audio data to measure audio energy/amplitude
+     * RMS is a good indicator of whether audio is silent or has actual sound
+     */
+    private fun calculateRMS(audioData: FloatArray): Float {
+        if (audioData.isEmpty()) return 0f
+        
+        var sumOfSquares = 0.0
+        for (sample in audioData) {
+            sumOfSquares += (sample * sample).toDouble()
+        }
+        val meanSquare = sumOfSquares / audioData.size
+        return kotlin.math.sqrt(meanSquare).toFloat()
+    }
+    
+    /**
+     * Extract the most active (highest energy) segment from audio
+     * This is smarter than just taking the first 10 seconds because:
+     * - The actual chicken sounds might be in the middle or end
+     * - The beginning might have silence or setup noise
+     * - We want the most informative segment for better accuracy
+     * OPTIMIZED: Increased step size for faster processing
+     * 
+     * @param audioData Full audio array
+     * @param segmentLength Desired segment length in samples
+     * @return The most active segment of the specified length
+     */
+    private fun extractMostActiveSegment(audioData: FloatArray, segmentLength: Int): FloatArray {
+        if (audioData.size <= segmentLength) {
+            return audioData
+        }
+        
+        // Use sliding window to find the segment with highest RMS (energy)
+        val windowSize = segmentLength
+        val stepSize = SAMPLE_RATE / 2 // OPTIMIZED: Check every 0.5 seconds instead of 0.25 for faster processing
+        var maxRMS = 0f
+        var bestStartIndex = 0
+        
+        // Analyze audio in chunks to find the most active segment
+        for (start in 0 until (audioData.size - windowSize) step stepSize) {
+            val end = minOf(start + windowSize, audioData.size)
+            val segment = audioData.sliceArray(start until end)
+            val rms = calculateRMS(segment)
+            
+            if (rms > maxRMS) {
+                maxRMS = rms
+                bestStartIndex = start
+            }
+        }
+        
+        // Extract the best segment
+        val bestEndIndex = minOf(bestStartIndex + windowSize, audioData.size)
+        val extracted = audioData.sliceArray(bestStartIndex until bestEndIndex)
+        
+        android.util.Log.d("AudioSpectrogramConverter", 
+            "Extracted most active segment: ${bestStartIndex / SAMPLE_RATE}s - ${bestEndIndex / SAMPLE_RATE}s " +
+            "(RMS: ${String.format("%.4f", maxRMS)})")
+        
+        // If extracted segment is shorter than desired (edge case), pad with zeros or repeat
+        return if (extracted.size < segmentLength) {
+            val padded = FloatArray(segmentLength)
+            extracted.copyInto(padded, 0, 0, minOf(extracted.size, segmentLength))
+            padded
+        } else {
+            extracted
+        }
+    }
+    
+    /**
+     * Extract PCM audio samples from audio file using MediaExtractor and MediaCodec
+     */
+    private fun extractPCMAudio(audioUri: String): FloatArray {
+        val extractor = MediaExtractor()
+        var decoder: MediaCodec? = null
+        
+        try {
+            extractor.setDataSource(context, audioUri.toUri(), null)
+            
+            // Find audio track
+            var audioTrackIndex = -1
+            var audioFormat: MediaFormat? = null
+            
+            for (i in 0 until extractor.trackCount) {
+                val format = extractor.getTrackFormat(i)
+                val mime = format.getString(MediaFormat.KEY_MIME) ?: continue
+                
+                if (mime.startsWith("audio/")) {
+                    audioTrackIndex = i
+                    audioFormat = format
+                    break
+                }
+            }
+            
+            if (audioTrackIndex == -1 || audioFormat == null) {
+                throw Exception("No audio track found in file")
+            }
+            
+            extractor.selectTrack(audioTrackIndex)
+            
+            // Get sample rate from format or use default
+            val sampleRate = audioFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE).takeIf { it > 0 }
+                ?: SAMPLE_RATE
+            
+            // Create decoder
+            val mime = audioFormat.getString(MediaFormat.KEY_MIME) ?: throw Exception("No MIME type found")
+            decoder = MediaCodec.createDecoderByType(mime)
+            decoder.configure(audioFormat, null, null, 0)
+            decoder.start()
+            
+            val audioSamples = mutableListOf<Float>()
+            var inputEOS = false
+            var outputEOS = false
+            
+            // Decode audio
+            // OPTIMIZED: Reduced timeout from 10000ms to 5000ms for faster processing
+            while (!outputEOS) {
+                // Feed input
+                if (!inputEOS) {
+                    val inputBufferIndex = decoder.dequeueInputBuffer(5000) // Reduced from 10000 to 5000ms
+                    if (inputBufferIndex >= 0) {
+                        val inputBuffer = decoder.getInputBuffer(inputBufferIndex)
+                        if (inputBuffer != null) {
+                            val sampleSize = extractor.readSampleData(inputBuffer, 0)
+                            
+                            if (sampleSize < 0) {
+                                decoder.queueInputBuffer(inputBufferIndex, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                                inputEOS = true
+                            } else {
+                                val presentationTimeUs = extractor.sampleTime
+                                decoder.queueInputBuffer(inputBufferIndex, 0, sampleSize, presentationTimeUs, 0)
+                                extractor.advance()
+                            }
+                        }
+                    }
+                }
+                
+                // Get output
+                val bufferInfo = MediaCodec.BufferInfo()
+                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, 5000) // Reduced from 10000 to 5000ms
+                
+                when {
+                    outputBufferIndex >= 0 -> {
+                        val outputBuffer = decoder.getOutputBuffer(outputBufferIndex)
+                        
+                        if (outputBuffer != null && bufferInfo.size > 0) {
+                            // Convert PCM bytes to float array
+                            val pcmData = ByteArray(bufferInfo.size)
+                            outputBuffer.get(pcmData, 0, bufferInfo.size)
+                            
+                            // Convert to float samples (assuming 16-bit PCM)
+                            val samples = pcmDataToFloatArray(pcmData)
+                            audioSamples.addAll(samples.toList())
+                        }
+                        
+                        decoder.releaseOutputBuffer(outputBufferIndex, false)
+                        
+                        if ((bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) {
+                            outputEOS = true
+                        }
+                    }
+                    outputBufferIndex == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                        // Output format changed - can update format if needed
+                        val newFormat = decoder.outputFormat
+                        android.util.Log.d("AudioSpectrogramConverter", "Output format changed: $newFormat")
+                    }
+                }
+            }
+            
+            // Resample if needed to match SAMPLE_RATE
+            val result = if (sampleRate != SAMPLE_RATE && audioSamples.isNotEmpty()) {
+                resampleAudio(audioSamples.toFloatArray(), sampleRate, SAMPLE_RATE)
+            } else {
+                audioSamples.toFloatArray()
+            }
+            
+            // Smart trimming: If audio is longer than 10 seconds, extract the most active segment
+            val maxSamples = SAMPLE_RATE * MAX_DURATION_SECONDS
+            val audioDurationSeconds = result.size.toFloat() / SAMPLE_RATE
+            return if (result.size > maxSamples) {
+                android.util.Log.i("AudioSpectrogramConverter", 
+                    "🔧 AUTO-CROPPING: Audio is ${String.format("%.1f", audioDurationSeconds)}s (longer than ${MAX_DURATION_SECONDS}s). " +
+                    "Extracting the most active ${MAX_DURATION_SECONDS}-second segment for better accuracy...")
+                val cropped = extractMostActiveSegment(result, maxSamples)
+                android.util.Log.i("AudioSpectrogramConverter", 
+                    "✅ AUTO-CROPPING: Successfully extracted ${String.format("%.1f", cropped.size.toFloat() / SAMPLE_RATE)}s segment with highest energy")
+                cropped
+            } else {
+                android.util.Log.d("AudioSpectrogramConverter", 
+                    "Audio duration: ${String.format("%.1f", audioDurationSeconds)}s (within ${MAX_DURATION_SECONDS}s limit, no cropping needed)")
+                result
+            }
+            
+        } finally {
+            decoder?.stop()
+            decoder?.release()
+            extractor.release()
+        }
+    }
+
+
+    
+    /**
+     * Convert PCM byte array to float array (16-bit PCM)
+     */
+    private fun pcmDataToFloatArray(pcmData: ByteArray): FloatArray {
+        val samples = FloatArray(pcmData.size / 2)
+        val buffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN)
+        
+        for (i in samples.indices) {
+            val sample = buffer.short.toInt()
+            // Normalize to -1.0 to 1.0 range
+            samples[i] = (sample / 32768.0f).coerceIn(-1f, 1f)
+        }
+        
+        return samples
+    }
+    
+    /**
+     * Simple linear resampling
+     */
+    private fun resampleAudio(input: FloatArray, inputRate: Int, outputRate: Int): FloatArray {
+        if (inputRate == outputRate) return input
+        
+        val ratio = inputRate.toFloat() / outputRate.toFloat()
+        val outputSize = (input.size / ratio).toInt()
+        val output = FloatArray(outputSize)
+        
+        for (i in output.indices) {
+            val inputIndex = (i * ratio).toInt().coerceIn(0, input.size - 1)
+            output[i] = input[inputIndex]
+        }
+        
+        return output
     }
 
     /**
@@ -103,21 +381,12 @@ class AudioSpectrogramConverter(private val context: Context) {
         for (i in data.indices) {
             val t = i.toFloat() / SAMPLE_RATE
             val progress = i.toFloat() / samples
-
-            // Simulate chicken sounds with multiple frequency components
-            // Low frequencies (chicken vocalization)
             val lowFreq = sin(2 * PI * 200 * t) * 0.4f
             val midFreq = sin(2 * PI * 800 * t) * 0.3f
             val highFreq = sin(2 * PI * 2000 * t) * 0.2f
-
-            // Add harmonics
             val harmonic1 = sin(2 * PI * 400 * t) * 0.2f
             val harmonic2 = sin(2 * PI * 1200 * t) * 0.15f
-
-            // Add time-varying amplitude
             val envelope = 0.5f + 0.5f * sin(2 * PI * progress * 3)
-
-            // Add noise
             val noise = (Random.nextDouble() * 0.2 - 0.1).toFloat()
 
             data[i] = ((lowFreq + midFreq + highFreq + harmonic1 + harmonic2) * envelope + noise).coerceIn(

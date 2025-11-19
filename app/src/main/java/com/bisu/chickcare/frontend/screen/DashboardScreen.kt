@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,6 +40,7 @@ import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.data.DashboardUiState
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.backend.service.NetworkConnectivityHelper
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.frontend.components.ChickenGalleryCard
 import com.bisu.chickcare.frontend.components.CustomTabBar
@@ -48,6 +50,7 @@ import com.bisu.chickcare.frontend.components.DetectionHistoryCard
 import com.bisu.chickcare.frontend.components.FarmTipsCard
 import com.bisu.chickcare.frontend.components.HealthTrendLineGraph
 import com.bisu.chickcare.frontend.components.NavigationDrawerContent
+import com.bisu.chickcare.frontend.components.OfflineIndicator
 import com.bisu.chickcare.frontend.components.StatsSummaryCard
 import com.bisu.chickcare.frontend.components.WeatherUpdateCard
 import com.bisu.chickcare.frontend.utils.Dimens
@@ -59,14 +62,15 @@ import kotlinx.coroutines.launch
 @Composable
 fun DashboardScreen(navController: NavController) {
     val dashboardViewModel: DashboardViewModel = viewModel()
-
+    val context = LocalContext.current
     val uiState by dashboardViewModel.uiState.collectAsState()
     val notificationCount by dashboardViewModel.newNotificationCount.collectAsState()
     val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
-
     var expandedDropdown by rememberSaveable { mutableStateOf(false) }
     val drawerState = androidx.compose.material3.rememberDrawerState(initialValue = androidx.compose.material3.DrawerValue.Closed)
     val scope = rememberCoroutineScope()
+    val isOnline by NetworkConnectivityHelper.connectivityFlow(context).collectAsState(initial = NetworkConnectivityHelper.isOnline(context))
+    val isOffline = !isOnline
 
     LaunchedEffect(Unit) {
         dashboardViewModel.updateActiveStatus()
@@ -113,19 +117,38 @@ fun DashboardScreen(navController: NavController) {
                         .blur(50.dp)
                 )
 
-                if (uiState.isLoading) {
-                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = Color(0xFFD27D2D))
-                    }
-                } else {
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                        DashboardScreenContent(
-                            uiState = uiState,
-                            detectionHistory = detectionHistory,
-                            navController = navController,
-                            dashboardViewModel = dashboardViewModel,
-                            onViewHistoryClicked = { navController.navigate("detection_history") }
-                        )
+                // Offline indicator
+                Column(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    OfflineIndicator(
+                        isOffline = isOffline,
+                        modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
+                    )
+                    
+                    if (uiState.isLoading) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFFD27D2D))
+                        }
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            DashboardScreenContent(
+                                uiState = uiState,
+                                detectionHistory = detectionHistory,
+                                navController = navController,
+                                dashboardViewModel = dashboardViewModel,
+                                onViewHistoryClicked = { navController.navigate("detection_history") }
+                            )
+                        }
                     }
                 }
             }
@@ -137,7 +160,7 @@ fun DashboardScreen(navController: NavController) {
                             .background(ThemeColorUtils.black(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                        Card(colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))) {
+                        Card(colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)))) {
                         Column(
                             modifier = Modifier.padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -146,7 +169,8 @@ fun DashboardScreen(navController: NavController) {
                             Spacer(modifier = Modifier.height(Dimens.PaddingLarge))
                             Text(
                                 "Analyzing chicken health...",
-                                style = androidx.compose.material3.MaterialTheme.typography.titleMedium
+                                style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
+                                color = ThemeColorUtils.black()
                             )
                         }
                     }
@@ -196,14 +220,15 @@ fun DashboardScreenContent(
             calendar.set(java.util.Calendar.SECOND, 0)
             calendar.set(java.util.Calendar.MILLISECOND, 0)
             val startOfDay = calendar.timeInMillis
-            val todaysDetections = detectionHistory.count { it.timestamp >= startOfDay }
+            detectionHistory.count { it.timestamp >= startOfDay }
 
             StatsSummaryCard(
-                totalChickens = todaysDetections,
                 totalDetections = uiState.totalDetections,
                 healthyRate = uiState.healthyRate,
+                unhealthyRate = uiState.unhealthyRate, // Pass independent unhealthy rate
                 imageDetections = uiState.imageDetections,
-                audioDetections = uiState.audioDetections
+                audioDetections = uiState.audioDetections,
+                detectionHistory = detectionHistory // Pass detectionHistory to calculate average confidence
             )
         }
         item {

@@ -231,7 +231,7 @@ private fun DashboardTopAppBar(
             }
         },
         navigationIcon = {
-            IconButton(onClick = { /* TODO: Open drawer */ }) {
+            IconButton(onClick = {}) {
                 Icon(Icons.Default.Menu, contentDescription = "Menu")
             }
         },

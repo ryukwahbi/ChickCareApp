@@ -38,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -49,6 +50,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import com.bisu.chickcare.frontend.utils.sanitizeUriString
 import java.text.SimpleDateFormat
@@ -103,7 +105,8 @@ fun LastDetectionDetailScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF)
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -112,7 +115,9 @@ fun LastDetectionDetailScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFE8B88C))
+                .background(
+                    if (ThemeViewModel.isDarkMode) ThemeColorUtils.beige(Color(0xFFFFF7E6)) else Color(0xFFE8B88C)
+                )
         ) {
             Column(
                 modifier = Modifier
@@ -123,9 +128,28 @@ fun LastDetectionDetailScreen(
             ) {
                 // Date and Time Card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                    elevation = CardDefaults.cardElevation(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (ThemeViewModel.isDarkMode) {
+                                Modifier.shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(20.dp),
+                                    spotColor = Color.White,
+                                    ambientColor = Color.White.copy(alpha = 0.5f)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
+                    ),
+                    elevation = if (ThemeViewModel.isDarkMode) {
+                        CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    } else {
+                        CardDefaults.cardElevation(8.dp)
+                    },
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Row(
@@ -148,7 +172,7 @@ fun LastDetectionDetailScreen(
                                 text = "Date and Time",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF333333)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFF333333)
                                 )
                             )
                             Spacer(modifier = Modifier.height(8.dp))
@@ -156,7 +180,7 @@ fun LastDetectionDetailScreen(
                                 text = formatLastDetectionDate(entry.timestamp),
                                 style = MaterialTheme.typography.headlineMedium.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    color = Color(0xFFD27D2D)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFFD27D2D)
                                 ),
                                 textAlign = TextAlign.Start
                             )
@@ -166,9 +190,28 @@ fun LastDetectionDetailScreen(
 
                 // Location Card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                    elevation = CardDefaults.cardElevation(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (ThemeViewModel.isDarkMode) {
+                                Modifier.shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(20.dp),
+                                    spotColor = Color.White,
+                                    ambientColor = Color.White.copy(alpha = 0.5f)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
+                    ),
+                    elevation = if (ThemeViewModel.isDarkMode) {
+                        CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    } else {
+                        CardDefaults.cardElevation(8.dp)
+                    },
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(
@@ -197,7 +240,7 @@ fun LastDetectionDetailScreen(
                                         text = "Location",
                                         style = MaterialTheme.typography.titleLarge.copy(
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF333333)
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFF333333)
                                         )
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -207,12 +250,23 @@ fun LastDetectionDetailScreen(
                                         ?.replace("\\s+".toRegex(), " ")
                                         ?.trim()
 
-                                    Text(
-                                        text = formattedLocation ?: "Location not available",
-                                        style = MaterialTheme.typography.bodyLarge.copy(
-                                            color = if (entry.location.isNullOrEmpty()) ThemeColorUtils.lightGray(Color.Gray) else ThemeColorUtils.lightGray(Color(0xFF666666))
+                                    if (entry.location.isNullOrEmpty()) {
+                                        Text(
+                                            text = "Location not available",
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF999999)) else ThemeColorUtils.lightGray(Color(0xFF999999))
+                                            )
                                         )
-                                    )
+                                    } else {
+                                        Text(
+                                            text = formattedLocation ?: "Location not available",
+                                            style = MaterialTheme.typography.bodyLarge.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFF333333)
+                                            )
+                                        )
+                                    }
                                 }
                             }
                             if (!entry.location.isNullOrEmpty()) {
@@ -273,9 +327,28 @@ fun LastDetectionDetailScreen(
                 // Detection Image Card (only show if image URI exists)
                 if (!entry.imageUri.isNullOrEmpty()) {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                        elevation = CardDefaults.cardElevation(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(20.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
+                        ),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(8.dp)
+                        },
                         shape = RoundedCornerShape(20.dp)
                     ) {
                         Column(
@@ -288,7 +361,7 @@ fun LastDetectionDetailScreen(
                                 text = "Detection Image",
                                 style = MaterialTheme.typography.titleLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF333333)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFF333333)
                                 ),
                                 modifier = Modifier.padding(bottom = 12.dp)
                             )
@@ -327,9 +400,28 @@ fun LastDetectionDetailScreen(
 
                 // Additional Info Card
                 Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                    elevation = CardDefaults.cardElevation(8.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (ThemeViewModel.isDarkMode) {
+                                Modifier.shadow(
+                                    elevation = 8.dp,
+                                    shape = RoundedCornerShape(20.dp),
+                                    spotColor = Color.White,
+                                    ambientColor = Color.White.copy(alpha = 0.5f)
+                                )
+                            } else {
+                                Modifier
+                            }
+                        ),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
+                    ),
+                    elevation = if (ThemeViewModel.isDarkMode) {
+                        CardDefaults.cardElevation(defaultElevation = 0.dp)
+                    } else {
+                        CardDefaults.cardElevation(8.dp)
+                    },
                     shape = RoundedCornerShape(20.dp)
                 ) {
                     Column(
@@ -342,7 +434,7 @@ fun LastDetectionDetailScreen(
                             text = "Detection Information",
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF333333)
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFF333333)
                             )
                         )
                         Row(
@@ -353,27 +445,16 @@ fun LastDetectionDetailScreen(
                                 text = "Status:",
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.SemiBold,
-                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF666666)) else ThemeColorUtils.lightGray(Color(0xFF666666))
                                 )
                             )
-                            val cleanedStatus = entry.result
-                                .replace("�", "%")
-                                .replace("+", " ")
-                                .replace("\\s+".toRegex(), " ")
-                                .trim()
-                            val statusLabel = cleanedStatus
-                                .substringBefore("(")
-                                .substringBefore(":")
-                                .substringBefore("%")
-                                .trim()
-                                .ifEmpty { cleanedStatus.substringBefore("%").trim() }
-                                .ifEmpty { if (entry.isHealthy) "Healthy" else "Unhealthy" }
+                            val statusLabel = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusText(entry.isHealthy, entry.confidence)
                             val confidenceValue = (entry.confidence * 100).coerceAtLeast(0f)
                             Text(
                                 text = "$statusLabel - ${confidenceValue.formatOneDecimal()}%",
                                 style = MaterialTheme.typography.bodyLarge.copy(
                                     fontWeight = FontWeight.Bold,
-                                    color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
+                                    color = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusColor(entry.isHealthy, entry.confidence)
                                 )
                             )
                         }
@@ -386,7 +467,7 @@ fun LastDetectionDetailScreen(
                                     text = "Confidence:",
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         fontWeight = FontWeight.SemiBold,
-                                        color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF666666)) else ThemeColorUtils.lightGray(Color(0xFF666666))
                                     )
                                 )
                                 val confidenceValue = (entry.confidence * 100).coerceAtLeast(0f)
@@ -394,7 +475,7 @@ fun LastDetectionDetailScreen(
                                     text = "${confidenceValue.formatOneDecimal()}%",
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = Color(0xFFD27D2D)
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else Color(0xFFD27D2D)
                                     )
                                 )
                             }

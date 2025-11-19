@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
 import kotlinx.coroutines.delay
@@ -248,17 +249,17 @@ fun ProcessingScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center
         ) {
-            val progressIndicatorColor = if (ThemeColorUtils.black() == Color.White) {
-                // Dark mode (black inverted to white)
-                ThemeColorUtils.lightGray(Color(0xFFD0D3D8))
+            val progressIndicatorColor = if (ThemeViewModel.isDarkMode) {
+                // Dark mode - use white/light color
+                Color.White
             } else {
                 ThemeColorUtils.beige(Color(0xFFE3B386))
             }
 
-            val indicatorBackgroundColors = if (ThemeColorUtils.black() == Color.White) {
+            val indicatorBackgroundColors = if (ThemeViewModel.isDarkMode) {
                 listOf(
-                    ThemeColorUtils.lightGray(Color(0xFF55595E)).copy(alpha = 0.3f),
-                    ThemeColorUtils.lightGray(Color(0xFF3A3D40)).copy(alpha = 0.1f)
+                    Color(0xFF2C2C2C).copy(alpha = 0.3f),
+                    Color(0xFF1E1E1E).copy(alpha = 0.1f)
                 )
             } else {
                 listOf(
@@ -289,22 +290,16 @@ fun ProcessingScreen(
                 text = "Processing...",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B),
+                color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B),
                 textAlign = TextAlign.Center
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            val statusColor = if (ThemeColorUtils.black() == Color.White) {
-                ThemeColorUtils.white()
-            } else {
-                ThemeColorUtils.black()
-            }
-
             Text(
                 text = "Please wait...",
                 fontSize = 14.sp,
-                color = statusColor,
+                color = if (ThemeViewModel.isDarkMode) Color.White else ThemeColorUtils.black(),
                 textAlign = TextAlign.Center
             )
         }

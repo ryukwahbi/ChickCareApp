@@ -62,6 +62,7 @@ import androidx.core.net.toUri
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import coil.compose.AsyncImage
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
 import kotlinx.coroutines.launch
@@ -232,16 +233,31 @@ fun ImageInputScreen(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .shadow(
-                                elevation = 8.dp,
-                                shape = RoundedCornerShape(12.dp),
-                                spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(12.dp),
+                                        spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                    )
+                                }
                             ),
                         shape = RoundedCornerShape(12.dp),
                         colors = CardDefaults.cardColors(
-                            containerColor = ThemeColorUtils.beige(Color(0xFFFFF3CD))
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.beige(Color(0xFFFFF3CD))
                         ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(defaultElevation = 6.dp)
+                        }
                     ) {
                         Column(
                             modifier = Modifier.padding(18.dp),
@@ -251,48 +267,48 @@ fun ImageInputScreen(
                                 text = "NOTE: Image Capture Guidelines",
                                 fontSize = 18.5.sp,
                                 fontWeight = FontWeight.ExtraBold,
-                                color = ThemeColorUtils.darkGray(Color(0xFF575450))
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.darkGray(Color(0xFF575450))
                             )
 
                             HorizontalDivider(
                                 thickness = 1.5.dp,
-                                color = ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                             )
 
                             Text(
                                 text = "—  Capture a CLEAR focused photo of the chicken's face and head area.",
                                 fontSize = 15.5.sp,
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Ensure GOOD LIGHTING avoid shadows or dark areas that hide details.",
                                 fontSize = 15.5.sp,
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Focus on the HEAD REGION capture symptoms like nasal discharge, facial swelling, or eye issues.",
                                 fontSize = 15.5.sp,
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Get CLOSE ENOUGH the chicken should fill most of the frame for accurate analysis.",
                                 fontSize = 15.5.sp,
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
                             Text(
                                 text = "—  Keep the chicken STILL, wait for it to be calm before capturing.",
                                 fontSize = 15.5.sp,
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                 lineHeight = 22.sp
                             )
 
                             HorizontalDivider(
                                 thickness = 1.5.dp,
-                                color = ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
+                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                             )
 
                             Text(
@@ -332,15 +348,30 @@ fun ImageInputScreen(
                                     .weight(1f)
                                     .aspectRatio(1f)
                                     .scale(scaleCamera)
-                                    .shadow(
-                                        elevation = 6.dp,
-                                        shape = RoundedCornerShape(20.dp),
-                                        spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                    .then(
+                                        if (ThemeViewModel.isDarkMode) {
+                                            Modifier.shadow(
+                                                elevation = 6.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                                spotColor = Color.White,
+                                                ambientColor = Color.White.copy(alpha = 0.5f)
+                                            )
+                                        } else {
+                                            Modifier.shadow(
+                                                elevation = 6.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                                spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                            )
+                                        }
                                     ),
                                 shape = RoundedCornerShape(20.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                                elevation = if (ThemeViewModel.isDarkMode) {
+                                    CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                } else {
+                                    CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                },
                             colors = CardDefaults.cardColors(
-                                containerColor = ThemeColorUtils.white()
+                                containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
                             )
                             ) {
                                 Column(
@@ -381,7 +412,7 @@ fun ImageInputScreen(
                                         text = "Camera",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF000000)
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF000000)
                                     )
                                 }
                             }
@@ -394,15 +425,30 @@ fun ImageInputScreen(
                                     .weight(1f)
                                     .aspectRatio(1f)
                                     .scale(scaleUpload)
-                                    .shadow(
-                                        elevation = 6.dp,
-                                        shape = RoundedCornerShape(20.dp),
-                                        spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                    .then(
+                                        if (ThemeViewModel.isDarkMode) {
+                                            Modifier.shadow(
+                                                elevation = 6.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                                spotColor = Color.White,
+                                                ambientColor = Color.White.copy(alpha = 0.5f)
+                                            )
+                                        } else {
+                                            Modifier.shadow(
+                                                elevation = 6.dp,
+                                                shape = RoundedCornerShape(20.dp),
+                                                spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                            )
+                                        }
                                     ),
                                 shape = RoundedCornerShape(20.dp),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                                elevation = if (ThemeViewModel.isDarkMode) {
+                                    CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                } else {
+                                    CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                },
                             colors = CardDefaults.cardColors(
-                                containerColor = ThemeColorUtils.white()
+                                containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
                             )
                             ) {
                                 Column(
@@ -443,7 +489,7 @@ fun ImageInputScreen(
                                         text = "Upload",
                                         fontSize = 18.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF1E293B)
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF1E293B)
                                     )
                                 }
                             }

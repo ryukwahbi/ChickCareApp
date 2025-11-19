@@ -15,6 +15,7 @@ data class TimelinePost(
     val content: String = "",
     val detectionId: String = "",
     val detectionResult: String = "",
+    @get:com.google.firebase.firestore.PropertyName("isHealthy")
     val isHealthy: Boolean = false,
     val confidence: Float = 0f,
     val imageUri: String? = null,
@@ -183,7 +184,6 @@ class PostRepository {
                 .update("isSaved", false)
                 .await()
         } else {
-            // Other user's post - remove from savedPosts collection
             usersCollection.document(currentUserId)
                 .collection("savedPosts")
                 .document("${originalUserId}_$postId")
@@ -193,6 +193,7 @@ class PostRepository {
     }
     
     // Check if post is saved by current user
+    @Suppress("unused")
     suspend fun isPostSaved(currentUserId: String, originalUserId: String, postId: String): Boolean {
         return if (currentUserId == originalUserId) {
             // Check own post's isSaved field

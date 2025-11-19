@@ -28,18 +28,18 @@ object ShareUtils {
             context.packageManager.getApplicationLabel(context.applicationInfo).toString()
         }
 
-        val defaultGoogleDriveUrl = googleDriveUrl ?: "https://drive.google.com/file/d/16Mes2a0bkHlOHyaTM5fmJSwrKkJwFGkW/view?usp=drive_link"
+        val defaultGoogleDriveUrl = googleDriveUrl ?: "https://drive.google.com/file/d/18tv97VNrGv7Uz4a81GylBtGEQxHTBSKT/view?usp=sharing"
         
         downloadUrl ?: defaultGoogleDriveUrl
         
         val linksSection = "📥 Download Link: $defaultGoogleDriveUrl\n\n"
         
         val shareText = """
-            Download $appName - Your Chicken Health Management App! 🐔
+            Download $appName ─ Your Chicken Health Management App! 🐔
             
             $linksSection
-            📱 Para sa mga naka-install na:
-            I-click ang link: chickcare://app/dashboard
+            If you're already installed:
+            ─ Just click ang link: chickcare://app/dashboard
             
             Features:
             • Health detection for chickens
@@ -143,6 +143,50 @@ object ShareUtils {
     @Suppress("unused")
     fun generateHttpsDeepLink(path: String = "app"): Uri {
         return "https://chickcare.app/$path".toUri()
+    }
+    
+    /**
+     * Share a user profile link
+     * @param context The context to use for sharing
+     * @param userId The user ID to share
+     * @param userName The user's name
+     */
+    fun shareProfile(
+        context: Context,
+        userId: String,
+        userName: String
+    ) {
+        val appName = try {
+            context.getString(R.string.app_name)
+        } catch (_: Exception) {
+            context.packageManager.getApplicationLabel(context.applicationInfo).toString()
+        }
+        
+        // Generate deep link for profile
+        val profileLink = "https://chickcare.app/profile?userId=$userId"
+        val deepLink = "chickcare://app/profile?userId=$userId"
+        
+        val shareText = """
+            Check out $userName's profile on $appName! 🐔
+            
+            Profile Link: $profileLink
+            
+            If you have the app installed, click: $deepLink
+            
+            Join $appName to connect with chicken farmers and manage your flock!
+        """.trimIndent()
+        
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "$userName's Profile on $appName")
+            putExtra(Intent.EXTRA_TEXT, shareText)
+        }
+        
+        try {
+            context.startActivity(Intent.createChooser(shareIntent, "Share $userName's Profile"))
+        } catch (e: Exception) {
+            Toast.makeText(context, "Unable to share: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
     }
 }
 

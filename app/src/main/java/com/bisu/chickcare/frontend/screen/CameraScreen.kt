@@ -77,6 +77,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
@@ -85,7 +87,6 @@ import java.util.Date
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -445,17 +446,28 @@ fun CameraScreen(navController: NavController) {
                                 modifier = Modifier
                                     .size(80.dp)
                                     .scale(buttonScale)
-                                    .shadow(12.dp, CircleShape),
+                                    .then(
+                                        if (ThemeViewModel.isDarkMode) {
+                                            Modifier.shadow(
+                                                elevation = 5.dp,
+                                                shape = CircleShape,
+                                                spotColor = Color.White,
+                                                ambientColor = Color.White.copy(alpha = 0.2f)
+                                            )
+                                        } else {
+                                            Modifier.shadow(12.dp, CircleShape)
+                                        }
+                                    ),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = ThemeColorUtils.white()
+                                    containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF737373) else ThemeColorUtils.white()
                                 ),
                                 enabled = !isCapturing
                             ) {
                                 Icon(
                                     Icons.Default.Camera,
                                     contentDescription = "Capture",
-                                    tint = Color(0xFF8B4513),
+                                    tint = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF8B4513),
                                     modifier = Modifier.size(40.dp)
                                 )
                             }

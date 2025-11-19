@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,9 +34,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +43,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
-import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ShareUtils
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
@@ -60,14 +58,14 @@ fun AboutScreen(navController: NavController) {
                         "About",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo("dashboard") { inclusive = false }
+                            navController.navigate("settings") {
+                                popUpTo("settings") { inclusive = false }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -76,13 +74,13 @@ fun AboutScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -93,7 +91,7 @@ fun AboutScreen(navController: NavController) {
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
                 thickness = 1.dp
             )
 
@@ -124,15 +122,7 @@ fun AboutScreen(navController: NavController) {
                             Image(
                                 painter = painterResource(id = R.drawable.chicken_icon),
                                 contentDescription = "App Icon",
-                                modifier = Modifier.size(60.dp),
-                                colorFilter = if (ThemeViewModel.isDarkMode) {
-                                    ColorFilter.tint(
-                                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                                        blendMode = BlendMode.SrcAtop
-                                    )
-                                } else {
-                                    null
-                                }
+                                modifier = Modifier.size(60.dp)
                             )
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
@@ -141,12 +131,12 @@ fun AboutScreen(navController: NavController) {
                                     text = "ChickCare",
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
-                                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                                    color = ThemeColorUtils.black()
                                 )
                                 Text(
                                     text = "Version 1.0.0",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                                 )
                             }
                         }
@@ -176,13 +166,13 @@ fun AboutScreen(navController: NavController) {
                                 text = "About ChickCare",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                                color = ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "ChickCare is an innovative mobile application designed to help poultry farmers monitor and maintain the health of their chickens. Using advanced AI technology, the app can detect early signs of diseases, particularly Infectious Bronchitis, through image and audio analysis.",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = ThemeColorUtils.lightGray(Color(0xFF666666)),
+                                color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                                 lineHeight = 22.sp
                             )
                         }
@@ -194,7 +184,7 @@ fun AboutScreen(navController: NavController) {
                         text = "Features",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
@@ -269,7 +259,7 @@ fun AboutScreen(navController: NavController) {
                                 text = "Developed with care",
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
-                                color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                                color = ThemeColorUtils.black(),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -277,7 +267,7 @@ fun AboutScreen(navController: NavController) {
                             Text(
                                 text = "For the poultry farmers worldwide",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                                color = ThemeColorUtils.black(),
                                 textAlign = TextAlign.Center,
                                 modifier = Modifier.fillMaxWidth()
                             )
@@ -297,8 +287,13 @@ fun AboutFeatureCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
@@ -318,28 +313,20 @@ fun AboutFeatureCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
         }

@@ -742,7 +742,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                 item {
                     Spacer(modifier = Modifier.height(12.dp))
                     HorizontalDivider(
-                        color = Color(0xFF8B4513).copy(alpha = 0.5f),
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                     Spacer(modifier = Modifier.height(12.dp))

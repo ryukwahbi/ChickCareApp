@@ -49,8 +49,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +66,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import com.bisu.chickcare.frontend.utils.sanitizeUriString
@@ -167,12 +168,20 @@ fun ResultScreen(
         status
     }
 
-    // Check if this is an invalid image error
-    val isInvalidImage = decodedStatus.startsWith("INVALID_IMAGE:", ignoreCase = true)
-    val displayStatus = if (isInvalidImage) {
-        decodedStatus.substringAfter("INVALID_IMAGE: ", missingDelimiterValue = decodedStatus)
-    } else {
-        decodedStatus
+    // Check if this is an invalid detection (image, audio, or fusion)
+    // Also treat "No Detection Result" and "No Input Provided" as invalid (should not be saved)
+    val isInvalidDetection = decodedStatus.startsWith("INVALID_IMAGE:", ignoreCase = true) ||
+                             decodedStatus.startsWith("INVALID_DETECTION:", ignoreCase = true) ||
+                             decodedStatus.equals("No Detection Result", ignoreCase = true) ||
+                             decodedStatus.equals("No Input Provided", ignoreCase = true)
+    val displayStatus = when {
+        decodedStatus.startsWith("INVALID_IMAGE:", ignoreCase = true) -> {
+            decodedStatus.substringAfter("INVALID_IMAGE: ", missingDelimiterValue = decodedStatus)
+        }
+        decodedStatus.startsWith("INVALID_DETECTION:", ignoreCase = true) -> {
+            decodedStatus.substringAfter("INVALID_DETECTION: ", missingDelimiterValue = decodedStatus)
+        }
+        else -> decodedStatus
     }
 
     // Parse result and confidence from status string
@@ -182,7 +191,7 @@ fun ResultScreen(
     Log.d("ResultScreen", "Parsing status (decoded): '$decodedStatus'")
     // Use decodedStatus for parsing
     val resultText = when {
-        isInvalidImage -> "Error"
+        isInvalidDetection -> "Error"
         // Check for Healthy first (but not Unhealthy)
         decodedStatus.contains("Healthy", ignoreCase = true) && !decodedStatus.contains(
             "Unhealthy",
@@ -254,14 +263,12 @@ fun ResultScreen(
     )
 
     val isHealthy =
-        resultText == "Healthy" // isInvalidImage is already false if resultText is "Healthy"
+        resultText == "Healthy" // isInvalidDetection is already false if resultText is "Healthy"
     val resultColor = when {
-        isInvalidImage -> Color(0xFFF44336) // Red for invalid images
+        isInvalidDetection -> Color(0xFFF44336) // Red for invalid detections
         isHealthy -> Color(0xFF4CAF50) // Green for healthy
         else -> Color(0xFFF44336) // Red for infected
     }
-    val backgroundUrl =
-        "https://media.istockphoto.com/id/1342480600/photo/free-range-healthy-brown-organic-chickens-and-a-white-rooster-on-a-green-meadow.jpg?s=612x612&w=0&k=20&c=HWwPGRkHpEnObkcsMzopcmXorwHD0PS7NQ1EiA8K53c="
 
     Scaffold(
         topBar = {
@@ -297,15 +304,6 @@ fun ResultScreen(
                 .padding(innerPadding)
                 .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
         ) {
-            AsyncImage(
-                model = backgroundUrl,
-                contentDescription = "Background",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .alpha(0.3f),
-                contentScale = ContentScale.Crop
-            )
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(16.dp),
@@ -314,9 +312,28 @@ fun ResultScreen(
                 // --- Result Display Card ---
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.white().copy(alpha = 0.9f)),
-                        elevation = CardDefaults.cardElevation(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.white().copy(alpha = 0.9f)
+                        ),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(8.dp)
+                        },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(
@@ -368,25 +385,32 @@ fun ResultScreen(
 
                             Spacer(modifier = Modifier.height(16.dp))
                             AnimatedVisibility(visible = true, enter = scaleIn() + fadeIn()) {
-                                if (isInvalidImage) {
-                                    // Display invalid image error in red
+                                if (isInvalidDetection) {
+                                    // Display invalid detection with formatted text
                                     Column(
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         modifier = Modifier.fillMaxWidth()
                                     ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Healing,
-                                            contentDescription = "Error",
-                                            modifier = Modifier.size(64.dp),
-                                            tint = Color(0xFFF44336)
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                        // "Result: INVALID" - Extra bold, red
                                         Text(
-                                            text = displayStatus,
+                                            text = "Result: INVALID",
                                             style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontWeight = FontWeight.Bold,
+                                                fontWeight = FontWeight.ExtraBold,
                                                 fontSize = 20.sp,
-                                                color = Color(0xFFF44336) // Red color
+                                                color = Color(0xFFF44336)
+                                            ),
+                                            textAlign = TextAlign.Center
+                                        )
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        Text(
+                                            text = "($displayStatus)",
+                                            style = MaterialTheme.typography.bodyMedium.copy(
+                                                fontWeight = FontWeight.Medium,
+                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                fontSize = 17.sp,
+                                                color = ThemeColorUtils.black()
                                             ),
                                             textAlign = TextAlign.Center
                                         )
@@ -408,7 +432,7 @@ fun ResultScreen(
                                             style = MaterialTheme.typography.headlineMedium.copy(
                                                 fontWeight = FontWeight.ExtraBold,
                                                 fontSize = 28.sp,
-                                                color = resultColor // Green for Healthy, Red for Infected
+                                                color = resultColor
                                             ),
                                             textAlign = TextAlign.Center
                                         )
@@ -420,7 +444,7 @@ fun ResultScreen(
                                                 style = MaterialTheme.typography.titleLarge.copy(
                                                     fontWeight = FontWeight.SemiBold,
                                                     fontSize = 20.sp,
-                                                    color = ThemeColorUtils.black()
+                                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
                                                 ),
                                                 textAlign = TextAlign.Center
                                             )
@@ -612,7 +636,10 @@ fun ResultScreen(
                                         contentDescription = if (isPlaying) "Stop Audio" else "Play Audio"
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (isPlaying) "Stop Audio" else "Play Audio")
+                                    Text(
+                                        if (isPlaying) "Stop Audio" else "Play Audio",
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color.Unspecified
+                                    )
                                 }
                             }
                         }
@@ -622,29 +649,40 @@ fun ResultScreen(
                 // --- Action Required Card (always shown) ---
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 12.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         colors = CardDefaults.cardColors(
-                            containerColor = ThemeColorUtils.beige(Color(0xFFFFF3E0))
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else Color.White
                         ),
-                        elevation = CardDefaults.cardElevation(12.dp),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(12.dp)
+                        },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Healing,
-                                contentDescription = null,
-                                tint = Color(0xFFE65100),
-                                modifier = Modifier.size(48.dp)
-                            )
-                            Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "▲ Action Required",
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFE65100)
+                                text = "Action Required",
+                                style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontWeight = FontWeight.ExtraBold,
+                                    fontSize = 24.sp,
+                                    color = if (ThemeViewModel.isDarkMode) Color(0xFFE65100) else Color(0xFFE65100)
                                 ),
                                 textAlign = TextAlign.Center
                             )
@@ -658,7 +696,7 @@ fun ResultScreen(
                                     text = buildAnnotatedString {
                                         withStyle(
                                             style = SpanStyle(
-                                            color = ThemeColorUtils.black(),
+                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         ) {
@@ -674,7 +712,7 @@ fun ResultScreen(
                                         }
                                         withStyle(
                                             style = SpanStyle(
-                                            color = ThemeColorUtils.black(),
+                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                                 fontWeight = FontWeight.SemiBold
                                             )
                                         ) {
@@ -742,9 +780,28 @@ fun ResultScreen(
                 // --- Recommended Actions After Detection ---
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.white().copy(alpha = 0.9f)),
-                        elevation = CardDefaults.cardElevation(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.white().copy(alpha = 0.9f)
+                        ),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(8.dp)
+                        },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(modifier = Modifier.padding(24.dp)) {
@@ -757,7 +814,7 @@ fun ResultScreen(
                                     text = "⬤",
                                     style = MaterialTheme.typography.headlineMedium.copy(
                                         fontSize = 20.sp,
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
                                     )
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -765,42 +822,56 @@ fun ResultScreen(
                                     text = "Recommended Actions After Detection",
                                     style = MaterialTheme.typography.titleMedium.copy(
                                         fontWeight = FontWeight.Bold,
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
                                     )
                                 )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
 
-                            // Show suggestions for infected or healthy
-                            val displaySuggestions = if (suggestions.isNotEmpty()) {
-                                // Decode URL-encoded suggestions (spaces might be encoded as +)
-                                // Also remove any checkmark emojis
-                                suggestions.map { suggestion ->
-                                    try {
-                                        val decoded = java.net.URLDecoder.decode(suggestion, "UTF-8")
-                                        decoded.replace("✅", "").replace("✔", "").trim()
-                                    } catch (_: Exception) {
-                                        suggestion.replace("✅", "").replace("✔", "").trim()
+                            // Show suggestions based on detection result
+                            val displaySuggestions = when {
+                                resultText == "Unknown" -> {
+                                    // Recommendations for Unknown/Unclear detection results
+                                    listOf(
+                                        "The detection result is unclear. Please try again with a clearer image and audio.",
+                                        "Ensure the chicken is clearly visible in the image with good lighting.",
+                                        "Record audio with actual chicken sounds (clucking, crowing, etc.).",
+                                        "If the issue persists, consult a veterinarian for professional diagnosis.",
+                                        "Check that both image and audio inputs are from the same chicken."
+                                    )
+                                }
+                                suggestions.isNotEmpty() -> {
+                                    // Decode URL-encoded suggestions (spaces might be encoded as +)
+                                    // Also remove any checkmark emojis
+                                    suggestions.map { suggestion ->
+                                        try {
+                                            val decoded = java.net.URLDecoder.decode(suggestion, "UTF-8")
+                                            decoded.replace("✅", "").replace("✔", "").trim()
+                                        } catch (_: Exception) {
+                                            suggestion.replace("✅", "").replace("✔", "").trim()
+                                        }
                                     }
                                 }
-                            } else if (isHealthy) {
-                                // Default suggestions for healthy chickens
-                                listOf(
-                                    "Your chicken appears healthy. Continue regular health monitoring.",
-                                    "Maintain clean and dry coop conditions.",
-                                    "Provide balanced nutrition and fresh water daily.",
-                                    "Schedule regular check-ups with a veterinarian for preventive care.",
-                                    "Observe daily behavior and physical appearance for any changes."
-                                )
-                            } else {
-                                // Default suggestions for infected chickens
-                                listOf(
-                                    "Seek immediate veterinary consultation for proper diagnosis.",
-                                    "Isolate the infected chicken from the flock to prevent spread.",
-                                    "Disinfect the coop and equipment thoroughly.",
-                                    "Monitor other chickens closely for similar symptoms.",
-                                    "Follow veterinarian's prescribed treatment plan strictly."
-                                )
+                                isHealthy -> {
+                                    // Default suggestions for healthy chickens
+                                    listOf(
+                                        "Your chicken appears healthy. Continue regular health monitoring.",
+                                        "Maintain clean and dry coop conditions.",
+                                        "Provide balanced nutrition and fresh water daily.",
+                                        "Schedule regular check-ups with a veterinarian for preventive care.",
+                                        "Observe daily behavior and physical appearance for any changes."
+                                    )
+                                }
+                                else -> {
+                                    // Default suggestions for infected chickens
+                                    listOf(
+                                        "Seek immediate veterinary consultation for proper diagnosis.",
+                                        "Isolate the infected chicken from the flock to prevent spread.",
+                                        "Disinfect the coop and equipment thoroughly.",
+                                        "Monitor other chickens closely for similar symptoms.",
+                                        "Follow veterinarian's prescribed treatment plan strictly."
+                                    )
+                                }
                             }
 
                             displaySuggestions.forEach { suggestion ->
@@ -814,14 +885,14 @@ fun ResultScreen(
                                         text = "—  ",
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = ThemeColorUtils.black()
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
                                         )
                                     )
                                     Text(
                                         text = suggestion,
                                         style = MaterialTheme.typography.bodyMedium.copy(
                                             fontWeight = FontWeight.Normal,
-                                            color = ThemeColorUtils.black()
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -831,13 +902,19 @@ fun ResultScreen(
                     }
                 }
 
-                // --- Done Button ---
+                // --- Done/Try Again Button ---
                 item {
                     Spacer(modifier = Modifier.height(8.dp))
                     Button(
                         onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            if (isInvalidDetection) {
+                                // For invalid detections, go back to action screen to try again
+                                navController.popBackStack()
+                            } else {
+                                // For valid detections, go to dashboard
+                                navController.navigate("dashboard") {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                }
                             }
                         },
                         modifier = Modifier
@@ -845,11 +922,11 @@ fun ResultScreen(
                             .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF4CAF50)
+                            containerColor = if (isInvalidDetection) Color(0xFFF44336) else Color(0xFF4CAF50)
                         )
                     ) {
                         Text(
-                            text = "Done - Back to Dashboard",
+                            text = if (isInvalidDetection) "Try Again" else "Done - Back to Dashboard",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             color = ThemeColorUtils.white()
@@ -860,9 +937,10 @@ fun ResultScreen(
             }
         }
 
-        // Auto-save detection result when screen appears (no buttons needed)
+        // Auto-save detection result when screen appears (ONLY if valid detection)
         LaunchedEffect(Unit) {
-            if (!isSaving) {
+            // DO NOT save invalid detections
+            if (!isSaving && !isInvalidDetection) {
                 isSaving = true
                 try {
                     // Extract confidence from decodedStatus
@@ -897,6 +975,8 @@ fun ResultScreen(
                 } finally {
                     isSaving = false
                 }
+            } else if (isInvalidDetection) {
+                Log.d("ResultScreen", "Invalid detection detected - NOT saving to history")
             }
         }
     }

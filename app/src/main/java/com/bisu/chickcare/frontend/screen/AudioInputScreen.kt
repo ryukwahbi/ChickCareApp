@@ -1,6 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -32,8 +33,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -75,13 +78,18 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.navigation.NavController
+import com.bisu.chickcare.backend.service.AudioSpectrogramConverter
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.Locale
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AudioInputScreen(
@@ -106,6 +114,7 @@ fun AudioInputScreen(
     var audioFile by remember { mutableStateOf<File?>(null) }
     var recordingFinished by remember { mutableStateOf(false) }
     var uploadedAudioUri by remember { mutableStateOf<String?>(null) }
+    var audioDurationWarning by remember { mutableStateOf<String?>(null) }
     val mediaRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
     var currentRecordingFile by remember { mutableStateOf<File?>(null) }
     
@@ -159,187 +168,41 @@ fun AudioInputScreen(
                         audioFile = possibleFile
                     }
                 }
-                Log.d("AudioInputScreen", "Audio uploaded - URI: $finalUriString, hasAudio should now be true")
-            }
-        }
-    }
-
-    // Timer for recording - updates every second while recording
-    LaunchedEffect(isRecording) {
-        if (isRecording) {
-            recordingTime = 0L // Reset timer when starting
-            while (isRecording) {
-                delay(1000)
-                if (isRecording) { // Double check before incrementing
-                    recordingTime++
+                
+                // Validate audio duration
+                val audioConverter = AudioSpectrogramConverter(context)
+                val durationMs = withContext(Dispatchers.IO) {
+                    audioConverter.getAudioDuration(finalUriString)
                 }
-            }
-        } else {
-            // Reset timer when not recording
-            if (!recordingFinished) {
-                recordingTime = 0L
-            }
-        }
-    }
-
-    fun cleanupRecorder() {
-        try {
-            val recorder = mediaRecorder.value
-            if (recorder != null) {
-                try {
-                    // Only stop if recorder is actually recording (state 4)
-                    // MediaRecorder states: 1=INITIALIZED, 2=DATA_SOURCE_CONFIGURED, 3=PREPARED, 4=RECORDING, 5=ERROR, 6=RELEASED
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                        try {
-                            val getStateMethod = recorder::class.java.getMethod("getState")
-                            val state = getStateMethod.invoke(recorder) as? Int
-                            if (state == 4) { // RECORDING state only
-                                recorder.stop()
-                                Log.d(
-                                    "AudioInputScreen",
-                                    "Stopped recorder in RECORDING state"
-                                )
-                            } else {
-                                Log.d(
-                                    "AudioInputScreen",
-                                    "Recorder not in RECORDING state (state=$state), skipping stop"
-                                )
-                            }
-                        } catch (e: Exception) {
-                            // If we can't check state, don't try to stop - just release
-                            Log.d(
-                                "AudioInputScreen",
-                                "Could not check recorder state: ${e.message}"
-                            )
+                
+                if (durationMs != null) {
+                    val durationSeconds = durationMs / 1000f
+                    audioDurationWarning = when {
+                        durationSeconds < AudioSpectrogramConverter.MIN_DURATION_SECONDS -> {
+                            "⚠️ Audio is too short (${String.format("%.1f", durationSeconds)}s). " +
+                            "Please record at least ${AudioSpectrogramConverter.MIN_DURATION_SECONDS} seconds."
                         }
-                    } else {
-                        // For API < 31, only try to stop if we know we're recording
-                        // Since we track isRecording state, we can use that
-                        if (isRecording) {
-                            try {
-                                recorder.stop()
-                            } catch (e: IllegalStateException) {
-                                Log.d(
-                                    "AudioInputScreen",
-                                    "Recorder not in valid state to stop: ${e.message}"
-                                )
-                            }
+                        durationSeconds > AudioSpectrogramConverter.MAX_DURATION_SECONDS -> {
+                            "ℹ️ Audio is ${String.format("%.1f", durationSeconds)}s (longer than ${AudioSpectrogramConverter.MAX_DURATION_SECONDS}s). " +
+                            "The app will automatically extract the most active ${AudioSpectrogramConverter.MAX_DURATION_SECONDS}-second segment for analysis. " +
+                            "You can proceed with processing."
                         }
+                        else -> null
                     }
-                } catch (e: Exception) {
-                    Log.w("AudioInputScreen", "Error stopping recorder: ${e.message}")
+                } else {
+                    audioDurationWarning = null
                 }
-
-                // Always try to release
-                try {
-                    recorder.release()
-                } catch (e: Exception) {
-                    Log.w("AudioInputScreen", "Error releasing recorder: ${e.message}")
-                }
-            }
-        } catch (e: Exception) {
-            Log.w("AudioInputScreen", "Error in cleanupRecorder: ${e.message}")
-        } finally {
-            mediaRecorder.value = null
-        }
-    }
-
-    fun startRecording() {
-        try {
-            // Properly cleanup any existing recording first
-            cleanupRecorder()
-
-            val dir = context.externalCacheDir ?: context.cacheDir
-            val file = File(dir, "audio_${System.currentTimeMillis()}.3gp")
-            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                MediaRecorder(context)
-            } else {
-                @Suppress("DEPRECATION") MediaRecorder()
-            }
-
-            recorder.apply {
-                setAudioSource(MediaRecorder.AudioSource.MIC)
-                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-                setOutputFile(file.absolutePath)
-                prepare()
-            }
-
-            // Store file reference but don't set audioFile yet (so hasAudio stays false during recording)
-            currentRecordingFile = file
-            mediaRecorder.value = recorder
-
-            // Clear previous audioFile so UI shows recording state, not "Audio Ready"
-            audioFile = null
-            uploadedAudioUri = null
-
-            // Start recording
-            recorder.start()
-
-            // Update state only after successful start
-            recordingFinished = false
-            recordingTime = 0L // Reset timer
-            isRecording = true // Set this last to trigger LaunchedEffect
-
-            Log.d("AudioInputScreen", "Recording started: ${file.absolutePath}")
-        } catch (e: Exception) {
-            Log.e("AudioInputScreen", "Error starting recording", e)
-            e.printStackTrace()
-            // Cleanup on error
-            cleanupRecorder()
-            isRecording = false
-            recordingFinished = false
-            audioFile = null
-            currentRecordingFile = null
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            // Properly cleanup on dispose
-            if (isRecording) {
-                try {
-                    mediaRecorder.value?.stop()
-                } catch (_: Exception) {
-                    // Ignore stop errors on dispose
-                }
-            }
-            cleanupRecorder()
-            
-            // Cleanup MediaPlayer
-            try {
-                if (mediaPlayer.isPlaying) {
-                    mediaPlayer.stop()
-                }
-                mediaPlayer.reset()
-                mediaPlayer.release()
-            } catch (e: Exception) {
-                Log.w("AudioInputScreen", "Error releasing MediaPlayer: ${e.message}")
-            }
-        }
-    }
-    
-    // Stop audio playback when audio changes or dialog closes
-    DisposableEffect(audioFile, uploadedAudioUri) {
-        onDispose {
-            try {
-                if (mediaPlayer.isPlaying) {
-                    mediaPlayer.stop()
-                    mediaPlayer.reset()
-                }
-                isPlayingAudio = false
-            } catch (e: Exception) {
-                Log.w("AudioInputScreen", "Error stopping audio on change: ${e.message}")
+                
+                Log.d("AudioInputScreen", "Audio uploaded - URI: $finalUriString, Duration: ${durationMs}ms, Warning: $audioDurationWarning")
             }
         }
     }
 
-    fun stopRecording() {
+    val stopRecordingFunction: () -> Unit = let@{
         if (!isRecording) {
-            return // Already stopped
+            return@let
         }
 
-        // Update state first to prevent multiple stops
         isRecording = false
 
         var recordingStoppedSuccessfully = false
@@ -350,22 +213,20 @@ fun AudioInputScreen(
                 try {
                     var stateChecked = false
                     var state = -1
-                    
+
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                         try {
                             val getStateMethod = recorder::class.java.getMethod("getState")
                             state = (getStateMethod.invoke(recorder) as? Int) ?: -1
                             stateChecked = true
                         } catch (_: Exception) {
-                            // State check not available - proceed with stop attempt
                             Log.d(
                                 "AudioInputScreen",
                                 "State check unavailable, proceeding with stop attempt"
                             )
                         }
                     }
-                    
-                    // Only attempt stop if state check passed or we're on API < 31
+
                     val shouldStop = if (stateChecked) {
                         if (state == 4) { // RECORDING state
                             true
@@ -377,10 +238,9 @@ fun AudioInputScreen(
                             false
                         }
                     } else {
-                        // For API < 31 or if state check failed, attempt stop if we think we're recording
                         true
                     }
-                    
+
                     if (shouldStop) {
                         try {
                             recorder.stop()
@@ -409,12 +269,11 @@ fun AudioInputScreen(
         } catch (e: Exception) {
             Log.e("AudioInputScreen", "Error in stopRecording", e)
         } finally {
-            // Only set audioFile if recording stopped successfully
             if (recordingStoppedSuccessfully) {
                 currentRecordingFile?.let { file ->
                     if (file.exists() && file.length() > 0) {
                         audioFile = file
-                        recordingFinished = true // Set this immediately when file is ready
+                        recordingFinished = true
                         Log.d(
                             "AudioInputScreen",
                             "Recording saved to: ${file.absolutePath}, hasAudio should now be true"
@@ -431,19 +290,194 @@ fun AudioInputScreen(
         }
     }
 
-    // hasAudio should be false while recording - only true when recording is finished or file is uploaded
+    LaunchedEffect(isRecording) {
+        if (isRecording) {
+            recordingTime = 0L // Reset timer when starting
+            Log.d("AudioInputScreen", "Timer started, recordingTime: ${0}")
+            while (true) {
+                delay(1000)
+                if (isRecording) {
+                    recordingTime++
+                    Log.d("AudioInputScreen", "Timer updated, recordingTime: $recordingTime")
+                    
+                    // Auto-stop recording at 10 seconds (matches maxDuration)
+                    if (recordingTime >= 10L) {
+                        Log.d("AudioInputScreen", "Recording reached 10 seconds, auto-stopping...")
+                        stopRecordingFunction()
+                        break
+                    }
+                } else {
+                    break
+                }
+            }
+        } else {
+            if (!recordingFinished) {
+                recordingTime = 0L
+            }
+        }
+    }
+
+    fun cleanupRecorder() {
+        try {
+            val recorder = mediaRecorder.value
+            if (recorder != null) {
+                try {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            val getStateMethod = recorder::class.java.getMethod("getState")
+                            val state = getStateMethod.invoke(recorder) as? Int
+                            if (state == 4) {
+                                recorder.stop()
+                                Log.d(
+                                    "AudioInputScreen",
+                                    "Stopped recorder in RECORDING state"
+                                )
+                            } else {
+                                Log.d(
+                                    "AudioInputScreen",
+                                    "Recorder not in RECORDING state (state=$state), skipping stop"
+                                )
+                            }
+                        } catch (e: Exception) {
+                            Log.d(
+                                "AudioInputScreen",
+                                "Could not check recorder state: ${e.message}"
+                            )
+                        }
+                    } else {
+                        if (isRecording) {
+                            try {
+                                recorder.stop()
+                            } catch (e: IllegalStateException) {
+                                Log.d(
+                                    "AudioInputScreen",
+                                    "Recorder not in valid state to stop: ${e.message}"
+                                )
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w("AudioInputScreen", "Error stopping recorder: ${e.message}")
+                }
+
+                try {
+                    recorder.release()
+                } catch (e: Exception) {
+                    Log.w("AudioInputScreen", "Error releasing recorder: ${e.message}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.w("AudioInputScreen", "Error in cleanupRecorder: ${e.message}")
+        } finally {
+            mediaRecorder.value = null
+        }
+    }
+
+    fun startRecording() {
+        try {
+            cleanupRecorder()
+
+            val dir = context.externalCacheDir ?: context.cacheDir
+            val file = File(dir, "audio_${System.currentTimeMillis()}.3gp")
+            val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION") MediaRecorder()
+            }
+
+            recorder.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+                setOutputFile(file.absolutePath)
+                // Limit recording to 10 seconds for better accuracy and faster processing
+                setMaxDuration(10000) // 10 seconds in milliseconds
+                // Auto-stop when max duration is reached
+                setOnInfoListener { _, what, _ ->
+                    if (what == MediaRecorder.MEDIA_RECORDER_INFO_MAX_DURATION_REACHED) {
+                        Log.d("AudioInputScreen", "Max duration (10 seconds) reached, auto-stopping recording")
+                        coroutineScope.launch {
+                            stopRecordingFunction()
+                        }
+                    }
+                }
+                prepare()
+            }
+
+            currentRecordingFile = file
+            mediaRecorder.value = recorder
+
+            audioFile = null
+            uploadedAudioUri = null
+            audioDurationWarning = null
+
+            recorder.start()
+
+            recordingFinished = false
+            recordingTime = 0L
+            isRecording = true
+
+            Log.d("AudioInputScreen", "Recording started: ${file.absolutePath}")
+        } catch (e: Exception) {
+            Log.e("AudioInputScreen", "Error starting recording", e)
+            e.printStackTrace()
+            // Cleanup on error
+            cleanupRecorder()
+            isRecording = false
+            recordingFinished = false
+            audioFile = null
+            currentRecordingFile = null
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            if (isRecording) {
+                try {
+                    mediaRecorder.value?.stop()
+                } catch (_: Exception) {
+                }
+            }
+            cleanupRecorder()
+            
+            try {
+                if (mediaPlayer.isPlaying) {
+                    mediaPlayer.stop()
+                }
+                mediaPlayer.reset()
+                mediaPlayer.release()
+            } catch (e: Exception) {
+                Log.w("AudioInputScreen", "Error releasing MediaPlayer: ${e.message}")
+            }
+        }
+    }
+    
+    DisposableEffect(audioFile, uploadedAudioUri) {
+        onDispose {
+            try {
+                if (mediaPlayer.isPlaying) {
+                    mediaPlayer.stop()
+                    mediaPlayer.reset()
+                }
+                isPlayingAudio = false
+            } catch (e: Exception) {
+                Log.w("AudioInputScreen", "Error stopping audio on change: ${e.message}")
+            }
+        }
+    }
+
+    fun stopRecording() {
+        stopRecordingFunction()
+    }
+
     val hasAudio = (audioFile != null || uploadedAudioUri != null) && !isRecording
 
-    // Log state for debugging
     LaunchedEffect(hasAudio, audioFile, uploadedAudioUri, isRecording, recordingFinished) {
         Log.d("AudioInputScreen", "State update - hasAudio: $hasAudio, audioFile: ${audioFile?.absolutePath}, uploadedAudioUri: $uploadedAudioUri, isRecording: $isRecording, recordingFinished: $recordingFinished")
     }
 
-    // Root Box to allow dialog to float on front layer - IMPORTANT: Dialog must be at root level
     Box(modifier = Modifier.fillMaxSize()) {
-        // Main content column
         Column(modifier = Modifier.fillMaxSize()) {
-            // Custom top bar that extends to top
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -458,7 +492,7 @@ fun AudioInputScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = ThemeColorUtils.white()
+                        tint = Color.White
                     )
                 }
 
@@ -480,7 +514,6 @@ fun AudioInputScreen(
                 )
             }
 
-            // Main content
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -499,7 +532,6 @@ fun AudioInputScreen(
                         .padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Top section with instructions
                     Column(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -513,7 +545,7 @@ fun AudioInputScreen(
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
 
                         Text(
                             text = "Record audio or upload from your files",
@@ -524,20 +556,34 @@ fun AudioInputScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // Important Instructions Card
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .shadow(
-                                    elevation = 8.dp,
-                                    shape = RoundedCornerShape(12.dp),
-                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                .then(
+                                    if (ThemeViewModel.isDarkMode) {
+                                        Modifier.shadow(
+                                            elevation = 8.dp,
+                                            shape = RoundedCornerShape(12.dp),
+                                            spotColor = Color.White,
+                                            ambientColor = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    } else {
+                                        Modifier.shadow(
+                                            elevation = 8.dp,
+                                            shape = RoundedCornerShape(12.dp),
+                                            spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                        )
+                                    }
                                 ),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = ThemeColorUtils.beige(Color(0xFFFFF3CD))
+                                containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.beige(Color(0xFFFFF3CD))
                             ),
-                            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                            elevation = if (ThemeViewModel.isDarkMode) {
+                                CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            } else {
+                                CardDefaults.cardElevation(defaultElevation = 6.dp)
+                            }
                         ) {
                             Column(
                                 modifier = Modifier.padding(18.dp),
@@ -547,60 +593,60 @@ fun AudioInputScreen(
                                     text = "NOTE: Audio Recording Guidelines",
                                     fontSize = 18.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = Color(0xFF575450)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.darkGray(Color(0xFF575450))
                                 )
 
                                 HorizontalDivider(
                                     thickness = 1.5.dp,
-                                    color = Color(0xFF6C6242).copy(alpha = 0.5f)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                                 )
 
                                 Text(
                                     text = "—  Record audio of the chicken making sounds (coughing, sneezing, or breathing).",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
                                     text = "—  Get close to the chicken (within 1-2 meters) for clear audio capture.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
-                                    text = "—  Record for at least 5-10 seconds to capture complete sound patterns.",
+                                    text = "—  Record 5-10 seconds of chicken sounds for best accuracy.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
                                     text = "—  Minimize background noise for better analysis accuracy.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
                                     text = "—  Focus on capturing respiratory sounds or abnormal vocalizations.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
                                     text = "—  Ensure only one chicken is being recorded at a time for accurate analysis.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
                                 Text(
                                     text = "—  Hold your device steady and keep the microphone unobstructed during recording.",
                                     fontSize = 15.5.sp,
-                                    color = Color(0xFF000000),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
                                     lineHeight = 22.sp
                                 )
 
                                 HorizontalDivider(
                                     thickness = 1.5.dp,
-                                    color = Color(0xFF6C6242).copy(alpha = 0.5f)
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
                                 )
 
                                 Text(
@@ -615,8 +661,6 @@ fun AudioInputScreen(
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
-
-                    // Selection Cards (always show when no audio selected)
                     if (!hasAudio) {
                         Column(
                             modifier = Modifier.weight(1f),
@@ -643,26 +687,40 @@ fun AudioInputScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .shadow(
-                                            elevation = 6.dp,
-                                            shape = RoundedCornerShape(20.dp),
-                                            spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                        .then(
+                                            if (ThemeViewModel.isDarkMode) {
+                                                Modifier.shadow(
+                                                    elevation = 6.dp,
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    spotColor = Color.White,
+                                                    ambientColor = Color.White.copy(alpha = 0.5f)
+                                                )
+                                            } else {
+                                                Modifier.shadow(
+                                                    elevation = 6.dp,
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                                )
+                                            }
                                         ),
                                     shape = RoundedCornerShape(20.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                                    elevation = if (ThemeViewModel.isDarkMode) {
+                                        CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    } else {
+                                        CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                    },
                                     colors = CardDefaults.cardColors(
-                                        containerColor = ThemeColorUtils.white()
+                                        containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
                                     )
                                 ) {
                                     Column(
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .padding(24.dp),
+                                            .padding(vertical = 12.dp, horizontal = 16.dp),
                                         horizontalAlignment = Alignment.CenterHorizontally,
                                         verticalArrangement = Arrangement.Center
                                     ) {
                                         if (isRecording) {
-                                            // Pulsing animation when recording
                                             val pulseAlpha by animateFloatAsState(
                                                 targetValue = 0.3f,
                                                 animationSpec = infiniteRepeatable(
@@ -673,15 +731,14 @@ fun AudioInputScreen(
                                             )
 
                                             Column(
+                                                modifier = Modifier.fillMaxSize(),
                                                 horizontalAlignment = Alignment.CenterHorizontally,
                                                 verticalArrangement = Arrangement.Center
                                             ) {
-                                                // Outer pulsing ring
                                                 Box(
-                                                    modifier = Modifier.size(120.dp),
+                                                    modifier = Modifier.size(100.dp),
                                                     contentAlignment = Alignment.Center
                                                 ) {
-                                                    // Pulsing outer ring
                                                     Box(
                                                         modifier = Modifier
                                                             .fillMaxSize()
@@ -690,12 +747,11 @@ fun AudioInputScreen(
                                                                 CircleShape
                                                             )
                                                     )
-                                                    // Solid red circle
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(100.dp)
+                                                            .size(80.dp)
                                                             .background(
-                                                                Color(0xFFDC2626), // Bright red
+                                                                Color(0xFFDC2626),
                                                                 CircleShape
                                                             )
                                                             .shadow(
@@ -709,16 +765,15 @@ fun AudioInputScreen(
                                                             Icons.Default.Mic,
                                                             contentDescription = "Recording...",
                                                             tint = ThemeColorUtils.white(),
-                                                            modifier = Modifier.size(48.dp)
+                                                            modifier = Modifier.size(40.dp)
                                                         )
                                                     }
                                                 }
 
-                                                Spacer(modifier = Modifier.height(20.dp))
+                                                Spacer(modifier = Modifier.height(16.dp))
 
-                                                // Timer display
-                                                val minutes = recordingTime / 60
-                                                val seconds = recordingTime % 60
+                                                val minutes = (recordingTime / 60).toInt()
+                                                val seconds = (recordingTime % 60).toInt()
                                                 Text(
                                                     text = String.format(
                                                         Locale.getDefault(),
@@ -728,7 +783,8 @@ fun AudioInputScreen(
                                                     ),
                                                     fontSize = 32.sp,
                                                     fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFDC2626) // Same red as button
+                                                    color = Color(0xFFDC2626),
+                                                    textAlign = TextAlign.Center
                                                 )
 
                                                 Spacer(modifier = Modifier.height(8.dp))
@@ -737,15 +793,17 @@ fun AudioInputScreen(
                                                     text = "Recording...",
                                                     fontSize = 16.sp,
                                                     fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF64748B)
+                                                    color = Color(0xFF64748B),
+                                                    textAlign = TextAlign.Center
                                                 )
 
                                                 Spacer(modifier = Modifier.height(4.dp))
 
                                                 Text(
                                                     text = "Tap to stop",
-                                                    fontSize = 14.sp,
-                                                    color = Color(0xFF94A3B8)
+                                                    fontSize = 12.sp,
+                                                    color = Color(0xFF94A3B8),
+                                                    textAlign = TextAlign.Center
                                                 )
                                             }
                                         } else {
@@ -780,13 +838,12 @@ fun AudioInputScreen(
                                                 text = "Record",
                                                 fontSize = 18.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF000000)
+                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF000000)
                                             )
                                         }
                                     }
                                 }
 
-                                // Upload Card
                                 Card(
                                     onClick = {
                                         audioPickerLauncher.launch(arrayOf("audio/*"))
@@ -794,15 +851,30 @@ fun AudioInputScreen(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
-                                        .shadow(
-                                            elevation = 6.dp,
-                                            shape = RoundedCornerShape(20.dp),
-                                            spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                        .then(
+                                            if (ThemeViewModel.isDarkMode) {
+                                                Modifier.shadow(
+                                                    elevation = 6.dp,
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    spotColor = Color.White,
+                                                    ambientColor = Color.White.copy(alpha = 0.5f)
+                                                )
+                                            } else {
+                                                Modifier.shadow(
+                                                    elevation = 6.dp,
+                                                    shape = RoundedCornerShape(20.dp),
+                                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
+                                                )
+                                            }
                                         ),
                                     shape = RoundedCornerShape(20.dp),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                                    elevation = if (ThemeViewModel.isDarkMode) {
+                                        CardDefaults.cardElevation(defaultElevation = 0.dp)
+                                    } else {
+                                        CardDefaults.cardElevation(defaultElevation = 6.dp)
+                                    },
                                     colors = CardDefaults.cardColors(
-                                        containerColor = ThemeColorUtils.white()
+                                        containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
                                     )
                                 ) {
                                     Column(
@@ -843,7 +915,7 @@ fun AudioInputScreen(
                                             text = "Upload",
                                             fontSize = 18.sp,
                                             fontWeight = FontWeight.SemiBold,
-                                            color = Color(0xFF000000)
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF000000)
                                         )
                                     }
                                 }
@@ -854,7 +926,6 @@ fun AudioInputScreen(
             }
         }
         
-        // Floating Dialog with Blurred Background - Shows when audio is ready (at ROOT level - OUTSIDE Column)
         AnimatedVisibility(
             visible = hasAudio,
             enter = fadeIn(animationSpec = tween(300)),
@@ -865,7 +936,6 @@ fun AudioInputScreen(
                     .fillMaxSize()
                     .background(ThemeColorUtils.black(alpha = 0.7f))
             ) {
-                // Floating Dialog Card - Centered (3:4 aspect ratio - width:height)
                 Card(
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
@@ -886,9 +956,10 @@ fun AudioInputScreen(
                         Column(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .padding(20.dp),
+                                .padding(20.dp)
+                                .verticalScroll(rememberScrollState()),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.SpaceBetween
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             // Audio Ready Icon and Info
                             Column(
@@ -929,8 +1000,37 @@ fun AudioInputScreen(
                                     text = "Audio Ready!",
                                     fontSize = 24.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                    color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B)
                                 )
+                                
+                                // Show duration warning if present
+                                audioDurationWarning?.let { warning ->
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (warning.contains("⚠️")) {
+                                                Color(0xFFFFF3CD)
+                                            } else {
+                                                Color(0xFFE3F2FD)
+                                            }
+                                        ),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text(
+                                            text = warning,
+                                            modifier = Modifier.padding(8.dp),
+                                            fontSize = 13.sp,
+                                            color = if (warning.contains("⚠️")) {
+                                                Color(0xFF856404)
+                                            } else {
+                                                Color(0xFF0D47A1)
+                                            },
+                                            textAlign = TextAlign.Center,
+                                            lineHeight = 18.sp
+                                        )
+                                    }
+                                }
 
                                 if (recordingFinished) {
                                     val minutes = recordingTime / 60
@@ -947,7 +1047,7 @@ fun AudioInputScreen(
                                         }",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFF64748B)
+                                        color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF64748B)
                                     )
                                 } else {
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -955,11 +1055,11 @@ fun AudioInputScreen(
                                         text = "Audio file selected",
                                         fontSize = 14.sp,
                                         fontWeight = FontWeight.Normal,
-                                        color = Color(0xFF64748B)
+                                        color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF64748B)
                                     )
                                 }
                                 
-                                Spacer(modifier = Modifier.height(12.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
                                 
                                 Card(
                                     modifier = Modifier
@@ -982,13 +1082,11 @@ fun AudioInputScreen(
                                             onClick = {
                                                 try {
                                                     if (isPlayingAudio) {
-                                                        // Stop playback
                                                         mediaPlayer.stop()
                                                         mediaPlayer.reset()
                                                         isPlayingAudio = false
                                                         Log.d("AudioInputScreen", "Audio playback stopped")
                                                     } else {
-                                                        // Start playback
                                                         val audioUriString = uploadedAudioUri ?: audioFile?.let {
                                                             Uri.fromFile(it).toString()
                                                         }
@@ -997,7 +1095,6 @@ fun AudioInputScreen(
                                                             val decodedUri = Uri.decode(audioUriString).toUri()
                                                             Log.d("AudioInputScreen", "Starting audio playback: $decodedUri")
                                                             
-                                                            // Handle content URIs (e.g., Google Drive)
                                                             if (decodedUri.scheme == "content") {
                                                                 try {
                                                                     context.contentResolver.takePersistableUriPermission(
@@ -1089,13 +1186,13 @@ fun AudioInputScreen(
                                                 text = if (isPlayingAudio) "Playing..." else "Preview Audio",
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.SemiBold,
-                                                color = Color(0xFF1E293B)
+                                                color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B)
                                             )
                                             if (isPlayingAudio) {
                                                 Text(
                                                     text = "Tap to pause",
                                                     fontSize = 11.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = if (ThemeViewModel.isDarkMode) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B)
                                                 )
                                             }
                                         }
@@ -1103,13 +1200,15 @@ fun AudioInputScreen(
                                 }
                             }
 
-                            Spacer(modifier = Modifier.height(20.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
 
+                            // Buttons Row - Always visible at bottom
                             Row(
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(bottom = 18.dp),
                                 horizontalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                // Retake Button
                                 Button(
                                     onClick = {
                                         audioFile = null
@@ -1191,7 +1290,6 @@ fun AudioInputScreen(
                             }
                         }
                         
-                        // Close button (X) in top right corner
                         IconButton(
                             onClick = {
                                 audioFile = null

@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -48,6 +49,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -60,10 +63,11 @@ import com.bisu.chickcare.backend.repository.NotificationEntry
 import com.bisu.chickcare.backend.repository.NotificationType
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.backend.viewmodels.FriendViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +104,12 @@ fun NotificationsScreen(navController: NavController) {
             TopAppBar(
                 title = { 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Notifications", fontWeight = FontWeight.Bold)
+                        Text(
+                            "Notifications",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = ThemeColorUtils.black()
+                        )
                         if (unreadCount > 0) {
                             Spacer(modifier = Modifier.width(8.dp))
                             Box(
@@ -122,7 +131,7 @@ fun NotificationsScreen(navController: NavController) {
                             Text(
                                 "($pendingRequestsCount pending)",
                                 fontSize = 12.sp,
-                                color = ThemeColorUtils.lightGray(Color.Gray),
+                                color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                                 fontWeight = FontWeight.Normal
                             )
                         }
@@ -138,14 +147,18 @@ fun NotificationsScreen(navController: NavController) {
                             }
                         }
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color(0xFF000000))
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = ThemeColorUtils.black()
+                        )
                     }
                 },
                 actions = {
                     if (unreadCount > 0) {
                         TextButton(
                             onClick = { viewModel.markAllNotificationsAsRead() },
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8B4513))
+                            colors = ButtonDefaults.textButtonColors(contentColor = ThemeColorUtils.black())
                         ) {
                             Text("Mark all as read", fontSize = 12.sp)
                         }
@@ -153,17 +166,25 @@ fun NotificationsScreen(navController: NavController) {
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = ThemeColorUtils.white(),
-                    titleContentColor = Color(0xFF000000)
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
     ) { innerPadding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-                .background(Color(0xFFF5F5F5))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
+            HorizontalDivider(
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
+                thickness = 1.dp
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
             if (notifications.isEmpty()) {
                 EmptyNotificationsState()
             } else {
@@ -190,7 +211,8 @@ fun NotificationsScreen(navController: NavController) {
                                         friendName = friendName,
                                         callback = { success: Boolean, message: String ->
                                             if (success) {
-                                                viewModel.markNotificationAsRead(notification.id)
+                                                // Delete the notification instead of just marking as read
+                                                viewModel.deleteNotification(notification.id)
                                                 android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                                             } else {
                                                 android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
@@ -207,7 +229,8 @@ fun NotificationsScreen(navController: NavController) {
                                     
                                     friendViewModel.declineFriendRequest(requestId) { success, message ->
                                         if (success) {
-                                            viewModel.markNotificationAsRead(notification.id)
+                                            // Delete the notification instead of just marking as read
+                                            viewModel.deleteNotification(notification.id)
                                             android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
@@ -219,6 +242,7 @@ fun NotificationsScreen(navController: NavController) {
                     }
                 }
             }
+        }
         }
     }
 }
@@ -238,18 +262,45 @@ fun NotificationItem(
     
     val (icon, iconColor, backgroundColor) = getNotificationStyle(notificationType)
     val isUnread = !notification.isRead
+    val shape = RoundedCornerShape(12.dp)
+    val elevation = if (isUnread) 5.dp else 2.dp
     
     Card(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(shape)
+            .then(
+                if (ThemeViewModel.isDarkMode) {
+                    Modifier.shadow(
+                        elevation = elevation,
+                        shape = shape,
+                        spotColor = Color.White,
+                        ambientColor = Color.White.copy(alpha = 0.5f)
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .clickable { onRead() },
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isUnread) ThemeColorUtils.white() else Color(0xFFFAFAFA)
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isUnread) 4.dp else 2.dp
-        ),
-        shape = RoundedCornerShape(12.dp)
+        shape = shape,
+        elevation = if (ThemeViewModel.isDarkMode) {
+            CardDefaults.cardElevation(defaultElevation = 0.dp)
+        } else {
+            CardDefaults.cardElevation(
+                defaultElevation = elevation,
+                pressedElevation = 8.dp,
+                hoveredElevation = 6.dp,
+                focusedElevation = 6.dp
+            )
+        }
     ) {
         Row(
             modifier = Modifier
@@ -287,8 +338,9 @@ fun NotificationItem(
                         Text(
                             text = notification.title.ifEmpty { getDefaultTitle(notificationType) },
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal,
+                            fontWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold,
                             fontSize = 15.sp,
+                            color = ThemeColorUtils.black(),
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -297,7 +349,7 @@ fun NotificationItem(
                             text = notification.message,
                             style = MaterialTheme.typography.bodyMedium,
                             fontSize = 13.sp,
-                            color = ThemeColorUtils.lightGray(Color.Gray),
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
@@ -318,7 +370,7 @@ fun NotificationItem(
                 Text(
                     text = formatTimestamp(notification.timestamp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = ThemeColorUtils.lightGray(Color.Gray),
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666)),
                     fontSize = 11.sp
                 )
                 
@@ -384,14 +436,14 @@ fun EmptyNotificationsState() {
         Text(
             text = "No notifications yet",
             style = MaterialTheme.typography.titleLarge,
-            color = ThemeColorUtils.lightGray(Color.Gray),
+            color = ThemeColorUtils.black(),
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "You'll see notifications here when you receive them",
             style = MaterialTheme.typography.bodyMedium,
-            color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.7f)
+            color = ThemeColorUtils.darkGray(Color(0xFF666666))
         )
     }
 }
@@ -400,43 +452,43 @@ private fun getNotificationStyle(type: NotificationType): Triple<androidx.compos
     return when (type) {
         NotificationType.ANNOUNCEMENT -> Triple(
             Icons.AutoMirrored.Filled.SpeakerNotes,
-            Color(0xFF2196F3),
-            Color(0xFF2196F3).copy(alpha = 0.1f)
+            Color(0xFF316E15),
+            Color(0xFF94C46C)
         )
         NotificationType.FRIEND_REQUEST -> Triple(
             Icons.Default.PersonAdd,
-            Color(0xFF9C27B0),
-            Color(0xFF9C27B0).copy(alpha = 0.1f)
+            Color(0xFFCE681A),
+            Color(0xFFE09A67)
         )
         NotificationType.FRIEND_ACCEPT -> Triple(
             Icons.Default.CheckCircle,
-            Color(0xFF4CAF50),
-            Color(0xFF4CAF50).copy(alpha = 0.1f)
+            Color(0xFFAF8109),
+            Color(0xFFE3C878)
         )
         NotificationType.DETECTION_RESULT -> Triple(
             Icons.Default.Notifications,
-            Color(0xFFFF9800),
-            Color(0xFFFF9800).copy(alpha = 0.1f)
+            Color(0xFF1D393B),
+            Color(0xFF5D8C9D)
         )
         NotificationType.DATA_ADDED -> Triple(
             Icons.Default.CheckCircle,
-            Color(0xFF4CAF50),
-            Color(0xFF4CAF50).copy(alpha = 0.1f)
+            Color(0xFF1245A9),
+            Color(0xFF5D8AE1)
         )
         NotificationType.DATA_EDITED -> Triple(
             Icons.Default.Edit,
-            Color(0xFF2196F3),
-            Color(0xFF2196F3).copy(alpha = 0.1f)
+            Color(0xFFABBD0A),
+            Color(0xFFE4EF84)
         )
         NotificationType.DATA_DELETED -> Triple(
             Icons.Default.Delete,
-            Color(0xFFF44336),
-            Color(0xFFF44336).copy(alpha = 0.1f)
+            Color(0xFF590B0B),
+            Color(0xFFE87F7F)
         )
         NotificationType.SYSTEM_UPDATE, NotificationType.PROFILE_UPDATE -> Triple(
             Icons.Default.SystemUpdate,
-            Color(0xFF607D8B),
-            Color(0xFF607D8B).copy(alpha = 0.1f)
+            Color(0xFF041418),
+            Color(0xFF666D70)
         )
     }
 }

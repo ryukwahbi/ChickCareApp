@@ -1,6 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
 import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -44,9 +45,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -55,7 +54,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.LanguageViewModel
-import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 data class LanguageOption(
@@ -179,7 +177,7 @@ fun LanguageSettingsScreen(navController: NavController) {
                         "Language",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -187,13 +185,13 @@ fun LanguageSettingsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -204,7 +202,7 @@ fun LanguageSettingsScreen(navController: NavController) {
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
                 thickness = 1.dp
             )
 
@@ -235,20 +233,12 @@ fun LanguageSettingsScreen(navController: NavController) {
                             Image(
                                 painter = painterResource(id = R.drawable.ic_language_info_flaticon),
                                 contentDescription = null,
-                                modifier = Modifier.size(38.dp),
-                                colorFilter = if (ThemeViewModel.isDarkMode) {
-                                    ColorFilter.tint(
-                                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                                        blendMode = BlendMode.SrcAtop
-                                    )
-                                } else {
-                                    null
-                                }
+                                modifier = Modifier.size(38.dp)
                             )
                             Text(
                                 text = "Select your preferred language for the app. The app will restart to apply changes.",
                                 style = MaterialTheme.typography.bodySmall,
-                                color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                                color = ThemeColorUtils.black()
                             )
                         }
                     }
@@ -291,8 +281,13 @@ fun LanguageOptionCard(
                 onClick = onClick,
                 interactionSource = interactionSource
             ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) ThemeColorUtils.white() else Color(0xFFE5E2DE)
+            containerColor = if (isSelected) ThemeColorUtils.white() else ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
         elevation = CardDefaults.cardElevation(
@@ -314,20 +309,20 @@ fun LanguageOptionCard(
                     text = language.nativeName,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = language.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
             if (isSelected) {
                 Icon(
                     Icons.Default.Check,
                     contentDescription = "Selected",
-                    tint = Color(0xFF232221),
+                    tint = ThemeColorUtils.black(),
                     modifier = Modifier.size(24.dp)
                 )
             }

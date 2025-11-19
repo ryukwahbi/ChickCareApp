@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.components
 
+import android.annotation.SuppressLint
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -80,8 +81,8 @@ import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.bisu.chickcare.backend.repository.PostRepository
 import com.bisu.chickcare.backend.repository.TimelinePost
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
-import kotlinx.coroutines.launch
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import kotlinx.coroutines.launch
 
 @Composable
 fun CoverPhotoSection(
@@ -217,7 +218,7 @@ fun ProfilePictureAndNameSection(
             text = userProfile.fullName,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
-            color = ThemeColorUtils.black()
+            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
         )
     }
 }
@@ -242,7 +243,7 @@ fun FriendSuggestionsSection(
             ),
         shape = shape,
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.surface(Color.White)
+            containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.surface(Color.White)
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = if (isPressed) 8.dp else 5.dp,
@@ -264,7 +265,7 @@ fun FriendSuggestionsSection(
                     text = "Suggestions",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.black()
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                 )
                 if (suggestionCount > 0) {
                     BadgedBox(
@@ -289,13 +290,13 @@ fun FriendSuggestionsSection(
                 Text(
                     text = "No friend suggestions",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.black(alpha = 0.7f)
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.7f)
                 )
             } else {
                 Text(
                     text = "$suggestionCount new friend suggestions available",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.darkGray(Color(0xFF464644))
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.darkGray(Color(0xFF464644))
                 )
             }
         }
@@ -333,7 +334,7 @@ fun PostsSection(
             text = "Posts",
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
-            color = ThemeColorUtils.black()
+            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
         )
         
         if (isViewingOwnProfile) {
@@ -341,7 +342,7 @@ fun PostsSection(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = ThemeColorUtils.surface(Color.White)
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.surface(Color.White)
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
@@ -379,7 +380,7 @@ fun PostsSection(
                                     Icon(
                                         Icons.Default.Person,
                                         contentDescription = userProfile.fullName,
-                                        tint = Color(0xFF464343),
+                                        tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF464343),
                                         modifier = Modifier.size(24.dp)
                                     )
                                 }
@@ -391,14 +392,16 @@ fun PostsSection(
                             modifier = Modifier
                                 .size(48.dp)
                                 .background(
-                                    ThemeColorUtils.surface(Color(0xFFF5F5F5)),
+                                    if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(
+                                        0xFF3B3E42
+                                    ) else ThemeColorUtils.surface(Color(0xFFF5F5F5)),
                                     RoundedCornerShape(8.dp)
                                 )
                         ) {
                             Icon(
                                 Icons.Default.PostAdd,
                                 contentDescription = "Create post from detection history",
-                                tint = Color(0xFF1C1B1B),
+                                tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB6C3CC) else Color(0xFF1C1B1B),
                                 modifier = Modifier.size(24.dp)
                             )
                         }
@@ -409,19 +412,21 @@ fun PostsSection(
                             placeholder = { 
                                 Text(
                                     "Write a post...",
-                                    color = ThemeColorUtils.black(alpha = 0.6f)
+                                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                                 ) 
                             },
                             modifier = Modifier
                                 .weight(1f)
                                 .heightIn(min = 40.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = ThemeColorUtils.surface(Color(0xFFF9F9F9)),
-                                unfocusedContainerColor = ThemeColorUtils.surface(Color(0xFFF9F9F9)),
+                                focusedContainerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0x3B505459) else ThemeColorUtils.surface(Color(0xFFF9F9F9)),
+                                unfocusedContainerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0x3B505459) else ThemeColorUtils.surface(Color(0xFFF9F9F9)),
                                 focusedBorderColor = Color.Transparent,
                                 unfocusedBorderColor = Color.Transparent,
-                                focusedTextColor = ThemeColorUtils.black(),
-                                unfocusedTextColor = ThemeColorUtils.black()
+                                focusedTextColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                unfocusedTextColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                focusedPlaceholderColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f),
+                                unfocusedPlaceholderColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                             ),
                             shape = RoundedCornerShape(20.dp),
                             singleLine = false,
@@ -449,7 +454,7 @@ fun PostsSection(
                                 text = "Post",
                                 style = MaterialTheme.typography.labelLarge,
                                 fontWeight = FontWeight.SemiBold,
-                                color = ThemeColorUtils.black()
+                                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black()
                             )
                         }
                     }
@@ -466,7 +471,7 @@ fun PostsSection(
             Text(
                 text = emptyStateMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = ThemeColorUtils.black(alpha = 0.7f),
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.7f),
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         } else {
@@ -563,7 +568,8 @@ fun AudienceSelectionDialog(
             Text(
                 "Select audience",
                 style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.Bold,
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
             )
         },
         text = {
@@ -588,12 +594,13 @@ fun AudienceSelectionDialog(
                         Text(
                             "Public",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         Text(
                             "Anyone can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.black(alpha = 0.6f)
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -613,12 +620,13 @@ fun AudienceSelectionDialog(
                         Text(
                             "Private",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         Text(
                             "Only you can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.black(alpha = 0.6f)
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -637,19 +645,22 @@ fun AudienceSelectionDialog(
             ) {
                 Text(
                     "Post",
-                    color = ThemeColorUtils.black(),
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black(),
                     fontWeight = FontWeight.SemiBold
                 )
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel", color = ThemeColorUtils.black())
+                Text("Cancel", color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(
+                    0xFFBFC2C4
+                ) else ThemeColorUtils.black())
             }
         }
     )
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun TimelinePostItem(
     post: TimelinePost,
@@ -673,7 +684,7 @@ fun TimelinePostItem(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.white()
+            containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -705,7 +716,7 @@ fun TimelinePostItem(
                         Icon(
                             Icons.Default.Person,
                             contentDescription = post.userName,
-                            tint = Color(0xFF464343),
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF464343),
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(8.dp)
@@ -722,19 +733,19 @@ fun TimelinePostItem(
                             text = post.userName,
                             style = MaterialTheme.typography.titleSmall,
                             fontWeight = FontWeight.Bold,
-                            color = ThemeColorUtils.black()
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         Icon(
                             imageVector = if (post.visibility == "public") Icons.Default.Public else Icons.Default.Lock,
                             contentDescription = post.visibility,
-                            tint = ThemeColorUtils.black(alpha = 0.6f),
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white(alpha = 0.6f) else ThemeColorUtils.black(alpha = 0.6f),
                             modifier = Modifier.size(14.dp)
                         )
                     }
                     Text(
                         text = dateString,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.black(alpha = 0.6f)
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                     )
                 }
                 
@@ -748,17 +759,25 @@ fun TimelinePostItem(
                             Icon(
                                 Icons.Default.MoreVert,
                                 contentDescription = "More options",
-                                tint = ThemeColorUtils.black(),
+                                tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black(),
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                         
                         DropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
+                            onDismissRequest = { showMenu = false },
+                            modifier = Modifier.background(
+                                if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
+                            )
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Delete Post") },
+                                text = { 
+                                    Text(
+                                        "Delete Post",
+                                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                                    )
+                                },
                                 onClick = {
                                     showMenu = false
                                     showDeleteDialog = true
@@ -773,7 +792,10 @@ fun TimelinePostItem(
                             )
                             DropdownMenuItem(
                                 text = { 
-                                    Text(if (post.visibility == "public") "Change to Private" else "Change to Public")
+                                    Text(
+                                        if (post.visibility == "public") "Change to Private" else "Change to Public",
+                                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                                    )
                                 },
                                 onClick = {
                                     showMenu = false
@@ -783,13 +805,16 @@ fun TimelinePostItem(
                                     Icon(
                                         if (post.visibility == "public") Icons.Default.Lock else Icons.Default.Public,
                                         contentDescription = null,
-                                        tint = ThemeColorUtils.black()
+                                        tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black()
                                     )
                                 }
                             )
                             DropdownMenuItem(
                                 text = { 
-                                    Text(if (post.isSaved) "Unsave Post" else "Save Post")
+                                    Text(
+                                        if (post.isSaved) "Unsave Post" else "Save Post",
+                                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                                    )
                                 },
                                 onClick = {
                                     showMenu = false
@@ -799,7 +824,7 @@ fun TimelinePostItem(
                                     Icon(
                                         if (post.isSaved) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
                                         contentDescription = null,
-                                        tint = ThemeColorUtils.black()
+                                        tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black()
                                     )
                                 }
                             )
@@ -812,36 +837,50 @@ fun TimelinePostItem(
                 Text(
                     text = post.content,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.black()
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                 )
             }
             
             if (post.detectionResult.isNotEmpty()) {
+                val statusText = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusText(post.isHealthy, post.confidence)
+                val statusColor = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusColor(post.isHealthy, post.confidence)
+
                 Text(
-                    text = post.detectionResult,
+                    text = statusText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (post.isHealthy) Color(0xFF4CAF50) else Color(0xFFEF5350),
+                    color = statusColor,
                     fontWeight = FontWeight.Medium
                 )
                 
                 if (post.confidence > 0f) {
                     Text(
-                        text = "Confidence: ${(post.confidence * 100).toInt()}%",
+                        text = "Confidence: ${String.format("%.1f", post.confidence * 100)}%",
                         style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.black(alpha = 0.6f)
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                     )
                 }
                 
                 if (post.imageUri != null && post.imageUri.isNotEmpty()) {
+                    var showImagePreview by remember { mutableStateOf(false) }
+                    
                     AsyncImage(
                         model = post.imageUri,
                         contentDescription = "Detection image",
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(200.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showImagePreview = true },
                         contentScale = ContentScale.Crop
                     )
+                    
+                    if (showImagePreview) {
+                        PhotoPreviewDialog(
+                            imageModel = post.imageUri,
+                            onDismiss = { showImagePreview = false },
+                            aspectRatio = 1f
+                        )
+                    }
                 }
             }
         }
@@ -891,7 +930,7 @@ fun DeletePostConfirmationDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = ThemeColorUtils.white()
+                containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -910,13 +949,13 @@ fun DeletePostConfirmationDialog(
                         text = "Delete Post",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = ThemeColorUtils.black()
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black()
                         )
                     }
                 }
@@ -927,7 +966,7 @@ fun DeletePostConfirmationDialog(
                 Text(
                     text = "Are you sure you want to delete this post? This action cannot be undone. The detection history will remain intact.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.lightGray(Color(0xFF666666))
                 )
                 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -972,7 +1011,7 @@ fun ChangeAudienceDialog(
                 .padding(16.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = ThemeColorUtils.white()
+                containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
             ),
             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
         ) {
@@ -991,13 +1030,13 @@ fun ChangeAudienceDialog(
                         text = "Change Audience",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.darkGray(Color(0xFF231C16))
                     )
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Default.Close,
                             contentDescription = "Close",
-                            tint = ThemeColorUtils.black()
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black()
                         )
                     }
                 }
@@ -1024,12 +1063,13 @@ fun ChangeAudienceDialog(
                         Text(
                             "Public",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         Text(
                             "Anyone can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.black(alpha = 0.6f)
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -1052,12 +1092,13 @@ fun ChangeAudienceDialog(
                         Text(
                             "Private",
                             style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Medium
+                            fontWeight = FontWeight.Medium,
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         Text(
                             "Only you can see this post",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.black(alpha = 0.6f)
+                            color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.6f)
                         )
                     }
                 }
@@ -1083,13 +1124,14 @@ fun ChangeAudienceDialog(
 
 @Composable
 fun MutualFriendsSection(
-    mutualFriends: List<FriendSuggestion>
+    mutualFriends: List<FriendSuggestion>,
+    onViewMore: (() -> Unit)? = null
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.white()
+            containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
@@ -1105,13 +1147,14 @@ fun MutualFriendsSection(
                 Text(
                     text = "Friends",
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
+                    fontWeight = FontWeight.Bold,
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                 )
                 Text(
                     text = "${mutualFriends.size}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.black()
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                 )
             }
             
@@ -1119,7 +1162,7 @@ fun MutualFriendsSection(
                 Text(
                     text = "No friends yet. Start adding friends!",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.black(alpha = 0.7f),
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(alpha = 0.7f),
                     fontStyle = FontStyle.Italic
                 )
             } else {
@@ -1147,10 +1190,15 @@ fun MutualFriendsSection(
                 
                 if (mutualFriends.size > 6) {
                     Text(
-                        text = "and ${mutualFriends.size - 6} more...",
+                        text = "View more...",
                         style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
                         color = Color(0xFF8B4513),
-                        modifier = Modifier.padding(top = 4.dp)
+                        modifier = Modifier
+                            .padding(top = 4.dp)
+                            .clickable(enabled = onViewMore != null) {
+                                onViewMore?.invoke()
+                            }
                     )
                 }
             }
@@ -1211,7 +1259,8 @@ fun InfoRow(
     fieldName: String = "",
     isEmpty: Boolean = false,
     onPrivacyChange: ((String, String) -> Unit)? = null,
-    currentPrivacy: String = "public"
+    currentPrivacy: String = "public",
+    isViewingOwnProfile: Boolean = true
 ) {
     var showPrivacyMenu by remember { mutableStateOf(false) }
     
@@ -1232,14 +1281,18 @@ fun InfoRow(
         ) {
             Text(
                 text = value,
-                color = if (isEmpty) ThemeColorUtils.black(alpha = 0.6f) else ThemeColorUtils.black(),
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                    if (isEmpty) Color(0xFFE3E5E8).copy(alpha = 0.6f) else Color(0xFFE3E5E8)
+                } else {
+                    if (isEmpty) ThemeColorUtils.black(alpha = 0.6f) else ThemeColorUtils.black()
+                },
                 fontStyle = if (isEmpty) FontStyle.Italic else FontStyle.Normal,
                 modifier = Modifier.weight(1f)
             )
         }
         
-        // Privacy icon (three dots)
-        if (onPrivacyChange != null) {
+        // Privacy icon (three dots) - Only show when viewing own profile
+        if (onPrivacyChange != null && isViewingOwnProfile) {
             Box {
                 IconButton(
                     onClick = { showPrivacyMenu = true },
@@ -1248,7 +1301,7 @@ fun InfoRow(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "Privacy settings",
-                        tint = ThemeColorUtils.black(),
+                        tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black(),
                         modifier = Modifier.size(20.dp)
                     )
                 }

@@ -1,8 +1,31 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+}
+
+// Load local.properties file
+val localProperties = Properties()
+// Try app-level local.properties first, then root-level
+val localPropertiesFile = file("local.properties").takeIf { it.exists() } 
+    ?: rootProject.file("local.properties").takeIf { it.exists() }
+if (localPropertiesFile != null) {
+    localProperties.load(FileInputStream(localPropertiesFile))
+    println("✓ Loaded local.properties from: ${localPropertiesFile.absolutePath}")
+    val cloudName = localProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")
+    val apiKey = localProperties.getProperty("CLOUDINARY_API_KEY", "")
+    val apiSecret = localProperties.getProperty("CLOUDINARY_API_SECRET", "")
+    if (cloudName.isNotEmpty() && apiKey.isNotEmpty() && apiSecret.isNotEmpty()) {
+        println("✓ Cloudinary credentials found in local.properties")
+    } else {
+        println("⚠️ WARNING: Cloudinary credentials are missing or empty in local.properties!")
+    }
+} else {
+    println("⚠️ WARNING: local.properties file not found!")
 }
 
 android {
@@ -17,12 +40,15 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Load Cloudinary credentials from local.properties (secure - not in source code)
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"${localProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_KEY", "\"${localProperties.getProperty("CLOUDINARY_API_KEY", "")}\"")
+        buildConfigField("String", "CLOUDINARY_API_SECRET", "\"${localProperties.getProperty("CLOUDINARY_API_SECRET", "")}\"")
     }
 
     buildTypes {
         debug {
-            // Suppress warnings for Google Play Services Location companion objects
-            // This is a known issue with R8/desugaring that doesn't affect functionality
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -49,6 +75,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     packaging {
@@ -121,6 +148,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.guava)
+    implementation(libs.androidx.biometric)
     implementation(libs.tensorflow.lite) {
         exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
     }
@@ -139,6 +167,8 @@ dependencies {
         exclude(group = "org.tensorflow", module = "tensorflow-lite")
         exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
     }
+    // ML Kit - Face detection for invalid human selfie guard
+    implementation(libs.face.detection)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

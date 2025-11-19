@@ -177,7 +177,9 @@ class FusionClassifier(
     /**
      * Classify using both image and spectrogram inputs
      * Returns: (label, confidence) where label is "Healthy" or "Unhealthy"
+     * Note: This is a simpler version. For validation purposes, use classifyFusionWithProbabilities instead.
      */
+    @Suppress("UNUSED")
     fun classifyFusion(imageBitmap: Bitmap, specBitmap: Bitmap): Pair<String, Float> {
         if (!isModelLoaded || interpreter == null) {
             android.util.Log.e("FusionClassifier", "Model not loaded")
@@ -240,6 +242,65 @@ class FusionClassifier(
             return "Classification Error" to 0.0f
         }
     }
+    
+    /**
+     * Classify using both image and spectrogram inputs and return both probabilities
+     * Returns: (label, confidence, healthyProb, unhealthyProb) for validation purposes
+     */
+    fun classifyFusionWithProbabilities(imageBitmap: Bitmap, specBitmap: Bitmap): Pair<String, Triple<Float, Float, Float>> {
+        if (!isModelLoaded || interpreter == null) {
+            android.util.Log.e("FusionClassifier", "Model not loaded")
+            return "Model Not Loaded" to Triple(0.0f, 0.0f, 0.0f)
+        }
+
+        try {
+            android.util.Log.d("FusionClassifier", "Preparing inputs for fusion classification (with probabilities)...")
+            // Prepare inputs
+            val imageBuffer = bitmapToByteBuffer(imageBitmap)
+            val specBuffer = bitmapToByteBuffer(specBitmap)
+            
+            // Prepare output buffer: [1, 2] for probabilities [Healthy, Unhealthy]
+            val outputBuffer = ByteBuffer.allocateDirect(1 * 2 * 4) // 2 floats
+            outputBuffer.order(ByteOrder.nativeOrder())
+
+            // Prepare input array
+            val inputs = arrayOf(imageBuffer, specBuffer)
+            @Suppress("UNCHECKED_CAST")
+            val outputs = (hashMapOf<Int, ByteBuffer>().apply {
+                put(0, outputBuffer)
+            } as MutableMap<Int, Any>)
+
+            android.util.Log.d("FusionClassifier", "Running model inference...")
+            // Run inference
+            interpreter?.runForMultipleInputsOutputs(inputs, outputs)
+            android.util.Log.d("FusionClassifier", "Model inference completed")
+
+            // Extract probabilities
+            outputBuffer.rewind()
+            val prob0 = outputBuffer.float  // Unhealthy probability
+            val prob1 = outputBuffer.float  // Healthy probability
+
+            val unhealthyProb = prob0
+            val healthyProb = prob1
+            
+            android.util.Log.d("FusionClassifier", "Probabilities - Healthy: $healthyProb, Unhealthy: $unhealthyProb")
+
+            // Determine prediction
+            val (label, confidence) = if (healthyProb >= unhealthyProb) {
+                "Healthy" to healthyProb
+            } else {
+                "Unhealthy" to unhealthyProb
+            }
+
+            android.util.Log.i("FusionClassifier", "Fusion prediction: $label (${confidence * 100}%)")
+            // Return: (label, (confidence, healthyProb, unhealthyProb))
+            return label to Triple(confidence, healthyProb, unhealthyProb)
+
+        } catch (e: Exception) {
+            android.util.Log.e("FusionClassifier", "Error during fusion classification: ${e.message}", e)
+            return "Classification Error" to Triple(0.0f, 0.0f, 0.0f)
+        }
+    }
 
     /**
      * Check if model is loaded and available
@@ -253,6 +314,11 @@ class FusionClassifier(
         isModelLoaded = false
     }
 
+    /**
+     * Get the path of the currently active fusion model
+     * Useful for debugging and logging purposes
+     */
+    @Suppress("UNUSED")
     fun getActiveModelPath(): String? = activeModelPath
 }
 

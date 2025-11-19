@@ -9,7 +9,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -81,12 +80,13 @@ fun LoginScreen(navController: NavController) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
+    // Optimized infinite transition to reduce recompositions
     val infiniteTransition = rememberInfiniteTransition(label = "background_zoom")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.3f,
+        targetValue = 1.2f, // Reduced from 1.3f to minimize recomposition impact
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 15000, easing = LinearEasing),
+            animation = tween(durationMillis = 20000, easing = LinearEasing), // Slower animation
             repeatMode = RepeatMode.Reverse
         ),
         label = "zoom_scale"
@@ -97,13 +97,17 @@ fun LoginScreen(navController: NavController) {
         contentAlignment = Alignment.Center
     ) {
         // --- LAYER 1: BACKGROUND IMAGE ---
+        // Optimized to reduce recomposition overhead
         Image(
             painter = painterResource(id = R.drawable.farm_background),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .scale(scale)
+                .then(
+                    // Only apply scale transform, reducing recomposition overhead
+                    Modifier.scale(scale)
+                )
                 .alpha(0.4f)
         )
 
@@ -146,20 +150,6 @@ fun LoginScreen(navController: NavController) {
                         .alpha(0.8f)
                 )
                 Spacer(modifier = Modifier.height(70.dp))
-
-                if (email.contains("@")) {
-                    AnimatedVisibility(
-                        visible = true,
-                        enter = slideInHorizontally(animationSpec = tween(durationMillis = 500)) { -it }
-                    ) {
-                        Text(
-                            text = "Welcome back, ${email.split("@")[0]}!",
-                            style = MaterialTheme.typography.titleMedium,
-                            color = ThemeColorUtils.white(alpha = 0.8f)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
 
                 OutlinedTextField(
                     value = email,

@@ -53,19 +53,24 @@ class DetectionRepository {
             "timestamp" to System.currentTimeMillis(),
             "location" to location,
             "recommendations" to recommendations,
-            "isRead" to false
+            "isRead" to false,
+            "isDeleted" to false,
+            "isFavorite" to false,
+            "isArchived" to false
         )
         try {
             usersCollection.document(userId).collection("detections").add(detectionData).await()
             Log.d("DetectionRepository", "Detection saved successfully")
         } catch (_: java.net.UnknownHostException) {
-            Log.w("DetectionRepository", "Network unavailable - detection will be saved when online (offline persistence enabled)")
+            // Use verbose logging for network errors to reduce logcat spam
+            Log.v("DetectionRepository", "Network unavailable - detection will be saved when online (offline persistence enabled)")
             // With offline persistence enabled, Firestore will queue this write
             // and sync when connection is restored
             throw Exception("No internet connection. Detection will be saved when you're back online.")
         } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
             if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
-                Log.w("DetectionRepository", "Firestore unavailable (offline) - detection will be saved when online")
+                // Use verbose logging for network errors to reduce logcat spam
+                Log.v("DetectionRepository", "Firestore unavailable (offline) - detection will be saved when online")
                 throw Exception("No internet connection. Detection will be saved when you're back online.")
             }
             throw e
@@ -96,7 +101,9 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
                         
                         if (isNetworkError) {
-                            Log.w("DetectionRepository", "Network unavailable - using cached data (if available). Reconnect to sync.")
+                            // Use verbose logging for network errors to reduce logcat spam
+                            // These are expected when device is offline
+                            Log.v("DetectionRepository", "Network unavailable - using cached data (if available). Reconnect to sync.")
                             // With offline persistence, this will use cached data
                             // Return empty list for now, will update when online
                             trySend(emptyList())
@@ -174,7 +181,8 @@ class DetectionRepository {
                             }
                         }
                     } else if (snapshot != null && snapshot.isEmpty) {
-                        Log.d("DetectionRepository", "Main query returned empty snapshot")
+                        // Use verbose logging for empty snapshots (expected when no data exists)
+                        Log.v("DetectionRepository", "Main query returned empty snapshot (no detections yet)")
                         trySend(emptyList())
                     }
                 }
@@ -207,7 +215,8 @@ class DetectionRepository {
                         errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
                     
                     if (isNetworkError) {
-                        Log.w("DetectionRepository", "Fallback query: Network unavailable - will use cached data")
+                        // Use verbose logging for network errors to reduce logcat spam
+                        Log.v("DetectionRepository", "Fallback query: Network unavailable - will use cached data")
                         // Don't return empty list - let Firestore persistence provide cached data
                         // Return empty for now, but listener will update when cached data is available
                         onResult(emptyList())
@@ -264,7 +273,8 @@ class DetectionRepository {
                         }
                     }
                 } else if (snapshot != null && snapshot.isEmpty) {
-                    Log.d("DetectionRepository", "Fallback query returned empty snapshot")
+                    // Use verbose logging for empty snapshots (expected when no data exists)
+                    Log.v("DetectionRepository", "Fallback query returned empty snapshot (no detections yet)")
                     onResult(emptyList())
                 }
             }
@@ -284,12 +294,14 @@ class DetectionRepository {
 
             Pair(totalChickens, alerts)
         } catch (_: java.net.UnknownHostException) {
-            Log.w("DetectionRepository", "Network unavailable - returning cached stats if available")
+            // Use verbose logging for network errors to reduce logcat spam
+            Log.v("DetectionRepository", "Network unavailable - returning cached stats if available")
             // Return default values when offline - with persistence, cached data might be available
             Pair(0, 0)
         } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
             if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
-                Log.w("DetectionRepository", "Firestore unavailable (offline) - returning default stats")
+                // Use verbose logging for network errors to reduce logcat spam
+                Log.v("DetectionRepository", "Firestore unavailable (offline) - returning default stats")
                 Pair(0, 0)
             } else {
                 throw e
@@ -489,7 +501,8 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
                         
                         if (isNetworkError) {
-                            Log.w("DetectionRepository", "Network unavailable for favorites")
+                            // Use verbose logging for network errors to reduce logcat spam
+                            Log.v("DetectionRepository", "Network unavailable for favorites")
                             trySend(emptyList())
                             return@addSnapshotListener
                         }
@@ -560,7 +573,8 @@ class DetectionRepository {
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
                         
                         if (isNetworkError) {
-                            Log.w("DetectionRepository", "Network unavailable for archived")
+                            // Use verbose logging for network errors to reduce logcat spam
+                            Log.v("DetectionRepository", "Network unavailable for archived")
                             trySend(emptyList())
                             return@addSnapshotListener
                         }

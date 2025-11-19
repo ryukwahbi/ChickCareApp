@@ -51,9 +51,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
@@ -86,6 +84,7 @@ fun SettingsScreen(navController: NavController) {
             "Notifications" -> R.drawable.ic_notifications_flaticon
             "Language" -> R.drawable.ic_language_flaticon
             "Theme" -> R.drawable.ic_theme_flaticon
+            "Blocked Users" -> R.drawable.ic_security_flaticon // Using security icon as fallback
             "About" -> R.drawable.ic_about_flaticon
             "Logout" -> R.drawable.ic_logout_flaticon
             else -> R.drawable.ic_account_flaticon
@@ -98,6 +97,7 @@ fun SettingsScreen(navController: NavController) {
         SettingOption("Notifications", "Customize alert preferences", getSettingIcon("Notifications")),
         SettingOption("Language", "Change app language", getSettingIcon("Language")),
         SettingOption("Theme", "Switch between light and dark modes", getSettingIcon("Theme")),
+        SettingOption("Blocked Users", "Manage blocked users", getSettingIcon("Blocked Users")),
         SettingOption("About", "View app version and information", getSettingIcon("About")),
         SettingOption("Logout", "", getSettingIcon("Logout"), isLogout = true)
     )
@@ -127,8 +127,8 @@ fun SettingsScreen(navController: NavController) {
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo("dashboard") { inclusive = false }
+                            navController.navigate("profile") {
+                                popUpTo("profile") { inclusive = false }
                                 launchSingleTop = true
                                 restoreState = true
                             }
@@ -262,6 +262,7 @@ fun SettingsScreen(navController: NavController) {
                                     "Theme" -> {
                                         ThemeViewModel.toggleTheme()
                                     }
+                                    "Blocked Users" -> navController.navigate("blocked_users")
                                     "About" -> navController.navigate("about_settings")
                                     "Logout" -> {
                                         showLogoutDialog = true
@@ -387,18 +388,7 @@ fun SettingItem(option: SettingOption, onClick: () -> Unit) {
                     Image(
                         painter = painterResource(id = option.icon),
                         contentDescription = option.title,
-                        modifier = Modifier.size(38.dp),
-                        colorFilter = if (ThemeViewModel.isDarkMode) {
-                            // In dark mode, apply a light grayish-blue tint for better visibility
-                            // Using #A1AAB2 (light blue-gray) for softer, more elegant appearance
-                            ColorFilter.tint(
-                                color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                                blendMode = BlendMode.SrcAtop
-                            )
-                        } else {
-                            // In light mode, use original colors
-                            null
-                        }
+                        modifier = Modifier.size(38.dp)
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(

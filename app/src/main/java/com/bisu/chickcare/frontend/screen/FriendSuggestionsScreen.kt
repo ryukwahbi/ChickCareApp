@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,11 +40,13 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -52,17 +58,27 @@ import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.bisu.chickcare.backend.viewmodels.FriendViewModel
 import com.bisu.chickcare.frontend.components.ActiveStatusIndicator
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendSuggestionsScreen(navController: NavController) {
     val viewModel: FriendViewModel = viewModel()
     val suggestions by viewModel.suggestions.collectAsState()
+    val friends by viewModel.friends.collectAsState() // Get friends list to filter them out
     val isLoading by viewModel.isLoading.collectAsState()
     val pendingRequests by viewModel.pendingRequests.collectAsState()
     val requestStatusMap = remember { mutableStateMapOf<String, String?>() }
+    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    
+    // Filter out users who are already friends
+    val friendIds = friends.map { it.userId }.toSet()
+    val filteredSuggestions = suggestions.filter { it.userId !in friendIds }
     
     LaunchedEffect(Unit) {
+        viewModel.loadFriends() // Load friends first to ensure they're excluded
         viewModel.loadFriendSuggestions()
         viewModel.loadPendingFriendRequests()
         // Use callback version to ensure it's called
@@ -78,11 +94,12 @@ fun FriendSuggestionsScreen(navController: NavController) {
         if (pendingRequests.isNotEmpty()) {
             android.util.Log.d("FriendSuggestionsScreen", "Pending requests updated: ${pendingRequests.size}")
             // Refresh suggestions when pending requests change
+            viewModel.loadFriends() // Reload friends first
             viewModel.loadFriendSuggestions()
         }
     }
-    LaunchedEffect(suggestions) {
-        suggestions.forEach { suggestion ->
+    LaunchedEffect(filteredSuggestions) {
+        filteredSuggestions.forEach { suggestion ->
             if (!requestStatusMap.containsKey(suggestion.userId)) {
                 viewModel.checkRequestStatus(suggestion.userId) { status ->
                     requestStatusMap[suggestion.userId] = status
@@ -92,6 +109,18 @@ fun FriendSuggestionsScreen(navController: NavController) {
     }
     
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    snackbarData = data,
+                    containerColor = if (data.visuals.message.contains("Failed", ignoreCase = true)) {
+                        Color(0xFFD32F2F) // Red for errors
+                    } else {
+                        Color(0xFF4CAF50) // Green for success
+                    }
+                )
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { 
@@ -137,7 +166,7 @@ fun FriendSuggestionsScreen(navController: NavController) {
             ) {
                 CircularProgressIndicator()
             }
-        } else if (suggestions.isEmpty()) {
+        } else if (filteredSuggestions.isEmpty()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -158,7 +187,7 @@ fun FriendSuggestionsScreen(navController: NavController) {
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(suggestions) { suggestion ->
+                items(filteredSuggestions) { suggestion ->
                     FriendSuggestionItem(
                         suggestion = suggestion,
                         requestStatus = requestStatusMap[suggestion.userId],
@@ -170,6 +199,24 @@ fun FriendSuggestionsScreen(navController: NavController) {
                                 if (success) {
                                     requestStatusMap[suggestion.userId] = "pending"
                                     viewModel.loadFriendSuggestions()
+                                    // Show success message
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Sent a friend request to ${suggestion.fullName}",
+                                            duration = androidx.compose.material3.SnackbarDuration.Short
+                                        )
+                                    }
+                                    // Also show Toast as backup
+                                    Toast.makeText(context, "Sent a friend request to ${suggestion.fullName}", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    // Show error message
+                                    scope.launch {
+                                        snackbarHostState.showSnackbar(
+                                            message = "Failed to send friend request: $message",
+                                            duration = androidx.compose.material3.SnackbarDuration.Long
+                                        )
+                                    }
+                                    Toast.makeText(context, "Failed: $message", Toast.LENGTH_LONG).show()
                                 }
                             }
                         },
@@ -209,21 +256,25 @@ fun FriendSuggestionItem(
         }
     }
     
+    // If status is "accepted", this user should not appear in suggestions
+    // Filter them out at the UI level as a safety measure
+    if (requestStatus == "accepted") {
+        return // Don't render this item if already friends
+    }
+    
     val buttonText = when (requestStatus) {
         "pending" -> "Requested"
         "declined" -> "Add"
-        "accepted" -> "Friends"
         else -> "Add"
     }
     
     val buttonColor = when (requestStatus) {
         "pending" -> ThemeColorUtils.lightGray(Color.Gray)
         "declined" -> Color(0xFF4CAF50)
-        "accepted" -> Color.Blue
         else -> Color(0xFF4CAF50)
     }
     
-    val isButtonEnabled = requestStatus != "pending" && requestStatus != "accepted"
+    val isButtonEnabled = requestStatus != "pending"
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),

@@ -3,6 +3,7 @@ package com.bisu.chickcare.frontend.screen
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -25,8 +26,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -50,9 +54,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -67,6 +71,7 @@ import com.bisu.chickcare.backend.service.ImageCropHelper
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.components.ChangePasswordDialog
+import com.bisu.chickcare.frontend.components.DeleteAccountVerificationDialog
 import com.bisu.chickcare.frontend.components.EditEmailDialog
 import com.bisu.chickcare.frontend.components.EditFullNameDialog
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
@@ -88,6 +93,9 @@ fun AccountSettingsScreen(navController: NavController) {
     var showErrorDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
     var isUploading by remember { mutableStateOf(false) }
+    var showDeleteAccountDialog by remember { mutableStateOf(false) }
+    var showVerificationDialog by remember { mutableStateOf(false) }
+    var isDeletingAccount by remember { mutableStateOf(false) }
     val tempUri = remember { getTempUri(context) }
     val cropLauncherProfile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -143,7 +151,7 @@ fun AccountSettingsScreen(navController: NavController) {
                         "Account",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     )
                 },
                 navigationIcon = {
@@ -151,13 +159,13 @@ fun AccountSettingsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -168,10 +176,10 @@ fun AccountSettingsScreen(navController: NavController) {
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             // Divider below top bar
-            HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
-                thickness = 1.dp
-            )
+                    HorizontalDivider(
+                        color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
+                        thickness = 1.dp
+                    )
 
             LazyColumn(
                 modifier = Modifier
@@ -184,12 +192,29 @@ fun AccountSettingsScreen(navController: NavController) {
                 // Profile Header Card
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 5.dp,
+                                        shape = RoundedCornerShape(20.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         colors = CardDefaults.cardColors(
                             containerColor = ThemeColorUtils.white()
                         ),
                         shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(defaultElevation = 5.dp)
+                        }
                     ) {
                         Row(
                             modifier = Modifier
@@ -209,7 +234,7 @@ fun AccountSettingsScreen(navController: NavController) {
                                 if (isUploading) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(80.dp),
-                                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                                        color = ThemeColorUtils.black(),
                                         strokeWidth = 4.dp
                                     )
                                 } else if (userProfile?.photoUrl != null && userProfile!!.photoUrl!!.isNotEmpty()) {
@@ -248,12 +273,12 @@ fun AccountSettingsScreen(navController: NavController) {
                                     text = userProfile?.fullName ?: "User",
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
-                                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                                    color = ThemeColorUtils.black()
                                 )
                                 Text(
                                     text = currentUser?.email ?: "No email",
                                     style = MaterialTheme.typography.bodyMedium,
-                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                                 )
                             }
                         }
@@ -275,7 +300,7 @@ fun AccountSettingsScreen(navController: NavController) {
                         text = "Account Information",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
@@ -315,7 +340,7 @@ fun AccountSettingsScreen(navController: NavController) {
                         text = "Account Actions",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier.padding(vertical = 8.dp)
                     )
                 }
@@ -327,6 +352,17 @@ fun AccountSettingsScreen(navController: NavController) {
                         title = "Edit Profile",
                         description = "Update your personal information",
                         onClick = { navController.navigate("profile?initialTab=1") }
+                    )
+                }
+
+                // Delete Account
+                item {
+                    AccountActionCardWithIcon(
+                        iconVector = Icons.Default.Delete,
+                        title = "Delete Account",
+                        description = "Permanently delete your account and all data",
+                        onClick = { showDeleteAccountDialog = true },
+                        isDestructive = true
                     )
                 }
             }
@@ -435,6 +471,89 @@ fun AccountSettingsScreen(navController: NavController) {
                 shape = RoundedCornerShape(16.dp)
             )
         }
+
+        // Delete Account Confirmation Dialog
+        if (showDeleteAccountDialog) {
+            AlertDialog(
+                onDismissRequest = { if (!isDeletingAccount) showDeleteAccountDialog = false },
+                title = { 
+                    Text(
+                        "Delete Account", 
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFD32F2F)
+                    ) 
+                },
+                text = { 
+                    Text(
+                        "Are you sure you want to permanently delete your account? " +
+                        "This action cannot be undone. All your data including detections, posts, " +
+                        "and profile information will be permanently deleted."
+                    ) 
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showDeleteAccountDialog = false
+                            showVerificationDialog = true
+                        },
+                        enabled = !isDeletingAccount,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFD32F2F)
+                        )
+                    ) {
+                        Text("Continue", color = Color.White)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showDeleteAccountDialog = false },
+                        enabled = !isDeletingAccount
+                    ) {
+                        Text("Cancel")
+                    }
+                },
+                containerColor = ThemeColorUtils.white(),
+                shape = RoundedCornerShape(16.dp)
+            )
+        }
+
+        // Verification Code Dialog
+        if (showVerificationDialog) {
+            DeleteAccountVerificationDialog(
+                userEmail = currentUser?.email ?: "",
+                userPhone = userProfile?.contact ?: "",
+                onDismiss = { 
+                    if (!isDeletingAccount) {
+                        showVerificationDialog = false
+                    }
+                },
+                onVerify = { verificationCode ->
+                    isDeletingAccount = true
+                    authViewModel.deleteAccount(verificationCode) { success, message ->
+                        isDeletingAccount = false
+                        if (success) {
+                            // Navigate to login screen after successful deletion
+                            navController.navigate("login") {
+                                popUpTo(0) { inclusive = true }
+                            }
+                        } else {
+                            dialogMessage = message
+                            showErrorDialog = true
+                            showVerificationDialog = false
+                        }
+                    }
+                },
+                onResendCode = {
+                    authViewModel.sendAccountDeletionVerificationCode { success, message ->
+                        if (!success) {
+                            dialogMessage = message
+                            showErrorDialog = true
+                        }
+                    }
+                },
+                isDeleting = isDeletingAccount
+            )
+        }
     }
 }
 
@@ -449,25 +568,47 @@ fun AccountInfoCard(
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    val elevation = if (isPressed) 8.dp else 5.dp
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
+            .then(
+                if (ThemeViewModel.isDarkMode) {
+                    Modifier.shadow(
+                        elevation = elevation,
+                        shape = shape,
+                        spotColor = Color.White,
+                        ambientColor = Color.White.copy(alpha = 0.5f)
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .indication(interactionSource, ripple(bounded = true))
             .clickable(
                 onClick = onClick,
                 interactionSource = interactionSource
             ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isPressed) 8.dp else 5.dp,
-            pressedElevation = 8.dp,
-            hoveredElevation = 6.dp,
-            focusedElevation = 6.dp
-        )
+        elevation = if (ThemeViewModel.isDarkMode) {
+            CardDefaults.cardElevation(defaultElevation = 0.dp)
+        } else {
+            CardDefaults.cardElevation(
+                defaultElevation = elevation,
+                pressedElevation = 8.dp,
+                hoveredElevation = 6.dp,
+                focusedElevation = 6.dp
+            )
+        }
     ) {
         Row(
             modifier = Modifier
@@ -479,28 +620,20 @@ fun AccountInfoCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = value,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = ThemeColorUtils.black()
                 )
             }
         }
@@ -512,31 +645,54 @@ fun AccountActionCard(
     @androidx.annotation.DrawableRes icon: Int,
     title: String,
     description: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
 ) {
     val shape = RoundedCornerShape(16.dp)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
+    val elevation = if (isPressed) 8.dp else 5.dp
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
+            .then(
+                if (ThemeViewModel.isDarkMode) {
+                    Modifier.shadow(
+                        elevation = elevation,
+                        shape = shape,
+                        spotColor = Color.White,
+                        ambientColor = Color.White.copy(alpha = 0.5f)
+                    )
+                } else {
+                    Modifier
+                }
+            )
             .indication(interactionSource, ripple(bounded = true))
             .clickable(
                 onClick = onClick,
                 interactionSource = interactionSource
             ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isPressed) 8.dp else 5.dp,
-            pressedElevation = 8.dp,
-            hoveredElevation = 6.dp,
-            focusedElevation = 6.dp
-        )
+        elevation = if (ThemeViewModel.isDarkMode) {
+            CardDefaults.cardElevation(defaultElevation = 0.dp)
+        } else {
+            CardDefaults.cardElevation(
+                defaultElevation = elevation,
+                pressedElevation = 8.dp,
+                hoveredElevation = 6.dp,
+                focusedElevation = 6.dp
+            )
+        }
     ) {
         Row(
             modifier = Modifier
@@ -548,28 +704,105 @@ fun AccountActionCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = if (isDestructive) Color(0xFFD32F2F) else ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = if (isDestructive) Color(0xFFD32F2F).copy(alpha = 0.8f) else ThemeColorUtils.darkGray(Color(0xFF666666))
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AccountActionCardWithIcon(
+    iconVector: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+    isDestructive: Boolean = false
+) {
+    val shape = RoundedCornerShape(16.dp)
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val elevation = if (isPressed) 8.dp else 5.dp
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .then(
+                if (ThemeViewModel.isDarkMode) {
+                    Modifier.shadow(
+                        elevation = elevation,
+                        shape = shape,
+                        spotColor = Color.White,
+                        ambientColor = Color.White.copy(alpha = 0.5f)
+                    )
+                } else {
+                    Modifier
+                }
+            )
+            .indication(interactionSource, ripple(bounded = true))
+            .clickable(
+                onClick = onClick,
+                interactionSource = interactionSource
+            ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
+        ),
+        shape = shape,
+        elevation = if (ThemeViewModel.isDarkMode) {
+            CardDefaults.cardElevation(defaultElevation = 0.dp)
+        } else {
+            CardDefaults.cardElevation(
+                defaultElevation = elevation,
+                pressedElevation = 8.dp,
+                hoveredElevation = 6.dp,
+                focusedElevation = 6.dp
+            )
+        }
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Icon(
+                imageVector = iconVector,
+                contentDescription = title,
+                modifier = Modifier.size(38.dp),
+                tint = if (isDestructive) Color(0xFFD32F2F) else Color.Unspecified
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (isDestructive) Color(0xFFD32F2F) else ThemeColorUtils.darkGray(Color(0xFF231C16))
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isDestructive) Color(0xFFD32F2F).copy(alpha = 0.8f) else ThemeColorUtils.lightGray(Color(0xFF666666))
                 )
             }
         }

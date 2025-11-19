@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -56,6 +58,7 @@ import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.repository.PostRepository
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +66,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -193,6 +195,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
     }
 }
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun DetectionHistoryItem(
     detection: DetectionEntry,
@@ -204,7 +207,7 @@ fun DetectionHistoryItem(
     onVisibilitySelected: (String) -> Unit,
     onPostToTimeline: (String) -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault())
+    val dateFormat = SimpleDateFormat("MMMM dd, yyyy 'at' HH:mm", Locale.getDefault())
     val dateString = dateFormat.format(Date(detection.timestamp))
     val isMenuExpanded = expandedMenuId == detection.id
     
@@ -221,7 +224,7 @@ fun DetectionHistoryItem(
                 .fillMaxWidth()
                 .padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Box {
                 IconButton(
@@ -262,12 +265,13 @@ fun DetectionHistoryItem(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
+                            .size(56.dp)
+                            .padding(top = 4.dp, end = 2.dp)
                             .clip(CircleShape)
                             .background(Color(0xFFE1E0E0))
                     ) {
@@ -290,45 +294,55 @@ fun DetectionHistoryItem(
                         }
                     }
                     
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
-                        Text(
-                            text = userName,
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                            color = ThemeColorUtils.black()
-                        )
-                        selectedVisibility?.let { visibility ->
-                            Icon(
-                                imageVector = if (visibility == "public") Icons.Default.Public else Icons.Default.Lock,
-                                contentDescription = visibility,
-                                tint = ThemeColorUtils.lightGray(Color.Gray),
-                                modifier = Modifier.size(14.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = userName,
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                color = ThemeColorUtils.black()
                             )
+                            selectedVisibility?.let { visibility ->
+                                Icon(
+                                    imageVector = if (visibility == "public") Icons.Default.Public else Icons.Default.Lock,
+                                    contentDescription = visibility,
+                                    tint = ThemeColorUtils.lightGray(Color.Gray),
+                                    modifier = Modifier.size(14.dp)
+                                )
+                            }
                         }
+                        Text(
+                            text = "- $dateString",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.lightGray(Color.Gray)
+                        )
                     }
-                    Text(
-                        text = dateString,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
-                    )
                 }
                 
-                Text(
-                    text = detection.result,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (detection.isHealthy) Color(0xFF4CAF50) else Color(0xFFEF5350),
-                    fontWeight = FontWeight.Medium
-                )
-                
-                if (detection.confidence > 0f) {
+                Column(
+                    modifier = Modifier
+                        .padding(start = 64.dp)
+                        .offset(y = (-2).dp)
+                ) {
                     Text(
-                        text = "Confidence: ${(detection.confidence * 100).toInt()}%",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
+                        text = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusText(detection.isHealthy, detection.confidence),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusColor(detection.isHealthy, detection.confidence),
+                        fontWeight = FontWeight.Medium
                     )
+                    
+                    if (detection.confidence > 0f) {
+                        Text(
+                            text = "Confidence: ${String.format("%.1f", detection.confidence * 100)}%",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.lightGray(Color.Gray)
+                        )
+                    }
                 }
             }
             
@@ -349,14 +363,14 @@ fun DetectionHistoryItem(
                     colors = CardDefaults.cardColors(
                         containerColor = if (selectedVisibility != null) Color(0xFFE0C9A8) else Color(0xFFE0C9A8).copy(alpha = 0.5f)
                     ),
-                    shape = RoundedCornerShape(6.dp),
+                    shape = RoundedCornerShape(10.dp),
                     elevation = CardDefaults.cardElevation(
                         defaultElevation = if (selectedVisibility != null) 4.dp else 0.dp
                     )
                 ) {
                     Text(
                         text = "Post",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (selectedVisibility != null) Color(0xFF464343) else Color(0xFF464343).copy(alpha = 0.5f),
                         fontWeight = FontWeight.Medium

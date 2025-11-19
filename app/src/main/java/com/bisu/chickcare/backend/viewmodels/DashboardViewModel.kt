@@ -4,6 +4,8 @@ import android.app.Application
 import android.location.Geocoder
 import android.location.Location
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -119,6 +121,30 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                         isLoading = false
                     )
                 }
+            }
+        }
+    }
+    
+    /**
+     * Refresh all dashboard data manually (for pull-to-refresh).
+     * Reloads user profile and re-initializes listeners.
+     */
+    @Suppress("UNUSED")
+    fun refreshData() {
+        // No need to check userId here, initializeListeners() will handle it
+        viewModelScope.launch {
+            try {
+                // Reload user profile
+                val profileData = withContext(Dispatchers.Default) {
+                    auth.fetchUserProfile()
+                }
+                val userName = (profileData?.get("fullName") as? String) ?: "User"
+                _uiState.update { it.copy(userName = userName) }
+                
+                // Force refresh by re-initializing listeners
+                initializeListeners()
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error refreshing data: ${e.message}")
             }
         }
     }
@@ -240,118 +266,271 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private fun listenToDetectionHistory(userId: String) {
         viewModelScope.launch {
             detectionRepository.getDetectionHistory(userId).collect { history ->
-                _detectionHistory.value = history
-                _newHistoryCount.value = history.count { !it.isRead }
-                
-                // Update trend data when history changes
-                val imageTrendData = calculateTrendData(history.filter { !it.imageUri.isNullOrEmpty() })
-                val audioTrendData = calculateTrendData(history.filter { !it.audioUri.isNullOrEmpty() })
-                
-                // Calculate stable healthy rate using at least 100 data points (or all if less than 100)
-                // This makes the rate change more gradually when new detections are added
-                val stableHealthyRate = calculateStableHealthyRate(history)
-                
-                _uiState.update { currentState ->
-                    currentState.copy(
-                        totalDetections = history.size,
-                        healthyRate = stableHealthyRate,
-                        imageDetections = history.count { !it.imageUri.isNullOrEmpty() },
-                        audioDetections = history.count { !it.audioUri.isNullOrEmpty() },
-                        imageTrendData = imageTrendData,
-                        audioTrendData = audioTrendData
-                    )
+                // Automatic cleanup: Delete old detections when exceeding 300 limit
+                if (history.size > 300) {
+                    val sortedHistory = history.sortedByDescending { it.timestamp }
+                    val detectionsToDelete = sortedHistory.drop(300) // Keep only the 300 most recent
+                    
+                    // Delete old detections in background
+                    viewModelScope.launch(Dispatchers.IO) {
+                        detectionsToDelete.forEach { entry ->
+                            try {
+                                detectionRepository.permanentlyDeleteDetection(userId, entry.id)
+                            } catch (e: Exception) {
+                                android.util.Log.e("DashboardViewModel", "Error deleting old detection ${entry.id}: ${e.message}")
+                            }
+                        }
+                        android.util.Log.d("DashboardViewModel", "Cleaned up ${detectionsToDelete.size} old detections (kept 300 most recent)")
+                    }
+                    
+                    // Use only the 300 most recent for display
+                    val limitedHistory = sortedHistory.take(300)
+                    _detectionHistory.value = limitedHistory
+                    _newHistoryCount.value = limitedHistory.count { !it.isRead }
+                    
+                    // Update trend data with limited history
+                    val imageTrendData = calculateTrendData(limitedHistory.filter { !it.imageUri.isNullOrEmpty() })
+                    val audioTrendData = calculateTrendData(limitedHistory.filter { !it.audioUri.isNullOrEmpty() })
+                    
+                    // Calculate healthy and unhealthy rates independently
+                    val healthyRate = calculateStableHealthyRate(limitedHistory)
+                    val unhealthyRate = calculateUnhealthyRate(limitedHistory)
+                    
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            totalDetections = limitedHistory.size,
+                            healthyRate = healthyRate,
+                            unhealthyRate = unhealthyRate,
+                            imageDetections = limitedHistory.count { !it.imageUri.isNullOrEmpty() },
+                            audioDetections = limitedHistory.count { !it.audioUri.isNullOrEmpty() },
+                            imageTrendData = imageTrendData,
+                            audioTrendData = audioTrendData
+                        )
+                    }
+                } else {
+                    // Normal flow when under 300 detections
+                    _detectionHistory.value = history
+                    _newHistoryCount.value = history.count { !it.isRead }
+                    
+                    // Update trend data when history changes
+                    val imageTrendData = calculateTrendData(history.filter { !it.imageUri.isNullOrEmpty() })
+                    val audioTrendData = calculateTrendData(history.filter { !it.audioUri.isNullOrEmpty() })
+                    
+                    // Calculate healthy and unhealthy rates independently
+                    val healthyRate = calculateStableHealthyRate(history)
+                    val unhealthyRate = calculateUnhealthyRate(history)
+                    
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            totalDetections = history.size,
+                            healthyRate = healthyRate,
+                            unhealthyRate = unhealthyRate,
+                            imageDetections = history.count { !it.imageUri.isNullOrEmpty() },
+                            audioDetections = history.count { !it.audioUri.isNullOrEmpty() },
+                            imageTrendData = imageTrendData,
+                            audioTrendData = audioTrendData
+                        )
+                    }
                 }
             }
         }
     }
     
+    /**
+     * Calculate trend data for line graphs.
+     * Groups detections by 12-hour periods (AM/PM) per day.
+     * Each day has 2 data points: AM (0-12 hours) and PM (12-24 hours).
+     * Calculates average healthy and unhealthy percentages for each 12-hour period.
+     * Always shows last 2 days, starting from 0% on the left.
+     */
     private fun calculateTrendData(entries: List<DetectionEntry>): List<TrendDataPoint> {
-        if (entries.isEmpty()) {
-            return emptyList()
-        }
-
         val now = System.currentTimeMillis()
-        val sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000L) // 7 days window
+        val twoDaysAgo = now - (2 * 24 * 60 * 60 * 1000L) // 2 days window
 
-        // Keep only the detections within the last 7 days and order chronologically
+        // Keep only the detections within the last 2 days and order chronologically
         val recentEntries = entries
-            .filter { it.timestamp >= sevenDaysAgo }
+            .filter { it.timestamp >= twoDaysAgo }
             .sortedBy { it.timestamp }
 
         if (recentEntries.isEmpty()) {
+            // Return empty list if no detections
             return emptyList()
         }
 
+        val calendar = java.util.Calendar.getInstance()
         val labelFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
-        val timeFormatter = SimpleDateFormat("HH:mm", Locale.getDefault())
 
-        return recentEntries.mapIndexed { index, entry ->
-            val confidencePercent = (entry.confidence * 100.0).coerceIn(0.0, 100.0)
-            val healthyValue = if (entry.isHealthy) confidencePercent else 0.0
-            val unhealthyValue = if (!entry.isHealthy) confidencePercent else 0.0
+        // Group detections by day and 12-hour period (AM/PM)
+        // Key: "YYYY-MM-DD-AM" or "YYYY-MM-DD-PM"
+        val groupedData = mutableMapOf<String, MutableList<DetectionEntry>>()
 
-            // If multiple detections share the same day, append a sequence number to the label
-            val dateLabel = labelFormatter.format(entry.timestamp)
-            val timeLabel = timeFormatter.format(entry.timestamp)
-            val label = "$dateLabel\n$timeLabel"
+        recentEntries.forEach { entry ->
+            calendar.timeInMillis = entry.timestamp
+            
+            val year = calendar.get(java.util.Calendar.YEAR)
+            val month = calendar.get(java.util.Calendar.MONTH) + 1 // Calendar.MONTH is 0-based
+            val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+            val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
+            
+            // Determine AM (0-11) or PM (12-23)
+            val period = if (hour < 12) "AM" else "PM"
+            val key = "$year-$month-$day-$period"
+            
+            groupedData.getOrPut(key) { mutableListOf() }.add(entry)
+        }
 
-            TrendDataPoint(
-                label = label,
-                healthyAverage = healthyValue,
-                unhealthyAverage = unhealthyValue
+        val dataPoints = mutableListOf<TrendDataPoint>()
+
+        // Generate all 12-hour periods for the last 2 days (4 periods total: 2 days × 2 periods/day)
+        val allPeriods = mutableListOf<Pair<String, Long>>() // (key, timestamp)
+        val tempCalendar = java.util.Calendar.getInstance()
+        tempCalendar.timeInMillis = twoDaysAgo
+        tempCalendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
+        tempCalendar.set(java.util.Calendar.MINUTE, 0)
+        tempCalendar.set(java.util.Calendar.SECOND, 0)
+        tempCalendar.set(java.util.Calendar.MILLISECOND, 0)
+        
+        // Generate all periods from 2 days ago to now
+        while (tempCalendar.timeInMillis <= now) {
+            val year = tempCalendar.get(java.util.Calendar.YEAR)
+            val month = tempCalendar.get(java.util.Calendar.MONTH) + 1
+            val day = tempCalendar.get(java.util.Calendar.DAY_OF_MONTH)
+            
+            // Add AM period (0-12 hours)
+            val amKey = "$year-$month-$day-AM"
+            val amTimestamp = tempCalendar.timeInMillis
+            allPeriods.add(Pair(amKey, amTimestamp))
+            
+            // Add PM period (12-24 hours)
+            val pmKey = "$year-$month-$day-PM"
+            tempCalendar.add(java.util.Calendar.HOUR_OF_DAY, 12)
+            val pmTimestamp = tempCalendar.timeInMillis
+            allPeriods.add(Pair(pmKey, pmTimestamp))
+            
+            // Move to next day
+            tempCalendar.add(java.util.Calendar.HOUR_OF_DAY, 12)
+        }
+
+        // Create data points for all periods, but only show periods with actual detections
+        // This prevents showing 0% for periods with no data, which creates confusing drops
+        var lastHealthyValue = 0.0
+        var lastUnhealthyValue = 0.0
+        
+        allPeriods.forEach { (key, timestamp) ->
+            val entriesInPeriod = groupedData[key] ?: emptyList()
+            
+            tempCalendar.timeInMillis = timestamp
+            val hour = tempCalendar.get(java.util.Calendar.HOUR_OF_DAY)
+            val period = if (hour < 12) "AM" else "PM"
+            
+            // Calculate average healthy and unhealthy percentages for this period
+            val avgHealthy: Double
+            val avgUnhealthy: Double
+            
+            if (entriesInPeriod.isNotEmpty()) {
+                var totalHealthy = 0.0
+                var totalUnhealthy = 0.0
+                var healthyCount = 0
+                var unhealthyCount = 0
+                
+                entriesInPeriod.forEach { entry ->
+                    val confidencePercent = (entry.confidence * 100.0).coerceIn(0.0, 100.0)
+                    if (entry.isHealthy) {
+                        totalHealthy += confidencePercent
+                        healthyCount++
+                    } else {
+                        totalUnhealthy += confidencePercent
+                        unhealthyCount++
+                    }
+                }
+                
+                // Calculate averages
+                avgHealthy = if (healthyCount > 0) totalHealthy / healthyCount else 0.0
+                avgUnhealthy = if (unhealthyCount > 0) totalUnhealthy / unhealthyCount else 0.0
+                
+                // Update last known values
+                if (avgHealthy > 0.0) lastHealthyValue = avgHealthy
+                if (avgUnhealthy > 0.0) lastUnhealthyValue = avgUnhealthy
+            } else {
+                // For periods with no detections, use last known value (carry forward)
+                // This prevents confusing drops to 0% when there's simply no data in that period
+                avgHealthy = lastHealthyValue
+                avgUnhealthy = lastUnhealthyValue
+            }
+            
+            // Format label: "MMM dd\nAM" or "MMM dd\nPM"
+            val dateLabel = labelFormatter.format(tempCalendar.time)
+            
+            dataPoints.add(
+                TrendDataPoint(
+                    label = "$dateLabel\n$period",
+                    healthyAverage = avgHealthy,
+                    unhealthyAverage = avgUnhealthy
+                )
             )
         }
+
+        return dataPoints
     }
     
     /**
-     * Calculate stable healthy rate using at least 100 data points (or all if less than 100).
-     * Uses weighted average based on confidence values to allow smooth 0.1% increments.
-     * This ensures the rate changes gradually (1.0%, 1.1%, 1.2%...) instead of jumping in 1% steps.
+     * Calculate healthy rate based on actual number of detections.
+     * Uses the most recent 300 detections for calculation (if more than 300 exist).
+     * Formula: (healthyCount / totalDetections) * 100
+     * Example: 7 healthy out of 10 total = 70%
      */
     private fun calculateStableHealthyRate(history: List<DetectionEntry>): Double {
         if (history.isEmpty()) return 0.0
         
-        // Use at least 100 data points, or all available if less than 100
-        val minDataPoints = 100
-        val dataPointsToUse = if (history.size >= minDataPoints) {
-            // Take the most recent 100+ data points (sorted by timestamp descending)
-            history.sortedByDescending { it.timestamp }.take(minDataPoints)
-        } else {
-            // Use all available data if less than 100
-            history
-        }
+        val maxDataPoints = 300
+        val sortedHistory = history.sortedByDescending { it.timestamp }
+        val dataPointsToUse = sortedHistory.take(maxDataPoints)
         
         if (dataPointsToUse.isEmpty()) return 0.0
+
+        val healthyCount = dataPointsToUse.count { it.isHealthy }
+        val totalCount = dataPointsToUse.size
+
+        // FIXED: Use actual total count, not maxDataPoints
+        val healthyRate = (healthyCount.toDouble() / totalCount.toDouble()) * 100.0
         
-        // Calculate weighted average: each detection contributes based on its confidence
-        // This allows for smooth 0.1% increments instead of discrete 1% jumps
-        var totalWeight = 0.0
-        var healthyWeight = 0.0
-        
-        dataPointsToUse.forEach { entry ->
-            // Use confidence as weight (0.0 to 1.0), with minimum weight of 0.01 to ensure all entries contribute
-            val weight = entry.confidence.coerceIn(0.01f, 1.0f).toDouble()
-            totalWeight += weight
-            
-            // If healthy, add its weighted contribution
-            if (entry.isHealthy) {
-                healthyWeight += weight
-            }
-        }
-        
-        // Calculate rate with precision that allows 0.1% increments
-        val healthyRate = if (totalWeight > 0.0) {
-            (healthyWeight / totalWeight) * 100.0
-        } else {
-            0.0
-        }
-        
-        // Round to 1 decimal place for smooth 0.1% increments
         val roundedRate = (healthyRate * 10.0).roundToInt() / 10.0
         
-        android.util.Log.d("DashboardViewModel", "Stable healthy rate calculated: $roundedRate% (using ${dataPointsToUse.size} data points, weighted average: $healthyWeight/$totalWeight)")
+        android.util.Log.d("DashboardViewModel", "Healthy rate calculated: $roundedRate% ($healthyCount healthy out of $totalCount total detections)")
         
-        return roundedRate
+        return roundedRate.coerceIn(0.0, 100.0)
+    }
+    
+    /**
+     * Calculate unhealthy rate based on actual number of detections.
+     * Uses the most recent 300 detections for calculation (if more than 300 exist).
+     * Formula: (unhealthyCount / totalDetections) * 100
+     * Example: 3 infected out of 10 total = 30%
+     */
+    private fun calculateUnhealthyRate(history: List<DetectionEntry>): Double {
+        if (history.isEmpty()) return 0.0
+        
+        // Maximum 300 detections for calculation
+        val maxDataPoints = 300
+        val sortedHistory = history.sortedByDescending { it.timestamp }
+        val dataPointsToUse = sortedHistory.take(maxDataPoints)
+        
+        if (dataPointsToUse.isEmpty()) return 0.0
+
+        // Count ONLY unhealthy detections (independent calculation)
+        val unhealthyCount = dataPointsToUse.count { !it.isHealthy }
+        val totalCount = dataPointsToUse.size
+        
+        // FIXED: Use actual total count, not maxDataPoints
+        // Formula: rate = (unhealthyCount / totalCount) * 100
+        val unhealthyRate = (unhealthyCount.toDouble() / totalCount.toDouble()) * 100.0
+        
+        // Round to 1 decimal place for smooth progression (0.1% increments)
+        val roundedRate = (unhealthyRate * 10.0).roundToInt() / 10.0
+        
+        android.util.Log.d("DashboardViewModel", "Unhealthy rate calculated: $roundedRate% ($unhealthyCount unhealthy out of $totalCount total detections)")
+        
+        return roundedRate.coerceIn(0.0, 100.0)
     }
 
     private fun listenToNotifications(userId: String) {
@@ -365,7 +544,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     
     private fun listenToRecentlyDeleted(userId: String) {
         viewModelScope.launch {
-            // Cleanup old items before listening
             try {
                 detectionRepository.cleanupOldDeletedItems(userId)
             } catch (e: Exception) {
@@ -382,6 +560,17 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         val userId = auth.currentUser?.uid ?: return
         viewModelScope.launch {
             notificationRepository.markAsRead(userId, notificationId)
+        }
+    }
+    
+    fun deleteNotification(notificationId: String) {
+        val userId = auth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            try {
+                notificationRepository.deleteNotification(userId, notificationId)
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Failed to delete notification: ${e.message}", e)
+            }
         }
     }
     
@@ -402,7 +591,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     .set(hashMapOf("lastActive" to System.currentTimeMillis()), com.google.firebase.firestore.SetOptions.merge())
                     .await()
             } catch (_: Exception) {
-                // Silent fail - not critical
             }
         }
     }
@@ -433,11 +621,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     .map { it.id }
                 
                 android.util.Log.d("DashboardViewModel", "Found ${unreadDetectionIds.size} unread detections to mark")
-                
-                // Optimistically set count to 0 immediately
                 _newHistoryCount.value = 0
                 
-                // Also optimistically update local history state
                 val updatedHistory = _detectionHistory.value.map { entry ->
                     if (!entry.isRead) {
                         entry.copy(isRead = true)
@@ -447,7 +632,6 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 }
                 _detectionHistory.value = updatedHistory
                 
-                // Then mark all unread detections as read in Firestore
                 if (unreadDetectionIds.isNotEmpty()) {
                     unreadDetectionIds.forEach { detectionId ->
                         try {
@@ -463,14 +647,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                     android.util.Log.d("DashboardViewModel", "Updated ${unreadDetectionIds.size} detections in Firestore")
                 } else {
-                    // Use repository method as fallback if no IDs found
                     detectionRepository.markAllDetectionsAsRead(userId)
                 }
                 
                 android.util.Log.d("DashboardViewModel", "Marked all detections as read")
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Error marking detections as read", e)
-                // On error, recalculate from current history
                 _newHistoryCount.value = _detectionHistory.value.count { !it.isRead }
             }
         }
@@ -493,6 +675,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             try {
                 detectionRepository.permanentlyDeleteDetection(userId, detectionId)
+                // Send notification about deletion
+                try {
+                    notificationService.sendDataDeletedNotification(userId, "Detection")
+                } catch (e: Exception) {
+                    android.util.Log.w("DashboardViewModel", "Failed to send deletion notification: ${e.message}")
+                }
                 // History will update automatically via Firestore listener
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Error permanently deleting detection", e)
@@ -517,6 +705,12 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             try {
                 detectionRepository.permanentlyDeleteAllTrash(userId)
+                // Send notification about bulk deletion
+                try {
+                    notificationService.sendDataDeletedNotification(userId, "All deleted detections")
+                } catch (e: Exception) {
+                    android.util.Log.w("DashboardViewModel", "Failed to send bulk deletion notification: ${e.message}")
+                }
                 // History will update automatically via Firestore listener
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Error permanently deleting all trash", e)
@@ -637,16 +831,34 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 return null
             }
             
-            // Get last known location (faster, but may be stale)
-            val location: Location? = try {
-                val locationTask = fusedLocationClient.lastLocation
-                locationTask.await()
+            // Try to get fresh current location first (more accurate)
+            var location: Location? = null
+            try {
+                val currentLocationTask = fusedLocationClient.getCurrentLocation(
+                    Priority.PRIORITY_HIGH_ACCURACY,
+                    CancellationTokenSource().token
+                )
+                location = currentLocationTask.await()
+                android.util.Log.d("DashboardViewModel", "Got fresh location: ${location?.latitude}, ${location?.longitude}")
             } catch (e: SecurityException) {
-                android.util.Log.w("DashboardViewModel", "SecurityException getting location: ${e.message}")
-                return null
+                android.util.Log.w("DashboardViewModel", "SecurityException getting current location: ${e.message}")
             } catch (e: Exception) {
-                android.util.Log.w("DashboardViewModel", "Error getting location: ${e.message}")
-                return null
+                android.util.Log.w("DashboardViewModel", "Error getting current location: ${e.message}")
+            }
+            
+            // Fallback to last known location if current location is null
+            if (location == null) {
+                try {
+                    val lastLocationTask = fusedLocationClient.lastLocation
+                    location = lastLocationTask.await()
+                    android.util.Log.d("DashboardViewModel", "Got last known location: ${location?.latitude}, ${location?.longitude}")
+                } catch (e: SecurityException) {
+                    android.util.Log.w("DashboardViewModel", "SecurityException getting last location: ${e.message}")
+                    return null
+                } catch (e: Exception) {
+                    android.util.Log.w("DashboardViewModel", "Error getting last location: ${e.message}")
+                    return null
+                }
             }
             
             if (location != null) {
@@ -663,19 +875,26 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                             address.locality,
                             address.countryName
                         )
-                        addressParts.joinToString(", ")
+                        val formattedAddress = addressParts.joinToString(", ")
+                        android.util.Log.d("DashboardViewModel", "Location formatted as: $formattedAddress")
+                        formattedAddress
                     } else {
-                        "${location.latitude}, ${location.longitude}"
+                        val coordinates = "${location.latitude}, ${location.longitude}"
+                        android.util.Log.d("DashboardViewModel", "Location as coordinates: $coordinates")
+                        coordinates
                     }
-                } catch (_: Exception) {
+                } catch (e: Exception) {
                     // Fallback to coordinates if geocoding fails
-                    "${location.latitude}, ${location.longitude}"
+                    val coordinates = "${location.latitude}, ${location.longitude}"
+                    android.util.Log.w("DashboardViewModel", "Geocoding failed, using coordinates: $coordinates - ${e.message}")
+                    coordinates
                 }
             } else {
+                android.util.Log.w("DashboardViewModel", "No location available (both current and last location are null)")
                 null
             }
         } catch (e: Exception) {
-            android.util.Log.w("DashboardViewModel", "Error getting location: ${e.message}")
+            android.util.Log.w("DashboardViewModel", "Error getting location: ${e.message}", e)
             null
         }
     }

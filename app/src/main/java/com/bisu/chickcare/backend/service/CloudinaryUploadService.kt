@@ -2,6 +2,7 @@ package com.bisu.chickcare.backend.service
 
 import android.net.Uri
 import android.util.Log
+import com.bisu.chickcare.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -18,12 +19,24 @@ import java.security.MessageDigest
 class CloudinaryUploadService(private val context: android.content.Context) {
     
     companion object {
-        // TODO: Replace these with your actual credentials!
-        private const val CLOUD_NAME = "dt5zfjcut"
-        private const val API_KEY = "851529128471813"
-        private const val API_SECRET = "G6L6U6S_4q9RBNfpLp7gXnidJaQ"
+        // SECURITY: Credentials are now loaded from BuildConfig (which reads from local.properties)
+        // This prevents credentials from being hardcoded in the source code
+        private val CLOUD_NAME = BuildConfig.CLOUDINARY_CLOUD_NAME
+        private val API_KEY = BuildConfig.CLOUDINARY_API_KEY
+        private val API_SECRET = BuildConfig.CLOUDINARY_API_SECRET
         private const val UPLOAD_URL = "https://api.cloudinary.com/v1_1/%s/image/upload"
         private const val TAG = "CloudinaryUploadService"
+        
+        init {
+            // Log credential status (without exposing actual values)
+            if (CLOUD_NAME.isEmpty() || API_KEY.isEmpty() || API_SECRET.isEmpty()) {
+                Log.w(TAG, "⚠️ Cloudinary credentials are EMPTY in BuildConfig!")
+                Log.w(TAG, "This usually means the app needs to be REBUILT after adding credentials to local.properties")
+                Log.w(TAG, "Solution: Build -> Rebuild Project in Android Studio")
+            } else {
+                Log.d(TAG, "✓ Cloudinary credentials loaded successfully from BuildConfig")
+            }
+        }
     }
     
     private val client = OkHttpClient()
@@ -36,10 +49,13 @@ class CloudinaryUploadService(private val context: android.content.Context) {
     suspend fun uploadImage(imageUri: Uri): String? = withContext(Dispatchers.IO) {
         try {
             Log.d(TAG, "Starting Cloudinary upload for URI: $imageUri")
+            Log.d(TAG, "Cloudinary credentials check - CLOUD_NAME: ${if (CLOUD_NAME.isNotEmpty()) "***" else "EMPTY"}, API_KEY: ${if (API_KEY.isNotEmpty()) "***" else "EMPTY"}, API_SECRET: ${if (API_SECRET.isNotEmpty()) "***" else "EMPTY"}")
             
             // Validate credentials
             if (CLOUD_NAME.isEmpty() || API_KEY.isEmpty() || API_SECRET.isEmpty()) {
-                Log.e(TAG, "Cloudinary credentials not configured! Please update CLOUD_NAME, API_KEY, and API_SECRET in CloudinaryUploadService.kt")
+                Log.e(TAG, "Cloudinary credentials not configured! CLOUD_NAME: '${CLOUD_NAME}', API_KEY: '${API_KEY}', API_SECRET: '${if (API_SECRET.isEmpty()) "EMPTY" else "***"}'")
+                Log.e(TAG, "Please check that local.properties contains CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET")
+                Log.e(TAG, "Then rebuild the project: Build -> Rebuild Project")
                 return@withContext null
             }
 

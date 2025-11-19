@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.components
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -32,14 +33,14 @@ enum class ChartType {
 @Composable
 fun HealthyRatePieChart(
     healthyRate: Double,
-    modifier: Modifier = Modifier,
+    unhealthyRate: Double = 0.0,
+    @SuppressLint("ModifierParameter") modifier: Modifier = Modifier,
     chartType: ChartType = ChartType.HEALTHY_ONLY
 ) {
-    val unhealthyRate = 100.0 - healthyRate
     val healthyColor = Color(0xFF4CAF50) // Green
     val unhealthyColor = Color(0xFFF44336) // Red
     
-    // Determine which type to show
+    // Determine which type to show - each chart is independent
     val displayRate = when (chartType) {
         ChartType.HEALTHY_ONLY -> healthyRate
         ChartType.UNHEALTHY_ONLY -> unhealthyRate
@@ -60,7 +61,7 @@ fun HealthyRatePieChart(
         Text(
             text = displayTitle,
             style = MaterialTheme.typography.titleSmall,
-            color = ThemeColorUtils.lightGray(Color.Gray),
+            color = ThemeColorUtils.black(),
             fontWeight = FontWeight.Bold
         )
         
@@ -80,9 +81,14 @@ fun HealthyRatePieChart(
                 val sweepAngle = (displayRate / 100.0 * 360.0).toFloat()
                 val startAngle = -90f // Start from top
                 
-                // Draw background (white/grey for remaining portion)
+                // Draw background circle - light gray in light mode, #21242B in dark mode
+                val circleBackgroundColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                    Color(0xFF21242B)
+                } else {
+                    ThemeColorUtils.lightGray(Color(0xFFE0E0E0))
+                }
                 drawArc(
-                    color = ThemeColorUtils.lightGray(Color(0xFFE0E0E0)), // Light grey background
+                    color = circleBackgroundColor,
                     startAngle = startAngle,
                     sweepAngle = 360f,
                     useCenter = true,
@@ -112,8 +118,13 @@ fun HealthyRatePieChart(
                 // Draw percentage text in center
                 drawContext.canvas.nativeCanvas.apply {
                     val text = "%.1f%%".format(displayRate)
+                    val textColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                        android.graphics.Color.WHITE
+                    } else {
+                        android.graphics.Color.BLACK
+                    }
                     val paint = android.graphics.Paint().apply {
-                        color = android.graphics.Color.BLACK
+                        color = textColor
                         textSize = 28f
                         textAlign = android.graphics.Paint.Align.CENTER
                         isFakeBoldText = true
@@ -152,7 +163,7 @@ private fun LegendItem(label: String, color: Color, value: String) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
+                color = ThemeColorUtils.black()
             )
         }
         Spacer(modifier = Modifier.height(4.dp))

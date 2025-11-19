@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -36,16 +37,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
-import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,7 +64,7 @@ fun NotificationSettingsScreen(navController: NavController) {
                         "Notifications",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     ) 
                 },
                 navigationIcon = {
@@ -74,13 +72,13 @@ fun NotificationSettingsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -92,7 +90,7 @@ fun NotificationSettingsScreen(navController: NavController) {
         ) {
             // Divider below top bar
             HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
                 thickness = 1.dp
             )
             
@@ -106,13 +104,13 @@ fun NotificationSettingsScreen(navController: NavController) {
         ) {
             // General Notifications
             item {
-                Text(
-                    text = "General",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "General",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             item {
@@ -128,13 +126,13 @@ fun NotificationSettingsScreen(navController: NavController) {
             // Detection & Health Alerts
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Detection & Health",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Detection & Health",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             item {
@@ -160,13 +158,13 @@ fun NotificationSettingsScreen(navController: NavController) {
             // Social Notifications
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Social",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Social",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             item {
@@ -182,13 +180,13 @@ fun NotificationSettingsScreen(navController: NavController) {
             // Notification Preferences
             item {
                 Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "Preferences",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Preferences",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             item {
@@ -230,20 +228,12 @@ fun NotificationSettingsScreen(navController: NavController) {
                         Image(
                             painter = painterResource(id = R.drawable.ic_notifications_flaticon),
                             contentDescription = null,
-                            modifier = Modifier.size(38.dp),
-                            colorFilter = if (ThemeViewModel.isDarkMode) {
-                                ColorFilter.tint(
-                                    color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                                    blendMode = BlendMode.SrcAtop
-                                )
-                            } else {
-                                null
-                            }
+                            modifier = Modifier.size(38.dp)
                         )
                         Text(
                             text = "You can customize notification preferences for each category",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            color = ThemeColorUtils.black()
                         )
                     }
                 }
@@ -263,8 +253,13 @@ fun NotificationSettingCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
@@ -284,28 +279,20 @@ fun NotificationSettingCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
             Switch(
@@ -313,9 +300,9 @@ fun NotificationSettingCard(
                 onCheckedChange = onToggle,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = ThemeColorUtils.white(),
-                    checkedTrackColor = Color(0xFF131211),
+                    checkedTrackColor = ThemeColorUtils.black(),
                     uncheckedThumbColor = ThemeColorUtils.white(),
-                    uncheckedTrackColor = Color(0xFFA9A9A9)
+                    uncheckedTrackColor = ThemeColorUtils.lightGray(Color(0xFF9C9FA1))
                 )
             )
         }

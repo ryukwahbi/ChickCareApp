@@ -356,7 +356,7 @@ fun ExpenseInputDialog(
         ) {
             Card(
                 modifier = Modifier
-                    .width(485.dp)
+                    .width(370.dp)
                     .heightIn(max = 580.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
@@ -474,7 +474,7 @@ fun ExpenseInputDialog(
                                 (amount.toDoubleOrNull() != null) &&
                                 ((amount.toDoubleOrNull() ?: 0.0) > 0) &&
                                 paymentMethod.isNotBlank(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66BB1F)),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF79C03E)),
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text("Save", modifier = Modifier.padding(vertical = 8.dp))

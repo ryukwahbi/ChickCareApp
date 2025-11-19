@@ -1,5 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.content.Context
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -37,6 +39,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,27 +47,36 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.edit
+import androidx.fragment.app.FragmentActivity
+import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
+import com.bisu.chickcare.backend.service.BiometricAuthHelper
+import com.bisu.chickcare.backend.service.TwoFactorAuthHelper
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
-import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.components.BiometricAuthSetupDialog
 import com.bisu.chickcare.frontend.components.ChangePasswordDialog
 import com.bisu.chickcare.frontend.components.TwoFactorAuthSetupDialog
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SecurityPrivacyScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
+    val context = LocalContext.current
+    val currentUser = authViewModel.auth.currentUser
+    
     var twoFactorEnabled by remember { mutableStateOf(false) }
     var biometricEnabled by remember { mutableStateOf(false) }
     var dataEncryptionEnabled by remember { mutableStateOf(true) }
@@ -75,6 +87,42 @@ fun SecurityPrivacyScreen(navController: NavController) {
     var showSuccessDialog by remember { mutableStateOf(false) }
     var showErrorDialog by remember { mutableStateOf(false) }
     var dialogMessage by remember { mutableStateOf("") }
+    var twoFactorSecret by remember { mutableStateOf<String?>(null) }
+    var isBiometricAvailable by remember { mutableStateOf(false) }
+    
+    // Load initial state
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.IO) {
+            // Load 2FA status
+            if (currentUser != null) {
+                // Check local preferences first
+                val local2FAEnabled = TwoFactorAuthHelper.isTwoFactorEnabled(context)
+                
+                // Sync with Firestore to ensure consistency
+                val firestoreSecret = TwoFactorAuthHelper.getTwoFactorSecret(currentUser.uid)
+                val firestore2FAEnabled = firestoreSecret != null
+                
+                // Use Firestore status if available, otherwise use local
+                twoFactorEnabled = firestore2FAEnabled || local2FAEnabled
+                
+                // If Firestore has secret but local doesn't, sync it
+                if (firestoreSecret != null && !local2FAEnabled) {
+                    val prefs = context.getSharedPreferences(
+                        "two_factor_prefs", 
+                        Context.MODE_PRIVATE
+                    )
+                    prefs.edit {
+                        putBoolean("two_factor_enabled", true)
+                        putString("two_factor_secret", firestoreSecret)
+                    }
+                }
+            }
+            
+            // Load biometric status
+            biometricEnabled = BiometricAuthHelper.isBiometricEnabled(context)
+            isBiometricAvailable = BiometricAuthHelper.isBiometricAvailable(context)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -84,7 +132,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
                         "Security & Privacy",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     ) 
                 },
                 navigationIcon = {
@@ -92,13 +140,13 @@ fun SecurityPrivacyScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -110,7 +158,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
         ) {
             // Divider below top bar
             HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
                 thickness = 1.dp
             )
             
@@ -124,13 +172,13 @@ fun SecurityPrivacyScreen(navController: NavController) {
         ) {
             // Security Section
             item {
-                Text(
-                    text = "Security",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Security",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             // Two-Factor Authentication
@@ -142,9 +190,31 @@ fun SecurityPrivacyScreen(navController: NavController) {
                     isEnabled = twoFactorEnabled,
                     onToggle = { enabled ->
                         if (enabled) {
-                            showTwoFactorSetupDialog = true
+                            if (currentUser != null) {
+                                // Generate secret first
+                                twoFactorSecret = TwoFactorAuthHelper.generateSecret()
+                                showTwoFactorSetupDialog = true
+                            } else {
+                                dialogMessage = "Please log in to enable two-factor authentication"
+                                showErrorDialog = true
+                            }
                         } else {
-                            twoFactorEnabled = false
+                            // Disable 2FA
+                            if (currentUser != null) {
+                                authViewModel.viewModelScope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            TwoFactorAuthHelper.disableTwoFactor(currentUser.uid, context)
+                                        }
+                                        twoFactorEnabled = false
+                                        dialogMessage = "Two-factor authentication disabled"
+                                        showSuccessDialog = true
+                                    } catch (e: Exception) {
+                                        dialogMessage = "Failed to disable two-factor authentication: ${e.message}"
+                                        showErrorDialog = true
+                                    }
+                                }
+                            }
                         }
                     }
                 )
@@ -155,13 +225,25 @@ fun SecurityPrivacyScreen(navController: NavController) {
                 SecuritySettingCard(
                     icon = R.drawable.ic_biometric_flaticon,
                     title = "Biometric Authentication",
-                    description = "Use fingerprint or face recognition to unlock",
+                    description = if (isBiometricAvailable) {
+                        "Use fingerprint or face recognition to unlock"
+                    } else {
+                        BiometricAuthHelper.getBiometricStatus(context)
+                    },
                     isEnabled = biometricEnabled,
                     onToggle = { enabled ->
                         if (enabled) {
-                            showBiometricSetupDialog = true
+                            if (isBiometricAvailable) {
+                                showBiometricSetupDialog = true
+                            } else {
+                                dialogMessage = BiometricAuthHelper.getBiometricStatus(context)
+                                showErrorDialog = true
+                            }
                         } else {
+                            BiometricAuthHelper.disableBiometric(context)
                             biometricEnabled = false
+                            dialogMessage = "Biometric authentication disabled"
+                            showSuccessDialog = true
                         }
                     }
                 )
@@ -180,13 +262,13 @@ fun SecurityPrivacyScreen(navController: NavController) {
             // Privacy Section
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Privacy",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Privacy",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             // Data Encryption
@@ -215,13 +297,13 @@ fun SecurityPrivacyScreen(navController: NavController) {
             // Privacy Policy & Terms
             item {
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = "Legal",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    modifier = Modifier.padding(vertical = 8.dp)
-                )
+                    Text(
+                        text = "Legal",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    )
             }
 
             item {
@@ -246,15 +328,41 @@ fun SecurityPrivacyScreen(navController: NavController) {
     }
     
     // Dialogs
-    if (showTwoFactorSetupDialog) {
+    if (showTwoFactorSetupDialog && currentUser != null && twoFactorSecret != null) {
         TwoFactorAuthSetupDialog(
-            onDismiss = { showTwoFactorSetupDialog = false },
-            onEnable = { code ->
-                // TODO: Implement two-factor authentication setup
-                twoFactorEnabled = true
-                dialogMessage = "Two-factor authentication enabled successfully"
-                showSuccessDialog = true
+            secretKey = twoFactorSecret,
+            onDismiss = { 
                 showTwoFactorSetupDialog = false
+                twoFactorSecret = null
+            },
+            onEnable = { code ->
+                // Verify code and enable
+                authViewModel.viewModelScope.launch {
+                    try {
+                        val success = withContext(Dispatchers.IO) {
+                            TwoFactorAuthHelper.verifyAndEnableTwoFactor(
+                                currentUser.uid,
+                                twoFactorSecret!!,
+                                code,
+                                context
+                            )
+                        }
+                        
+                        if (success) {
+                            twoFactorEnabled = true
+                            dialogMessage = "Two-factor authentication enabled successfully"
+                            showSuccessDialog = true
+                            showTwoFactorSetupDialog = false
+                            twoFactorSecret = null
+                        } else {
+                            dialogMessage = "Invalid verification code. Please try again."
+                            showErrorDialog = true
+                        }
+                    } catch (e: Exception) {
+                        dialogMessage = "Failed to enable two-factor authentication: ${e.message}"
+                        showErrorDialog = true
+                    }
+                }
             }
         )
     }
@@ -263,10 +371,32 @@ fun SecurityPrivacyScreen(navController: NavController) {
         BiometricAuthSetupDialog(
             onDismiss = { showBiometricSetupDialog = false },
             onEnable = {
-                // TODO: Implement biometric authentication setup
-                biometricEnabled = true
-                dialogMessage = "Biometric authentication enabled successfully"
-                showSuccessDialog = true
+                // Show biometric prompt to authenticate
+                val activity = context as? FragmentActivity
+                if (activity != null) {
+                    BiometricAuthHelper.authenticate(
+                        activity = activity,
+                        title = "Enable Biometric Authentication",
+                        subtitle = "Authenticate to enable biometric login",
+                        onSuccess = {
+                            BiometricAuthHelper.enableBiometric(context)
+                            biometricEnabled = true
+                            dialogMessage = "Biometric authentication enabled successfully"
+                            showSuccessDialog = true
+                            showBiometricSetupDialog = false
+                        },
+                        onError = { error ->
+                            dialogMessage = "Biometric authentication failed: $error"
+                            showErrorDialog = true
+                        },
+                        onCancel = {
+                            showBiometricSetupDialog = false
+                        }
+                    )
+                } else {
+                    dialogMessage = "Unable to show biometric prompt. Please try again."
+                    showErrorDialog = true
+                }
             }
         )
     }
@@ -333,8 +463,13 @@ fun SecuritySettingCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
@@ -354,28 +489,20 @@ fun SecuritySettingCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
             if (isToggleable) {
@@ -384,9 +511,9 @@ fun SecuritySettingCard(
                     onCheckedChange = onToggle,
                     colors = SwitchDefaults.colors(
                         checkedThumbColor = ThemeColorUtils.white(),
-                        checkedTrackColor = Color(0xFF131211),
+                        checkedTrackColor = ThemeColorUtils.black(),
                         uncheckedThumbColor = ThemeColorUtils.white(),
-                        uncheckedTrackColor = Color(0xFFA9A9A9)
+                        uncheckedTrackColor = ThemeColorUtils.lightGray(Color(0xFF9C9FA1))
                     )
                 )
             }
@@ -414,8 +541,13 @@ fun SecurityActionCard(
                 onClick = onClick,
                 interactionSource = interactionSource
             ),
+        border = BorderStroke(
+            width = 1.dp,
+            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
+        ),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.beige(Color(0xFFE5E2DE))
+            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+            contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
         elevation = CardDefaults.cardElevation(
@@ -435,28 +567,20 @@ fun SecurityActionCard(
             Image(
                 painter = painterResource(id = icon),
                 contentDescription = title,
-                modifier = Modifier.size(38.dp),
-                colorFilter = if (ThemeViewModel.isDarkMode) {
-                    ColorFilter.tint(
-                        color = ThemeColorUtils.lightGray(Color(0xFFA1AAB2)),
-                        blendMode = BlendMode.SrcAtop
-                    )
-                } else {
-                    null
-                }
+                modifier = Modifier.size(38.dp)
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF171311)
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
                 )
             }
         }

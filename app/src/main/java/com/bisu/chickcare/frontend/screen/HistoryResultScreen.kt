@@ -1,5 +1,6 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.annotation.SuppressLint
 import android.content.Intent
 import android.media.MediaPlayer
 import androidx.compose.foundation.background
@@ -43,6 +44,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -58,10 +60,12 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import com.bisu.chickcare.frontend.utils.sanitizeUriString
 
+@SuppressLint("DefaultLocale")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HistoryResultScreen(
@@ -135,14 +139,8 @@ fun HistoryResultScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = { 
-                        navController.navigate("detection_history") {
-                            // Pop up to the start destination to clear the stack
-                            popUpTo(navController.graph.startDestinationId) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
+                        // Pop back to detection_history screen
+                        navController.popBackStack()
                     }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
@@ -163,7 +161,9 @@ fun HistoryResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFE8B88C))
+                .background(
+                    if (ThemeViewModel.isDarkMode) ThemeColorUtils.beige(Color(0xFFFFF7E6)) else Color(0xFFE8B88C)
+                )
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -173,9 +173,28 @@ fun HistoryResultScreen(
                 // First Card - Results with captured image, saved audio, confidence
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                        elevation = CardDefaults.cardElevation(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
+                        ),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(8.dp)
+                        },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(
@@ -211,25 +230,38 @@ fun HistoryResultScreen(
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
 
-                            // Result Text - Clean up result text to remove plus signs and confidence
+                            // Clean result string - remove question marks and other unwanted characters
+                            val cleanResult = entry.result
+                                .replace("+", "")
+                                .replace("?", "")
+                                .replace("❓", "")
+                                .replace(Regex("[❓?]+"), "") // Remove all question marks (emoji and regular)
+                                .replace(Regex("\\([^)]*\\)"), "") // Remove parentheses and everything inside
+                                .trim()
+                            
+                            // Extract just the status (Healthy/Infected/Unhealthy) without confidence
+                            val statusText = when {
+                                cleanResult.contains("Healthy", ignoreCase = true) && !cleanResult.contains("Unhealthy", ignoreCase = true) -> "Healthy"
+                                cleanResult.contains("Infected", ignoreCase = true) || cleanResult.contains("Unhealthy", ignoreCase = true) -> "Infected"
+                                entry.isHealthy -> "Healthy"
+                                else -> "Infected"
+                            }
+                            
                             Text(
-                                text = "Result: ${entry.result
-                                    .replace("+", "")
-                                    .replace(Regex("""\s*\([0-9.]+%?\)?$"""), "")
-                                    .trim()}",
-                                style = MaterialTheme.typography.headlineMedium.copy(
+                                text = "Result: $statusText",
+                                style = MaterialTheme.typography.headlineLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
                                 ),
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-
+                            Spacer(modifier = Modifier.height(6.dp))
+                            // Confidence line
                             Text(
                                 text = "Confidence: ${String.format("%.1f", entry.confidence * 100)}%",
-                                style = MaterialTheme.typography.titleLarge.copy(
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                                style = MaterialTheme.typography.titleMedium.copy(
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF666666)) else ThemeColorUtils.lightGray(Color(0xFF666666))
                                 ),
                                 textAlign = TextAlign.Center
                             )
@@ -287,7 +319,10 @@ fun HistoryResultScreen(
                                         contentDescription = if (isPlaying) "Stop Audio" else "Play Audio"
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
-                                    Text(if (isPlaying) "Stop Audio" else "Play Audio")
+                                    Text(
+                                        if (isPlaying) "Stop Audio" else "Play Audio",
+                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color.Unspecified
+                                    )
                                 }
                             }
                         }
@@ -297,9 +332,28 @@ fun HistoryResultScreen(
                 if (!entry.isHealthy) {
                     item {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.beige(Color(0xFFFFF3E0))),
-                            elevation = CardDefaults.cardElevation(12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (ThemeViewModel.isDarkMode) {
+                                        Modifier.shadow(
+                                            elevation = 12.dp,
+                                            shape = RoundedCornerShape(16.dp),
+                                            spotColor = Color.White,
+                                            ambientColor = Color.White.copy(alpha = 0.5f)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.beige(Color(0xFFFFF3E0))
+                            ),
+                            elevation = if (ThemeViewModel.isDarkMode) {
+                                CardDefaults.cardElevation(defaultElevation = 0.dp)
+                            } else {
+                                CardDefaults.cardElevation(12.dp)
+                            },
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Column(
@@ -318,13 +372,19 @@ fun HistoryResultScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
                                     text = buildAnnotatedString {
-                                        withStyle(SpanStyle(color = ThemeColorUtils.black(), fontWeight = FontWeight.SemiBold)) {
+                                        withStyle(SpanStyle(
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                            fontWeight = FontWeight.SemiBold
+                                        )) {
                                             append("If your chicken has been detected as ")
                                         }
                                         withStyle(SpanStyle(color = Color(0xFFF44336), fontWeight = FontWeight.ExtraBold)) {
                                             append("INFECTED")
                                         }
-                                        withStyle(SpanStyle(color = ThemeColorUtils.black(), fontWeight = FontWeight.SemiBold)) {
+                                        withStyle(SpanStyle(
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                            fontWeight = FontWeight.SemiBold
+                                        )) {
                                             append(". Please go to the veterinarian immediately for proper diagnosis and treatment.")
                                         }
                                     },
@@ -379,9 +439,28 @@ fun HistoryResultScreen(
                 // Third Card - Recommended Actions After Detection (for both healthy and unhealthy)
                 item {
                     Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))),
-                        elevation = CardDefaults.cardElevation(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(
+                                if (ThemeViewModel.isDarkMode) {
+                                    Modifier.shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = Color.White,
+                                        ambientColor = Color.White.copy(alpha = 0.5f)
+                                    )
+                                } else {
+                                    Modifier
+                                }
+                            ),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))
+                        ),
+                        elevation = if (ThemeViewModel.isDarkMode) {
+                            CardDefaults.cardElevation(defaultElevation = 0.dp)
+                        } else {
+                            CardDefaults.cardElevation(8.dp)
+                        },
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Column(modifier = Modifier.padding(24.dp)) {

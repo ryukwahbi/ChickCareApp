@@ -1,21 +1,24 @@
 package com.bisu.chickcare.frontend.components
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -24,18 +27,32 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.net.toUri
+import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.data.UserProfile
 import com.bisu.chickcare.backend.repository.FriendSuggestion
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -86,7 +103,9 @@ fun AboutTabContent(
     userProfile: UserProfile,
     mutualFriends: List<FriendSuggestion>,
     onEditInfo: () -> Unit,
-    onPrivacyChange: (String, String) -> Unit
+    onPrivacyChange: (String, String) -> Unit,
+    isViewingOwnProfile: Boolean = true,
+    onViewFriends: (() -> Unit)? = null
 ) {
     Column(
         modifier = Modifier
@@ -116,30 +135,38 @@ fun AboutTabContent(
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
-                    IconButton(onClick = onEditInfo) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit Info",
-                            tint = Color(0xFF2F2F2F)
-                        )
+                    // Only show edit icon when viewing own profile
+                    if (isViewingOwnProfile) {
+                        IconButton(onClick = onEditInfo) {
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Edit Info",
+                                tint = Color(0xFF2F2F2F)
+                            )
+                        }
                     }
                 }
                 
                 ProfileInfo(
                     userProfile = userProfile,
-                    onPrivacyChange = onPrivacyChange
+                    onPrivacyChange = if (isViewingOwnProfile) onPrivacyChange else null,
+                    isViewingOwnProfile = isViewingOwnProfile
                 )
             }
         }
         
-        MutualFriendsSection(mutualFriends = mutualFriends)
+        MutualFriendsSection(
+            mutualFriends = mutualFriends,
+            onViewMore = if (isViewingOwnProfile && mutualFriends.size > 6) onViewFriends else null
+        )
     }
 }
 
 @Composable
 fun ProfileInfo(
     userProfile: UserProfile,
-    onPrivacyChange: (String, String) -> Unit
+    onPrivacyChange: ((String, String) -> Unit)?,
+    isViewingOwnProfile: Boolean = true
 ) {
     val memberSince = if (userProfile.createdAt > 0L) {
         val dateFormat = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
@@ -155,21 +182,24 @@ fun ProfileInfo(
             value = userProfile.email,
             fieldName = "email",
             onPrivacyChange = onPrivacyChange,
-            currentPrivacy = userProfile.fieldPrivacy["email"] ?: "public"
+            currentPrivacy = userProfile.fieldPrivacy["email"] ?: "public",
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Contact Number",
             value = userProfile.contact,
             fieldName = "contact",
             onPrivacyChange = onPrivacyChange,
-            currentPrivacy = userProfile.fieldPrivacy["contact"] ?: "public"
+            currentPrivacy = userProfile.fieldPrivacy["contact"] ?: "public",
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Birth Date",
             value = userProfile.birthDate,
             fieldName = "birthDate",
             onPrivacyChange = onPrivacyChange,
-            currentPrivacy = userProfile.fieldPrivacy["birthDate"] ?: "public"
+            currentPrivacy = userProfile.fieldPrivacy["birthDate"] ?: "public",
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Gender",
@@ -177,7 +207,8 @@ fun ProfileInfo(
             fieldName = "gender",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["gender"] ?: "public",
-            isEmpty = userProfile.gender.isNullOrEmpty()
+            isEmpty = userProfile.gender.isNullOrEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Address",
@@ -185,7 +216,8 @@ fun ProfileInfo(
             fieldName = "address",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["address"] ?: "public",
-            isEmpty = userProfile.address.isEmpty()
+            isEmpty = userProfile.address.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         
         // Line divider between Personal Info and Farm Details
@@ -203,7 +235,8 @@ fun ProfileInfo(
             fieldName = "farmName",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmName"] ?: "public",
-            isEmpty = userProfile.farmName.isEmpty()
+            isEmpty = userProfile.farmName.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Farm Location",
@@ -211,7 +244,8 @@ fun ProfileInfo(
             fieldName = "farmLocation",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmLocation"] ?: "public",
-            isEmpty = userProfile.farmLocation.isEmpty()
+            isEmpty = userProfile.farmLocation.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Farm Type",
@@ -219,7 +253,8 @@ fun ProfileInfo(
             fieldName = "farmType",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["farmType"] ?: "public",
-            isEmpty = userProfile.farmType.isEmpty()
+            isEmpty = userProfile.farmType.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Specialization",
@@ -227,7 +262,8 @@ fun ProfileInfo(
             fieldName = "specialization",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["specialization"] ?: "public",
-            isEmpty = userProfile.specialization.isEmpty()
+            isEmpty = userProfile.specialization.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         
         // Line divider between Farm Details and Statistics
@@ -245,7 +281,8 @@ fun ProfileInfo(
             fieldName = "numberOfBirds",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["numberOfBirds"] ?: "public",
-            isEmpty = userProfile.numberOfBirds.isEmpty()
+            isEmpty = userProfile.numberOfBirds.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         InfoRow(
             label = "Years of Experience",
@@ -253,7 +290,8 @@ fun ProfileInfo(
             fieldName = "yearsExperience",
             onPrivacyChange = onPrivacyChange,
             currentPrivacy = userProfile.fieldPrivacy["yearsExperience"] ?: "public",
-            isEmpty = userProfile.yearsExperience.isEmpty()
+            isEmpty = userProfile.yearsExperience.isEmpty(),
+            isViewingOwnProfile = isViewingOwnProfile
         )
         
         // Line divider between Statistics and Account Info
@@ -270,42 +308,247 @@ fun ProfileInfo(
             value = memberSince,
             fieldName = "memberSince",
             onPrivacyChange = null,
-            currentPrivacy = "public"
+            currentPrivacy = "public",
+            isViewingOwnProfile = isViewingOwnProfile
         )
     }
 }
 
 @Composable
-fun PhotosTabContent() {
+fun PhotosTabContent(
+    userId: String,
+    isViewingOwnProfile: Boolean = true
+) {
+    val postRepository = remember { com.bisu.chickcare.backend.repository.PostRepository() }
+    val postsFlow = remember(userId, isViewingOwnProfile) {
+        postRepository.getUserTimelinePosts(userId, includePrivate = isViewingOwnProfile)
+    }
+    val posts by postsFlow.collectAsState(initial = emptyList())
+    
+    // Filter posts to only those with images, and respect privacy
+    val photoPosts = remember(posts, isViewingOwnProfile) {
+        posts.filter { post ->
+            !post.imageUri.isNullOrEmpty() && 
+            (isViewingOwnProfile || post.visibility == "public")
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             text = "Photos",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("No photos yet.", color = ThemeColorUtils.lightGray(Color.Gray))
+        
+        if (photoPosts.isEmpty()) {
+            Text(
+                "No photos yet.", 
+                color = ThemeColorUtils.lightGray(Color.Gray),
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            // Grid layout for photos - ONLY images, NO captions
+            // Use manual grid with Rows to avoid nested scrollable (LazyVerticalGrid inside LazyColumn)
+            val rows = photoPosts.chunked(3) // Split into rows of 3
+            
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                rows.forEach { rowPosts ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        rowPosts.forEach { post ->
+                            val imageUri = post.imageUri
+                            if (!imageUri.isNullOrEmpty()) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .aspectRatio(1f)
+                                ) {
+                                    AsyncImage(
+                                        model = imageUri,
+                                        contentDescription = "Photo",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(0.dp)), // No rounded corners for grid style
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                            }
+                        }
+                        // Fill remaining space if row has less than 3 items
+                        repeat(3 - rowPosts.size) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
-fun AudiosTabContent() {
+fun AudiosTabContent(
+    userId: String,
+    isViewingOwnProfile: Boolean = true
+) {
+    val postRepository = remember { com.bisu.chickcare.backend.repository.PostRepository() }
+    val postsFlow = remember(userId, isViewingOwnProfile) {
+        postRepository.getUserTimelinePosts(userId, includePrivate = isViewingOwnProfile)
+    }
+    val posts by postsFlow.collectAsState(initial = emptyList())
+    
+    // Filter posts to only those with audio, and respect privacy
+    val audioPosts = remember(posts, isViewingOwnProfile) {
+        posts.filter { post ->
+            !post.audioUri.isNullOrEmpty() && 
+            (isViewingOwnProfile || post.visibility == "public")
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             text = "Audios",
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(bottom = 12.dp)
         )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("No audio recordings yet.", color = ThemeColorUtils.lightGray(Color.Gray))
+        
+        if (audioPosts.isEmpty()) {
+            Text(
+                "No audio recordings yet.", 
+                color = ThemeColorUtils.lightGray(Color.Gray),
+                modifier = Modifier.padding(vertical = 16.dp)
+            )
+        } else {
+            // Shared media player state - only one audio can play at a time
+            val context = LocalContext.current
+            var currentPlayingIndex by remember { mutableStateOf<Int?>(null) }
+            var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+            
+            // Stop any currently playing audio
+            fun stopCurrentAudio() {
+                mediaPlayer?.stop()
+                mediaPlayer?.release()
+                mediaPlayer = null
+                currentPlayingIndex = null
+            }
+            
+            // List of audio players with captions
+            // Use regular Column instead of LazyColumn to avoid nested scrollable
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                audioPosts.forEachIndexed { index, post ->
+                    val audioUri = post.audioUri
+                    if (!audioUri.isNullOrEmpty()) {
+                        // Add caption above each audio player
+                        Text(
+                            text = "Audio ${index + 1}",
+                            style = MaterialTheme.typography.bodySmall,
+                            fontWeight = FontWeight.Medium,
+                            color = ThemeColorUtils.black(),
+                            modifier = Modifier.padding(bottom = 4.dp)
+                        )
+                        AudioPlayerItem(
+                            isPlaying = currentPlayingIndex == index,
+                            onPlayClick = {
+                                // Stop currently playing audio if any
+                                if (currentPlayingIndex != null && currentPlayingIndex != index) {
+                                    stopCurrentAudio()
+                                }
+                                
+                                if (currentPlayingIndex == index) {
+                                    // Stop if clicking the same audio
+                                    stopCurrentAudio()
+                                } else {
+                                    // Play new audio
+                                    try {
+                                        val sanitizedUri = sanitizeToUri(audioUri, "AudiosTabContent")
+                                        val player = android.media.MediaPlayer()
+                                        val uri = sanitizedUri ?: audioUri.toUri()
+                                        player.setDataSource(context, uri)
+                                        player.prepare()
+                                        player.start()
+                                        player.setOnCompletionListener {
+                                            it.release()
+                                            currentPlayingIndex = null
+                                            mediaPlayer = null
+                                        }
+                                        mediaPlayer = player
+                                        currentPlayingIndex = index
+                                    } catch (e: Exception) {
+                                        android.util.Log.e("AudiosTabContent", "Error playing audio: ${e.message}")
+                                        stopCurrentAudio()
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+            
+            // Cleanup on dispose
+            DisposableEffect(Unit) {
+                onDispose {
+                    stopCurrentAudio()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AudioPlayerItem(
+    isPlaying: Boolean,
+    onPlayClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = ThemeColorUtils.white()
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            IconButton(
+                onClick = onPlayClick
+            ) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                    contentDescription = if (isPlaying) "Stop" else "Play",
+                    tint = ThemeColorUtils.black()
+                )
+            }
+            
+            // Audio waveform indicator
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(ThemeColorUtils.lightGray(Color.Gray))
+            )
+        }
     }
 }
 

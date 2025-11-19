@@ -43,6 +43,7 @@ fun HealthTrendLineGraph(
             Text(
                 text = title,
                 fontWeight = FontWeight.Bold,
+                color = ThemeColorUtils.black(),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             
@@ -54,6 +55,7 @@ fun HealthTrendLineGraph(
                 ) {
                     Text(
                         text = "No data available yet",
+                        color = ThemeColorUtils.black(),
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(16.dp)
@@ -72,8 +74,13 @@ fun HealthTrendLineGraph(
                     val gridLines = 5
                     for (i in 0..gridLines) {
                         val y = padding + (graphHeight * i / gridLines)
+                        val gridLineColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                            Color(0xFF353940)
+                        } else {
+                            ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
+                        }
                         drawLine(
-                            color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f),
+                            color = gridLineColor,
                             start = Offset(padding, y),
                             end = Offset(size.width - padding, y),
                             strokeWidth = 1f
@@ -85,12 +92,17 @@ fun HealthTrendLineGraph(
                         val y = padding + (graphHeight * i / gridLines)
                         drawContext.canvas.nativeCanvas.apply {
                             val text = "${value.toInt()}%"
+                            val textColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                                android.graphics.Color.WHITE
+                            } else {
+                                android.graphics.Color.GRAY
+                            }
                             drawText(
                                 text,
                                 padding - 35f,
                                 y + 5,
                                 android.graphics.Paint().apply {
-                                    color = android.graphics.Color.GRAY
+                                    color = textColor
                                     textSize = 11f
                                     textAlign = android.graphics.Paint.Align.RIGHT
                                 }
@@ -98,84 +110,113 @@ fun HealthTrendLineGraph(
                         }
                     }
                     
-                    val xStep = graphWidth / (dataPoints.size - 1).coerceAtLeast(1)
-                    // Show labels but skip some if there are too many to avoid overlap
-                    val labelInterval = if (dataPoints.size > 15) {
-                        (dataPoints.size / 10).coerceAtLeast(1) // Show ~10 labels max
+                    // Calculate X positions for all points (evenly spaced)
+                    val xStep = if (dataPoints.size > 1) {
+                        graphWidth / (dataPoints.size - 1)
                     } else {
-                        1 // Show all labels if 15 or fewer
-                    }
-                    
-                    dataPoints.forEachIndexed { index, _ ->
-                        val x = padding + (xStep * index)
-                        // Only draw label if it's at the interval or if it's the first/last point
-                        if (index % labelInterval == 0 || index == 0 || index == dataPoints.size - 1) {
-                            drawContext.canvas.nativeCanvas.apply {
-                                val text = dataPoints[index].label
-                                drawText(
-                                    text,
-                                    x - 20f,
-                                    size.height - padding + 20f,
-                                    android.graphics.Paint().apply {
-                                        color = android.graphics.Color.GRAY
-                                        textSize = 10f
-                                        textAlign = android.graphics.Paint.Align.CENTER
-                                    }
-                                )
-                            }
-                        }
+                        0f
                     }
                     
                     val xPositions = FloatArray(dataPoints.size) { index ->
                         padding + (xStep * index)
                     }
 
-                    val healthyOffsets = mutableListOf<Offset>()
-                    val unhealthyOffsets = mutableListOf<Offset>()
+                    // Show labels but skip some if there are too many to avoid overlap
+                    val labelInterval = if (dataPoints.size > 4) {
+                        (dataPoints.size / 2).coerceAtLeast(1) // Show ~2 labels max for 2 days
+                    } else {
+                        1 // Show all labels if 4 or fewer
+                    }
+                    
+                    dataPoints.forEachIndexed { index, _ ->
+                        val x = xPositions[index]
+                        // Only draw label if it's at the interval or if it's the first/last point
+                        if (index % labelInterval == 0 || index == 0 || index == dataPoints.size - 1) {
+                            drawContext.canvas.nativeCanvas.apply {
+                                val text = dataPoints[index].label
+                                val textColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) {
+                                    android.graphics.Color.WHITE
+                                } else {
+                                    android.graphics.Color.GRAY
+                                }
+                                drawText(
+                                    text,
+                                    x - 25f,
+                                    size.height - padding + 20f,
+                                    android.graphics.Paint().apply {
+                                        color = textColor
+                                        textSize = 9f
+                                        textAlign = android.graphics.Paint.Align.CENTER
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    // Collect all points (including 0% start) for both lines
+                    val allHealthyOffsets = mutableListOf<Offset>()
+                    val allUnhealthyOffsets = mutableListOf<Offset>()
 
                     dataPoints.forEachIndexed { index, point ->
                         val x = xPositions[index]
                         val healthyY = padding + graphHeight - ((point.healthyAverage.toFloat() / maxValue) * graphHeight)
                         val unhealthyY = padding + graphHeight - ((point.unhealthyAverage.toFloat() / maxValue) * graphHeight)
 
-                        if (point.healthyAverage > 0) {
-                            healthyOffsets.add(Offset(x, healthyY))
-                        }
-                        if (point.unhealthyAverage > 0) {
-                            unhealthyOffsets.add(Offset(x, unhealthyY))
-                        }
+                        // Always add point (even if 0%) to maintain line continuity
+                        allHealthyOffsets.add(Offset(x, healthyY))
+                        allUnhealthyOffsets.add(Offset(x, unhealthyY))
                     }
 
-                    healthyOffsets.forEachIndexed { index, offset ->
-                        if (index < healthyOffsets.size - 1) {
+                    // Draw healthy line (green) - connects all points including 0% start
+                    allHealthyOffsets.forEachIndexed { index, offset ->
+                        if (index < allHealthyOffsets.size - 1) {
                             drawLine(
                                 start = offset,
-                                end = healthyOffsets[index + 1],
+                                end = allHealthyOffsets[index + 1],
                                 color = Color(0xFF4CAF50),
-                                strokeWidth = 2f
+                                strokeWidth = 2.5f
                             )
                         }
-                        drawCircle(
-                            color = Color(0xFF4CAF50),
-                            radius = 5f,
-                            center = offset
-                        )
+                        // Draw dot only if value > 0 (skip the starting 0% dot)
+                        if (dataPoints[index].healthyAverage > 0) {
+                            drawCircle(
+                                color = Color(0xFF4CAF50),
+                                radius = 6f,
+                                center = offset
+                            )
+                            // Draw white inner circle for better visibility
+                            drawCircle(
+                                color = Color.White,
+                                radius = 3f,
+                                center = offset
+                            )
+                        }
                     }
 
-                    unhealthyOffsets.forEachIndexed { index, offset ->
-                        if (index < unhealthyOffsets.size - 1) {
+                    // Draw unhealthy line (red) - connects all points including 0% start
+                    allUnhealthyOffsets.forEachIndexed { index, offset ->
+                        if (index < allUnhealthyOffsets.size - 1) {
                             drawLine(
                                 start = offset,
-                                end = unhealthyOffsets[index + 1],
+                                end = allUnhealthyOffsets[index + 1],
                                 color = Color(0xFFF44336),
-                                strokeWidth = 2f
+                                strokeWidth = 2.5f
                             )
                         }
-                        drawCircle(
-                            color = Color(0xFFF44336),
-                            radius = 5f,
-                            center = offset
-                        )
+                        // Draw dot only if value > 0 (skip the starting 0% dot)
+                        if (dataPoints[index].unhealthyAverage > 0) {
+                            drawCircle(
+                                color = Color(0xFFF44336),
+                                radius = 6f,
+                                center = offset
+                            )
+                            // Draw white inner circle for better visibility
+                            drawCircle(
+                                color = Color.White,
+                                radius = 3f,
+                                center = offset
+                            )
+                        }
                     }
                 }
                 
@@ -201,6 +242,6 @@ fun LegendItem(label: String, color: Color) {
                 .background(color)
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, style = MaterialTheme.typography.bodySmall)
+        Text(text = label, style = MaterialTheme.typography.bodySmall, color = ThemeColorUtils.black())
     }
 }

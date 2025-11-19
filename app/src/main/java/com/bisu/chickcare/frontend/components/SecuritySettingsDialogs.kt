@@ -39,10 +39,12 @@ import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 @Composable
 fun TwoFactorAuthSetupDialog(
     onDismiss: () -> Unit,
-    onEnable: (String) -> Unit
+    onEnable: (String) -> Unit,
+    secretKey: String? = null
 ) {
     var verificationCode by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
+    var showSecret by remember { mutableStateOf(false) }
 
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = ThemeColorUtils.darkGray(Color(0xFF212121)),
@@ -105,20 +107,69 @@ fun TwoFactorAuthSetupDialog(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Text(
-                    text = "To enable two-factor authentication, you'll need to set up an authenticator app (like Google Authenticator) and scan the QR code.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = ThemeColorUtils.lightGray(Color(0xFF666666))
-                )
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                Text(
-                    text = "Enter the verification code from your authenticator app:",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
-                    fontWeight = FontWeight.Medium
-                )
+                if (secretKey != null) {
+                    Text(
+                        text = "1. Add this secret key to your authenticator app (Google Authenticator, Authy, etc.):",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Secret key display
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = ThemeColorUtils.beige(Color(0xFFF5F5F5))
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (showSecret) secretKey else "••••••••••••••••",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                                modifier = Modifier.weight(1f)
+                            )
+                            androidx.compose.material3.TextButton(
+                                onClick = { showSecret = !showSecret }
+                            ) {
+                                Text(if (showSecret) "Hide" else "Show")
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "2. Enter the 6-digit verification code from your authenticator app:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                        fontWeight = FontWeight.Medium
+                    )
+                } else {
+                    Text(
+                        text = "To enable two-factor authentication, you'll need to set up an authenticator app (like Google Authenticator) and enter the verification code.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    Text(
+                        text = "Enter the verification code from your authenticator app:",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 

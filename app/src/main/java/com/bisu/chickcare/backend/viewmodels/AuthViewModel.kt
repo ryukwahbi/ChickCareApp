@@ -8,7 +8,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.bisu.chickcare.backend.data.UserProfile
 import com.bisu.chickcare.backend.repository.AccountManager
+import com.bisu.chickcare.backend.repository.NotificationRepository
 import com.bisu.chickcare.backend.service.CloudinaryUploadService
+import com.bisu.chickcare.backend.service.NotificationService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
@@ -25,12 +27,12 @@ class AuthViewModel : ViewModel() {
     val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
     private val storage: FirebaseStorage = FirebaseStorage.getInstance()
-
+    private val notificationRepository = NotificationRepository()
+    private val notificationService = NotificationService(notificationRepository)
     private val _userProfile = MutableStateFlow<UserProfile?>(null)
     val userProfile = _userProfile.asStateFlow()
 
     init {
-        // Automatically fetch the user profile if a user is already logged in
         if (auth.currentUser != null) {
             fetchUserProfile()
         }
@@ -51,20 +53,39 @@ class AuthViewModel : ViewModel() {
                     callback.onResult(false, "Password must be at least 6 characters")
                     return@launch
                 }
-
                 auth.signInWithEmailAndPassword(email, password).await()
-
-                // Save account to AccountManager if context is provided
                 context?.let {
                     val accountManager = AccountManager(it)
                     val userId = auth.currentUser?.uid ?: ""
                     accountManager.updateAccountInfo(userId)
                 }
-
-                // Get and save FCM token after successful login
                 saveFCMToken()
+                val userId = auth.currentUser?.uid ?: ""
+                if (userId.isNotEmpty()) {
+                    try {
+                        val userDoc = firestore.collection("users").document(userId).get().await()
+                        val createdAt = userDoc.getLong("createdAt") ?: 0L
+                        val now = System.currentTimeMillis()
+                        val hoursSinceCreation = (now - createdAt) / (1000 * 60 * 60)
+                        if (hoursSinceCreation < 24) {
+                            val notificationsSnapshot = firestore.collection("users")
+                                .document(userId)
+                                .collection("notifications")
+                                .limit(1)
+                                .get()
+                                .await()
+                            if (notificationsSnapshot.isEmpty) {
+                                val userName = userDoc.getString("fullName") ?: "there"
+                                notificationService.sendWelcomeNotification(userId, userName)
+                                Log.d("AuthViewModel", "Welcome notification sent on first login: $userId")
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.w("AuthViewModel", "Failed to check/send welcome notification: ${e.message}")
+                    }
+                }
 
-                fetchUserProfile() // Fetch profile after successful login
+                fetchUserProfile()
                 callback.onResult(true, "Login successful")
             } catch (_: FirebaseAuthInvalidCredentialsException) {
                 callback.onResult(false, "Invalid email or password")
@@ -101,10 +122,8 @@ class AuthViewModel : ViewModel() {
                     )
                     return@launch
                 }
-
                 val result = auth.createUserWithEmailAndPassword(email, password).await()
                 val userId = result.user?.uid ?: ""
-
                 val userData = hashMapOf(
                     "fullName" to fullName,
                     "email" to email,
@@ -115,7 +134,15 @@ class AuthViewModel : ViewModel() {
                     "photoUrl" to null // Initialize photoUrl as null
                 )
                 firestore.collection("users").document(userId).set(userData).await()
-                fetchUserProfile() // Fetch profile after signup
+                
+                try {
+                    notificationService.sendWelcomeNotification(userId, fullName)
+                    Log.d("AuthViewModel", "Welcome notification sent to new user: $userId")
+                } catch (e: Exception) {
+                    Log.w("AuthViewModel", "Failed to send welcome notification: ${e.message}")
+                }
+                
+                fetchUserProfile()
                 callback.onResult(true, "Signup successful! Please check your email for verification.")
             } catch (_: FirebaseAuthUserCollisionException) {
                 callback.onResult(false, "Email already in use")
@@ -158,16 +185,12 @@ class AuthViewModel : ViewModel() {
         
         viewModelScope.launch {
             try {
-                // Re-authenticate user with old password
                 val credential = com.google.firebase.auth.EmailAuthProvider.getCredential(
                     currentUser.email ?: "",
                     oldPassword
                 )
                 currentUser.reauthenticate(credential).await()
-                
-                // Update password
                 currentUser.updatePassword(newPassword).await()
-                
                 callback(true, "Password changed successfully")
             } catch (_: FirebaseAuthInvalidCredentialsException) {
                 callback(false, "Current password is incorrect")
@@ -184,11 +207,9 @@ class AuthViewModel : ViewModel() {
         if (currentUser != null) {
             firestore.collection("users").document(currentUser.uid)
                 .addSnapshotListener { snapshot, _ ->
-                    // Automatically map the Firestore document to our UserProfile data class
                     _userProfile.value = snapshot?.toObject(UserProfile::class.java)
                 }
         } else {
-            // If there's no user, the profile state is null
             _userProfile.value = null
         }
     }
@@ -221,10 +242,7 @@ class AuthViewModel : ViewModel() {
                     callback(false, "Context not available for image upload")
                     return@launch
                 }
-                
-                // Upload to Cloudinary
                 val imageUrl = uploadService.uploadImage(uri)
-                
                 if (imageUrl == null) {
                     callback(false, "Failed to upload image to Cloudinary. Please check your credentials.")
                     return@launch
@@ -256,13 +274,11 @@ class AuthViewModel : ViewModel() {
             try {
                 Log.d("AuthViewModel", "Starting cover photo upload for user: $userId")
                 
-                // Use Cloudinary (FREE) instead of Firebase Storage
                 val uploadService = context?.let { CloudinaryUploadService(it) } ?: run {
                     callback(false, "Context not available for image upload")
                     return@launch
                 }
                 
-                // Upload to Cloudinary
                 val imageUrl = uploadService.uploadImage(uri)
                 
                 if (imageUrl == null) {
@@ -272,7 +288,6 @@ class AuthViewModel : ViewModel() {
                 
                 Log.d("AuthViewModel", "Cover photo upload completed. URL: $imageUrl")
                 
-                // Update the 'coverPhotoUrl' field in the user's Firestore document
                 firestore.collection("users").document(userId).update("coverPhotoUrl", imageUrl).await()
                 Log.d("AuthViewModel", "Cover photo URL updated in Firestore")
                 
@@ -296,13 +311,10 @@ class AuthViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Try to delete from storage; ignore failures if file doesn't exist
                 try {
                     storageRef.delete().await()
                 } catch (_: Exception) {
-                    // proceed even if not present
                 }
-                // Set coverPhotoUrl to null in Firestore
                 firestore.collection("users").document(userId).update("coverPhotoUrl", null).await()
                 callback(true, "Cover photo removed.")
             } catch (e: Exception) {
@@ -346,6 +358,12 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 firestore.collection("users").document(userId).update(fieldName, value).await()
+                // Send notification about profile update
+                try {
+                    notificationService.sendProfileUpdateNotification(userId, fieldName)
+                } catch (e: Exception) {
+                    Log.w("AuthViewModel", "Failed to send profile update notification: ${e.message}")
+                }
                 callback(true, "Profile updated successfully.")
             } catch (e: Exception) {
                 callback(false, "Failed to update profile: ${e.message}")
@@ -371,11 +389,9 @@ class AuthViewModel : ViewModel() {
                     emptyMap()
                 }
                 
-                // Update the specific field's privacy
                 val updatedPrivacy = currentPrivacy.toMutableMap()
                 updatedPrivacy[fieldName] = privacy
                 
-                // Update Firestore with the new privacy map
                 firestore.collection("users").document(userId).update("fieldPrivacy", updatedPrivacy).await()
                 callback(true, "Privacy setting updated successfully.")
             } catch (e: Exception) {
@@ -404,7 +420,6 @@ class AuthViewModel : ViewModel() {
                 val token = task.result
                 Log.d("AuthViewModel", "FCM token obtained: $token")
                 
-                // Save token to Firestore
                 firestore.collection("users")
                     .document(userId)
                     .update("fcmToken", token)
@@ -417,6 +432,154 @@ class AuthViewModel : ViewModel() {
                     }
             } else {
                 Log.e("AuthViewModel", "Failed to get FCM token", task.exception)
+            }
+        }
+    }
+    
+    private var storedVerificationCode: String? = null
+    
+    fun sendAccountDeletionVerificationCode(callback: AuthCallback) {
+        val user = auth.currentUser ?: run {
+            callback.onResult(false, "User not logged in.")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val code = (100000..999999).random().toString()
+                storedVerificationCode = code
+
+                val userId = user.uid
+                firestore.collection("users").document(userId)
+                    .update("deletionVerificationCode", code)
+                    .await()
+                
+                user.sendEmailVerification().await()
+
+                Log.d("AuthViewModel", "Verification code sent: $code")
+                
+                callback.onResult(true, "Verification code sent to your email.")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to send verification code: ${e.message}", e)
+                callback.onResult(false, "Failed to send verification code: ${e.message}")
+            }
+        }
+    }
+    
+    fun deleteAccount(verificationCode: String, callback: AuthCallback) {
+        val user = auth.currentUser ?: run {
+            callback.onResult(false, "User not logged in.")
+            return
+        }
+        
+        val userId = user.uid
+        
+        viewModelScope.launch {
+            try {
+                // Verify the code
+                val storedCode = storedVerificationCode
+                val userDoc = firestore.collection("users").document(userId).get().await()
+                val firestoreCode = userDoc.getString("deletionVerificationCode")
+                
+                if (verificationCode != storedCode && verificationCode != firestoreCode) {
+                    callback.onResult(false, "Invalid verification code.")
+                    return@launch
+                }
+                
+                val batch = firestore.batch()
+                
+                val detectionsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("detections")
+                    .get()
+                    .await()
+                detectionsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val postsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("timelinePosts")
+                    .get()
+                    .await()
+                postsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val savedPostsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("savedPosts")
+                    .get()
+                    .await()
+                savedPostsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val notificationsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("notifications")
+                    .get()
+                    .await()
+                notificationsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val friendsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("friends")
+                    .get()
+                    .await()
+                friendsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val friendRequestsSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("friendRequests")
+                    .get()
+                    .await()
+                friendRequestsSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                val blockedSnapshot = firestore.collection("users")
+                    .document(userId)
+                    .collection("blocked")
+                    .get()
+                    .await()
+                blockedSnapshot.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+                
+                batch.delete(firestore.collection("users").document(userId))
+                
+                batch.commit().await()
+                
+                try {
+                    val profilePhotoRef = storage.reference.child("users/$userId/profile.jpg")
+                    profilePhotoRef.delete().await()
+                } catch (e: Exception) {
+                    Log.w("AuthViewModel", "Failed to delete profile photo: ${e.message}")
+                }
+                
+                try {
+                    val coverPhotoRef = storage.reference.child("users/$userId/cover.jpg")
+                    coverPhotoRef.delete().await()
+                } catch (e: Exception) {
+                    Log.w("AuthViewModel", "Failed to delete cover photo: ${e.message}")
+                }
+                
+                user.delete().await()
+                
+                _userProfile.value = null
+                storedVerificationCode = null
+                
+                auth.signOut()
+                
+                callback.onResult(true, "Account deleted successfully.")
+            } catch (e: Exception) {
+                Log.e("AuthViewModel", "Failed to delete account: ${e.message}", e)
+                callback.onResult(false, "Failed to delete account: ${e.message}")
             }
         }
     }

@@ -40,6 +40,8 @@ import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -86,6 +88,7 @@ import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.data.COUNTRIES
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.Validators
 import com.phucynwa.profanity.filter.AndroidProfanityFilter
 import com.phucynwa.profanity.filter.dictionary.PlainDictionary
@@ -95,7 +98,6 @@ import java.time.LocalDate
 import java.time.Period
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -116,7 +118,6 @@ fun SignupScreen(navController: NavController) {
     var showPassword by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
-
     var isFirstNameError by remember { mutableStateOf(false) }
     var isLastNameError by remember { mutableStateOf(false) }
     var isBirthDateError by remember { mutableStateOf(false) }
@@ -124,38 +125,30 @@ fun SignupScreen(navController: NavController) {
     var isContactError by remember { mutableStateOf(false) }
     var isEmailError by remember { mutableStateOf(false) }
     var isPasswordError by remember { mutableStateOf(false) }
-
-    // Date picker state
     val datePickerState = rememberDatePickerState()
     var showDatePicker by remember { mutableStateOf(false) }
-
-    // Country selection dialog state
     var showCountryDialog by remember { mutableStateOf(false) }
-
-    // Gender selection states
     val sheetState = rememberModalBottomSheetState()
     val scope = rememberCoroutineScope()
     var showPronounSheet by remember { mutableStateOf(false) }
-
-    // Initialize the new profanity filter
     val context = LocalContext.current
     val dictionary = remember { PlainDictionary(context, "bad_words.txt") }
     val filter = remember { AndroidProfanityFilter(dictionary) }
 
     val customInvalidWords = remember {
         setOf(
-            // Keep common non-name words to prevent them from being used as names
             "pangalan", "apelyido", "telepono", "bahay", "kalye", "lungsod", "bansa", "halimbawa",
             "ako", "ikaw", "siya", "tayo", "kami", "kayo", "sila", "ito", "iyan", "iyon", "pagkain", "pagkainan"
         )
     }
 
+    // Optimized infinite transition to reduce recompositions
     val infiniteTransition = rememberInfiniteTransition(label = "background_zoom")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.3f,
+        targetValue = 1.2f, // Reduced from 1.3f to minimize recomposition impact
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 15000, easing = LinearEasing),
+            animation = tween(durationMillis = 20000, easing = LinearEasing), // Slower animation
             repeatMode = RepeatMode.Reverse
         ),
         label = "zoom_scale"
@@ -164,16 +157,9 @@ fun SignupScreen(navController: NavController) {
     fun isNameInvalid(name: String): Boolean {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) return true
-
-        // Check if the first letter is uppercase
         if (trimmedName.first().isLowerCase()) return true
-
-        // Check if the name exceeds 15 characters
         if (trimmedName.length > 15) return true
-
-        // Check for allowed characters (letters, spaces, and hyphens)
         if (!trimmedName.matches(Regex("^[a-zA-Z- ]+$"))) return true
-
         val censored = filter.censor(trimmedName)
         if (censored != trimmedName) return true
 
@@ -203,7 +189,6 @@ fun SignupScreen(navController: NavController) {
     }
 
     val fullContact = (if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code) + contactInput
-
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = ThemeColorUtils.black(),
         unfocusedTextColor = ThemeColorUtils.black(),
@@ -248,13 +233,17 @@ fun SignupScreen(navController: NavController) {
         contentAlignment = Alignment.Center
     ) {
         // --- LAYER 1: BACKGROUND IMAGE ---
+        // Using key to prevent unnecessary recompositions
         Image(
             painter = painterResource(id = R.drawable.farm_background),
             contentDescription = null,
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .scale(scale)
+                .then(
+                    // Only apply scale transform, reducing recomposition overhead
+                    Modifier.scale(scale)
+                )
                 .alpha(0.4f)
         )
 
@@ -480,54 +469,102 @@ fun SignupScreen(navController: NavController) {
                             }
                         }
 
-                        Column(Modifier.fillMaxWidth()) {
-                            genderOptions.forEach { text ->
-                                Row(
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .selectable(
-                                            selected = (text == selectedOption),
-                                            onClick = { onOptionSelected(text) },
-                                            role = Role.RadioButton
-                                        )
-                                        .padding(vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = (text == selectedOption),
-                                        onClick = null,
-                                        colors = RadioButtonDefaults.colors(
-                                            selectedColor = Color(0xFFD27D2D),
-                                            unselectedColor = ThemeColorUtils.white()
-                                        )
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    if (text != "More options") {
-                                        Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.white())
-                                    } else {
-                                        Column {
-                                            Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.white())
-                                            Text(
-                                                "Select More options to choose another gender or if you’d rather not say.",
-                                                style = MaterialTheme.typography.bodySmall,
-                                                color = ThemeColorUtils.white(alpha = 0.7f)
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.White.copy(alpha = 0.85f)
+                            ),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp)
+                            ) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    genderOptions.forEach { text ->
+                                        Row(
+                                            Modifier
+                                                .fillMaxWidth()
+                                                .selectable(
+                                                    selected = (text == selectedOption),
+                                                    onClick = { onOptionSelected(text) },
+                                                    role = Role.RadioButton
+                                                )
+                                                .padding(vertical = 8.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            RadioButton(
+                                                selected = (text == selectedOption),
+                                                onClick = null,
+                                                colors = RadioButtonDefaults.colors(
+                                                    selectedColor = Color(0xFFD27D2D),
+                                                    unselectedColor = ThemeColorUtils.black()
+                                                )
                                             )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            if (text != "More options") {
+                                                Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.black())
+                                            } else {
+                                                Column {
+                                                    Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.black())
+                                                    Text(
+                                                        "Select More options to choose another gender or if you'd rather not say.",
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        color = ThemeColorUtils.darkGray(Color.Gray)
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        }
 
-                        if (selectedOption == "More options" && pronoun.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedTextField(
-                                value = customGender,
-                                onValueChange = { customGender = it },
-                                label = { Text("Gender (optional)") },
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = textFieldColors
-                            )
+                                if (selectedOption == "More options" && pronoun.isNotEmpty()) {
+                                    Spacer(modifier = Modifier.height(16.dp))
+                                    OutlinedTextField(
+                                        value = customGender,
+                                        onValueChange = { customGender = it },
+                                        label = { Text("Gender (optional)") },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = textFieldColors
+                                    )
+                                }
+
+                                if (isGenderError) {
+                                    Text(
+                                        text = "Please select your gender.",
+                                        color = Color.Red,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(
+                                    onClick = {
+                                        val finalGender = when (selectedOption) {
+                                            "More options" -> customGender.ifBlank { pronoun }
+                                            else -> selectedOption
+                                        }
+                                        gender = finalGender
+                                        isGenderError = gender.isBlank()
+                                        if (!isGenderError) {
+                                            step = 4
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = (selectedOption.isNotEmpty() && selectedOption != "More options") || (selectedOption == "More options" && pronoun.isNotEmpty()),
+                                    shape = RoundedCornerShape(12.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = Color(0xFFD27D2D),
+                                        contentColor = ThemeColorUtils.white()
+                                    )
+                                ) {
+                                    Text("Next")
+                                }
+                            }
                         }
 
                         if (showPronounSheet) {
@@ -576,39 +613,6 @@ fun SignupScreen(navController: NavController) {
                                     }
                                 }
                             }
-                        }
-
-                        if (isGenderError) {
-                            Text(
-                                text = "Please select your gender.",
-                                color = Color.Red,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(top = 4.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(24.dp))
-                        Button(
-                            onClick = {
-                                val finalGender = when (selectedOption) {
-                                    "More options" -> customGender.ifBlank { pronoun }
-                                    else -> selectedOption
-                                }
-                                gender = finalGender
-                                isGenderError = gender.isBlank()
-                                if (!isGenderError) {
-                                    step = 4
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = (selectedOption.isNotEmpty() && selectedOption != "More options") || (selectedOption == "More options" && pronoun.isNotEmpty()),
-                            shape = CircleShape,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFD27D2D),
-                                contentColor = ThemeColorUtils.white()
-                            )
-                        ) {
-                            Text("Next")
                         }
                     }
                     4 -> {

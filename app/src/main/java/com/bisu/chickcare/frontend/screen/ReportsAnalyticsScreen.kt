@@ -55,6 +55,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -70,8 +71,11 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.repository.ReportCategory
 import com.bisu.chickcare.backend.repository.ReportEntry
+import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.backend.viewmodels.ReportsViewModel
+import com.bisu.chickcare.frontend.utils.ExportUtils
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -80,12 +84,16 @@ import java.util.Locale
 @Composable
 fun ReportsAnalyticsScreen(navController: NavController) {
     val viewModel: ReportsViewModel = viewModel()
+    val dashboardViewModel: DashboardViewModel = viewModel()
     val reports by viewModel.reports.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
     val context = LocalContext.current
-
+    val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var editingReport by remember { mutableStateOf<ReportEntry?>(null) }
+    var showExportMenu by remember { mutableStateOf(false) }
+    var isExporting by remember { mutableStateOf(false) }
 
     val totalReports = reports.size
     val availableReports = reports.count { it.lastGenerated > 0L }
@@ -114,6 +122,15 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
+                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showExportMenu = true }) {
+                        Icon(
+                            Icons.Default.Download,
+                            contentDescription = "Export",
                             tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
                         )
                     }
@@ -242,6 +259,148 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         editingReport = null
                     }
                 )
+            }
+
+            // Export menu dropdown
+            if (showExportMenu) {
+                ExportMenuDialog(
+                    onDismiss = { showExportMenu = false },
+                    onExportCSV = {
+                        showExportMenu = false
+                        isExporting = true
+                        scope.launch {
+                            ExportUtils.exportDetectionHistoryAsCSV(
+                                context = context,
+                                detections = detectionHistory,
+                                onSuccess = { uri ->
+                                    isExporting = false
+                                    ExportUtils.shareFile(
+                                        context = context,
+                                        uri = uri,
+                                        mimeType = "text/csv",
+                                        fileName = "chickcare_detections.csv"
+                                    )
+                                    Toast.makeText(context, "CSV exported successfully", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    isExporting = false
+                                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    },
+                    onExportPDF = {
+                        showExportMenu = false
+                        isExporting = true
+                        scope.launch {
+                            ExportUtils.exportDetectionHistoryAsPDF(
+                                context = context,
+                                detections = detectionHistory,
+                                onSuccess = { uri ->
+                                    isExporting = false
+                                    ExportUtils.shareFile(
+                                        context = context,
+                                        uri = uri,
+                                        mimeType = "application/pdf",
+                                        fileName = "chickcare_detections.pdf"
+                                    )
+                                    Toast.makeText(context, "PDF exported successfully", Toast.LENGTH_SHORT).show()
+                                },
+                                onError = { error ->
+                                    isExporting = false
+                                    Toast.makeText(context, error, Toast.LENGTH_SHORT).show()
+                                }
+                            )
+                        }
+                    }
+                )
+            }
+
+            if (isExporting) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
+                        modifier = Modifier.padding(16.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            CircularProgressIndicator(color = Color(0xFF8F8C8A))
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text("Exporting...", style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ExportMenuDialog(
+    onDismiss: () -> Unit,
+    onExportCSV: () -> Unit,
+    onExportPDF: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Export Detection History",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+                
+                Button(
+                    onClick = onExportCSV,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Export as CSV")
+                }
+                
+                Button(
+                    onClick = onExportPDF,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF44336))
+                ) {
+                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("Export as PDF")
+                }
+                
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ThemeColorUtils.lightGray(Color.Gray)
+                    )
+                ) {
+                    Text("Cancel")
+                }
             }
         }
     }
@@ -439,7 +598,7 @@ private fun ReportInputDialog(
         ) {
             Card(
                 modifier = Modifier
-                    .width(485.dp)
+                    .width(370.dp)
                     .heightIn(max = 580.dp),
                 shape = RoundedCornerShape(10.dp),
                 colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))

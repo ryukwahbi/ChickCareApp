@@ -16,6 +16,7 @@
       <w>camarines</w>
       <w>chickcare</w>
       <w>cnnmlp</w>
+      <w>coeff</w>
       <w>coord</w>
       <w>dansk</w>
       <w>dinagat</w>
@@ -25,11 +26,15 @@
       <w>farmlocation</w>
       <w>farmtype</w>
       <w>fira</w>
+      <w>freqs</w>
       <w>gaeilge</w>
       <w>gago</w>
+      <w>goertzel</w>
       <w>halimbawa</w>
       <w>hann</w>
       <w>hayop</w>
+      <w>hmac</w>
+      <w>hmmss</w>
       <w>hrvatski</w>
       <w>ikaw</w>
       <w>ikinyarwanda</w>
@@ -49,6 +54,7 @@
       <w>malti</w>
       <w>maxaccounts</w>
       <w>mels</w>
+      <w>mutuals</w>
       <w>nueva</w>
       <w>numberofbirds</w>
       <w>numberofchickens</w>
@@ -69,6 +75,7 @@
       <w>sint</w>
       <w>slovenčina</w>
       <w>slovenščina</w>
+      <w>snackbar</w>
       <w>soomaali</w>
       <w>surigao</w>
       <w>svenska</w>

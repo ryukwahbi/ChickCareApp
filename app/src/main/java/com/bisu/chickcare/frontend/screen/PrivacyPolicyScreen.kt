@@ -41,7 +41,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                         "Privacy Policy",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = ThemeColorUtils.black()
                     ) 
                 },
                 navigationIcon = {
@@ -49,13 +49,13 @@ fun PrivacyPolicyScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = ThemeColorUtils.black()
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
@@ -66,7 +66,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             HorizontalDivider(
-                color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
+                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
                 thickness = 1.dp
             )
             LazyColumn(
@@ -83,18 +83,18 @@ fun PrivacyPolicyScreen(navController: NavController) {
                             text = "Privacy Policy",
                             style = MaterialTheme.typography.headlineSmall,
                             fontWeight = FontWeight.Bold,
-                            color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            color = ThemeColorUtils.black()
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Last Updated: November 2025",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.lightGray(Color(0xFF666666))
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666))
                         )
                     }
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -103,7 +103,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                     )
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -117,7 +117,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                     )
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -132,7 +132,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                     )
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -141,7 +141,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                     )
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -157,7 +157,7 @@ fun PrivacyPolicyScreen(navController: NavController) {
                     )
                 }
                 item {
-                    HorizontalDivider(color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)), thickness = 1.dp)
+                    HorizontalDivider(color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)), thickness = 1.dp)
                 }
                 item {
                     SectionBlock(
@@ -185,12 +185,12 @@ private fun SectionBlock(
             text = title,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold,
-            color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+            color = ThemeColorUtils.black()
         )
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,
-            color = Color(0xFF4A4949),
+            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
             lineHeight = 22.sp
         )
     }

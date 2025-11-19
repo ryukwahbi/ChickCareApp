@@ -82,7 +82,7 @@ fun SavedPostsScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ThemeColorUtils.beige(Color(0xFFFFF7E6)),
+                    containerColor = Color(0xFFFFFFFF),
                     titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
             )
@@ -92,7 +92,7 @@ fun SavedPostsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
+                .background(Color(0xFFFFF0DB))
         ) {
             if (savedPosts.isEmpty()) {
                 Box(

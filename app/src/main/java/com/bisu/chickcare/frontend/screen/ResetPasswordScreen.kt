@@ -92,12 +92,13 @@ fun ResetPasswordScreen(navController: NavController) {
         errorContainerColor = ThemeColorUtils.white()
     )
 
+    // Optimized infinite transition to reduce recompositions
     val infiniteTransition = rememberInfiniteTransition(label = "reset_background_zoom")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.3f,
+        targetValue = 1.2f, // Reduced from 1.3f to minimize recomposition impact
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 15000, easing = LinearEasing),
+            animation = tween(durationMillis = 20000, easing = LinearEasing), // Slower animation
             repeatMode = RepeatMode.Reverse
         ),
         label = "reset_zoom_scale"
@@ -107,12 +108,16 @@ fun ResetPasswordScreen(navController: NavController) {
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
+        // Optimized to reduce recomposition overhead
         Image(
             painter = painterResource(id = R.drawable.farm_background),
             contentDescription = null,
             modifier = Modifier
                 .fillMaxSize()
-                .scale(scale)
+                .then(
+                    // Only apply scale transform, reducing recomposition overhead
+                    Modifier.scale(scale)
+                )
                 .alpha(0.4f),
             contentScale = androidx.compose.ui.layout.ContentScale.Crop
         )

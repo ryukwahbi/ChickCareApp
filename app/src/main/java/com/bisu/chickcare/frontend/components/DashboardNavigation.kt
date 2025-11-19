@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
@@ -367,6 +368,42 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                     Spacer(modifier = Modifier.height(8.dp))
                 }
                 
+                item {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.Default.Person, contentDescription = null) },
+                        label = { Text("Friends") },
+                        selected = false,
+                        onClick = {
+                            navController.navigate("friends") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            }
+                            scope.launch { drawerState.close() }
+                        },
+                        shape = itemShape,
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
+                        )
+                    )
+                }
+
+                item {
+                    NavigationDrawerItem(
+                        icon = { Icon(Icons.AutoMirrored.Filled.Message, contentDescription = null) },
+                        label = { Text("Messages") },
+                        selected = false,
+                        onClick = {
+                            navController.navigate("messages") {
+                                popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            }
+                            scope.launch { drawerState.close() }
+                        },
+                        shape = itemShape,
+                        colors = NavigationDrawerItemDefaults.colors(
+                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
+                        )
+                    )
+                }
+
                 item {
                     NavigationDrawerItem(
                         icon = { Icon(Icons.Default.Favorite, contentDescription = null) },
