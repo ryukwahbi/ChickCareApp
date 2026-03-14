@@ -40,6 +40,7 @@ import kotlinx.coroutines.delay
 /**
  * Processing screen shown while fusion model analyzes both inputs
  */
+ 
 @Composable
 fun ProcessingScreen(
     navController: NavController,
@@ -94,7 +95,6 @@ fun ProcessingScreen(
 
     // Trigger detection when screen loads
     LaunchedEffect(imageReady, audioReady, processedImageUri, processedAudioUri) {
-        // At minimum, we need audio. Image can be optional (though fusion model works best with both)
         if (!detectionTriggered && imageReady && audioReady && !processedAudioUri.isNullOrEmpty()) {
             Log.d(
                 "ProcessingScreen",
@@ -119,7 +119,6 @@ fun ProcessingScreen(
     }
 
     // Timeout after 150 seconds (increased to give model more time)
-    // Only trigger timeout if detection is NOT in progress AND no result exists
     LaunchedEffect(detectionTriggered) {
         if (detectionTriggered && !timeoutReached) {
             delay(150000) // 150 seconds timeout (increased from 90)
@@ -294,10 +293,10 @@ fun ProcessingScreen(
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             Text(
-                text = "Please wait...",
+                text = "Please wait",
                 fontSize = 14.sp,
                 color = if (ThemeViewModel.isDarkMode) Color.White else ThemeColorUtils.black(),
                 textAlign = TextAlign.Center

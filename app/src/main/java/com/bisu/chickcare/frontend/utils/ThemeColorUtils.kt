@@ -89,5 +89,8 @@ object ThemeColorUtils {
 
     fun surface(lightColor: Color, darkColor: Color = DarkSurface): Color =
         inverted(lightColor, darkColor)
+
+    fun primary(): Color =
+        if (ThemeViewModel.isDarkMode) Color(0xFFFFDAB9) else Color(0xFF8B4513)
 }
 

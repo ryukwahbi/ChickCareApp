@@ -9,12 +9,19 @@ class NotificationService(private val notificationRepository: NotificationReposi
     /**
      * Send detection result notification to user
      */
-    suspend fun sendDetectionNotification(userId: String, result: String) = withContext(Dispatchers.IO) {
+    suspend fun sendDetectionNotification(
+        userId: String, 
+        result: String, 
+        imageUri: String? = null, 
+        audioUri: String? = null
+    ) = withContext(Dispatchers.IO) {
         notificationRepository.addNotification(
             userId = userId,
             type = NotificationType.DETECTION_RESULT,
             title = "Detection Complete",
-            message = "Your chicken health detection result: $result"
+            message = "Your chicken health detection result: $result",
+            imageUri = imageUri,
+            audioUri = audioUri
         )
     }
     
@@ -94,7 +101,7 @@ class NotificationService(private val notificationRepository: NotificationReposi
             userId = userId,
             type = NotificationType.ANNOUNCEMENT,
             title = "Welcome to ChickCare, $userName! 🐔",
-            message = "Thank you for joining ChickCare! Start monitoring your chickens' health by using our AI-powered detection feature. Tap 'Scan Now' on the dashboard to get started. We're here to help you keep your flock healthy!"
+            message = "Welcome aboard! 🐔 We're glad you're here. Start monitoring your chickens health with our smart detection system."
         )
     }
 }

@@ -1,7 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +56,7 @@ fun RecentActivityScreen(navController: NavController) {
                         "Recent Activity",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -72,13 +72,13 @@ fun RecentActivityScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -87,7 +87,7 @@ fun RecentActivityScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -125,8 +125,7 @@ fun RecentActivityScreen(navController: NavController) {
                         val entry = recentActivity[index]
                         RecentActivityItem(
                             entry = entry,
-                            index = index + 1,
-                            navController = navController
+                            index = index + 1
                         )
                     }
                 }
@@ -138,32 +137,13 @@ fun RecentActivityScreen(navController: NavController) {
 @Composable
 fun RecentActivityItem(
     entry: com.bisu.chickcare.backend.repository.DetectionEntry,
-    index: Int,
-    navController: NavController
+    index: Int
 ) {
     androidx.compose.material3.Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clickable {
-                val entryId = entry.id
-                val timestamp = entry.timestamp
-                val location = entry.location?.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) } ?: ""
-                val imageUri = entry.imageUri?.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) } ?: ""
-                val result = entry.result.let { java.net.URLEncoder.encode(it, java.nio.charset.StandardCharsets.UTF_8.toString()) }
-                val isHealthy = entry.isHealthy
-                val confidence = entry.confidence
+            .padding(horizontal = 16.dp),
 
-                navController.navigate(
-                    "last_detection_detail?entryId=$entryId" +
-                            "&timestamp=$timestamp" +
-                            "&location=$location" +
-                            "&imageUri=$imageUri" +
-                            "&result=$result" +
-                            "&isHealthy=$isHealthy" +
-                            "&confidence=$confidence"
-                )
-            },
         colors = androidx.compose.material3.CardDefaults.cardColors(
             containerColor = ThemeColorUtils.white()
         ),
@@ -184,7 +164,7 @@ fun RecentActivityItem(
                     text = "#$index",
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Bold,
-                    color = ThemeColorUtils.lightGray(Color.Gray)
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color.Gray
                 )
                 Text(
                     text = if (entry.isHealthy) "Healthy" else "Infected",
@@ -197,12 +177,12 @@ fun RecentActivityItem(
             Text(
                 text = "Confidence: ${(entry.confidence * 100).toInt()}%",
                 style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color.Gray
             )
             Text(
                 text = java.text.SimpleDateFormat("MMM dd, yyyy HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.timestamp)),
                 style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF888888) else Color.Gray
             )
         }
     }

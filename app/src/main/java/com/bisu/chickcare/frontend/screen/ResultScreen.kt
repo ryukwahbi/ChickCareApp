@@ -1,9 +1,13 @@
 package com.bisu.chickcare.frontend.screen
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.MediaPlayer
 import android.net.Uri
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
@@ -17,6 +21,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,15 +29,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Contacts
 import androidx.compose.material.icons.filled.Healing
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,9 +50,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,12 +70,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
+import com.bisu.chickcare.frontend.components.AddVetDialog
+import com.bisu.chickcare.frontend.components.PlayAudioButton
+import com.bisu.chickcare.frontend.components.SyncStatusBadge
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import com.bisu.chickcare.frontend.utils.sanitizeUriString
@@ -82,14 +95,15 @@ fun ResultScreen(
 ) {
     val context = LocalContext.current
     val viewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    val syncStatus by viewModel.syncStatus.collectAsState()
     var isPlaying by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
     // Create a MediaPlayer that is managed by the composable's lifecycle
     val mediaPlayer = remember { MediaPlayer() }
     val sanitizedImageUriString = remember(imageUri) { sanitizeUriString(imageUri, "ResultScreen") }
     val sanitizedImageUri = remember(imageUri) { sanitizeToUri(imageUri, "ResultScreen") }
     val sanitizedAudioUriString = remember(audioUri) { sanitizeUriString(audioUri, "ResultScreen") }
     val sanitizedAudioUri = remember(audioUri) { sanitizeToUri(audioUri, "ResultScreen") }
+    var showAddVetDialog by remember { mutableStateOf(false) }
     
     // Grant URI permissions immediately when screen loads (before displaying images)
     LaunchedEffect(sanitizedImageUriString, sanitizedAudioUriString) {
@@ -270,6 +284,79 @@ fun ResultScreen(
         else -> Color(0xFFF44336) // Red for infected
     }
 
+    // Define audio playback handler
+    val onPlayClick: () -> Unit = {
+        try {
+            if (isPlaying) {
+                mediaPlayer.stop()
+                mediaPlayer.reset()
+                isPlaying = false
+                Log.d("ResultScreen", "Audio playback stopped")
+            } else {
+                if (sanitizedAudioUriString != null) {
+                    try {
+                        mediaPlayer.reset()
+                        mediaPlayer.setOnErrorListener { _, what, extra ->
+                            Log.e("ResultScreen", "MediaPlayer error: what=$what, extra=$extra")
+                            isPlaying = false
+                            false
+                        }
+
+                        // Use the sanitized URI
+                        if (sanitizedAudioUri != null) {
+                             when (sanitizedAudioUri.scheme) {
+                                "content" -> {
+                                    try {
+                                        mediaPlayer.setDataSource(context, sanitizedAudioUri)
+                                    } catch (e: SecurityException) {
+                                        Log.e("ResultScreen", "Security exception: ${e.message}")
+                                        throw e
+                                    }
+                                }
+                                "file" -> {
+                                    mediaPlayer.setDataSource(sanitizedAudioUri.path ?: "")
+                                }
+                                else -> {
+                                    mediaPlayer.setDataSource(context, sanitizedAudioUri)
+                                }
+                            }
+                        } else {
+                             throw Exception("Audio URI is null")
+                        }
+
+                        mediaPlayer.prepareAsync()
+                        mediaPlayer.setOnPreparedListener {
+                            Log.d("ResultScreen", "MediaPlayer prepared, starting playback")
+                            it.start()
+                            isPlaying = true
+                        }
+                        mediaPlayer.setOnCompletionListener {
+                            Log.d("ResultScreen", "Audio playback completed")
+                            isPlaying = false
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ResultScreen", "Error playing audio: ${e.message}", e)
+                        android.widget.Toast.makeText(context, "Error playing audio: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                        isPlaying = false
+                    }
+                }
+            }
+        } catch (e: Exception) {
+             Log.e("ResultScreen", "Error in play click: ${e.message}", e)
+             isPlaying = false
+        }
+    }
+
+    if (showAddVetDialog) {
+        AddVetDialog(
+            onDismiss = { showAddVetDialog = false },
+            onContactSaved = { 
+                showAddVetDialog = false
+                android.widget.Toast.makeText(context, "Veterinarian saved to contacts!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -302,12 +389,18 @@ fun ResultScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .then(if (isInvalidDetection) Modifier.offset(y = (-40).dp) else Modifier),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = if (isInvalidDetection) {
+                    Arrangement.spacedBy(16.dp, Alignment.CenterVertically)
+                } else {
+                    Arrangement.spacedBy(16.dp)
+                }
             ) {
                 // --- Result Display Card ---
                 item {
@@ -327,7 +420,7 @@ fun ResultScreen(
                                 }
                             ),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.white().copy(alpha = 0.9f)
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else Color.White
                         ),
                         elevation = if (ThemeViewModel.isDarkMode) {
                             CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -384,270 +477,123 @@ fun ResultScreen(
                             }
 
                             Spacer(modifier = Modifier.height(16.dp))
+                            HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+                            Spacer(modifier = Modifier.height(16.dp))
                             AnimatedVisibility(visible = true, enter = scaleIn() + fadeIn()) {
                                 if (isInvalidDetection) {
-                                    // Display invalid detection with formatted text
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
+                                    // Display invalid detection with formatted text in a Row
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                                     ) {
-                                        // "Result: INVALID" - Extra bold, red
-                                        Text(
-                                            text = "Result: INVALID",
-                                            style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 20.sp,
-                                                color = Color(0xFFF44336)
-                                            ),
-                                            textAlign = TextAlign.Center
-                                        )
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            // "Result: INVALID" - Extra bold, red
+                                            Text(
+                                                text = "Result: INVALID",
+                                                style = MaterialTheme.typography.headlineMedium.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 20.sp,
+                                                    color = Color(0xFFF44336)
+                                                ),
+                                                textAlign = TextAlign.Start
+                                            )
 
-                                        Spacer(modifier = Modifier.height(8.dp))
+                                            Spacer(modifier = Modifier.height(4.dp))
 
-                                        Text(
-                                            text = "($displayStatus)",
-                                            style = MaterialTheme.typography.bodyMedium.copy(
-                                                fontWeight = FontWeight.Medium,
-                                                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                                fontSize = 17.sp,
-                                                color = ThemeColorUtils.black()
-                                            ),
-                                            textAlign = TextAlign.Center
-                                        )
+                                            Text(
+                                                text = if (displayStatus.equals("No Detection Result", ignoreCase = true)) 
+                                                    "No detection result, make sure it is chicken." 
+                                                else "($displayStatus)",
+                                                style = MaterialTheme.typography.bodyMedium.copy(
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                                    fontSize = 15.sp, // Slightly smaller
+                                                    color = ThemeColorUtils.black()
+                                                ),
+                                                textAlign = TextAlign.Start
+                                            )
+                                        }
+
+                                        // Play Audio Button (Compact, on the right)
+                                        if (!sanitizedAudioUriString.isNullOrEmpty() && sanitizedAudioUri != null) {
+                                            PlayAudioButton(
+                                                isPlaying = isPlaying,
+                                                onPlayClick = onPlayClick
+                                            )
+                                        }
                                     }
                                 } else {
                                     // Display result with proper formatting
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        modifier = Modifier.fillMaxWidth()
+                                    // Display result with proper formatting
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp)
                                     ) {
-                                        val displayResultText = if (confidenceText.isNotEmpty()) {
-                                            "$resultText - $confidenceText%"
-                                        } else {
-                                            resultText
+                                        Column(
+                                            modifier = Modifier.weight(1f),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            Text(
+                                                text = "Result: $resultText",
+                                                style = MaterialTheme.typography.headlineMedium.copy(
+                                                    fontWeight = FontWeight.ExtraBold,
+                                                    fontSize = 24.sp,
+                                                    color = resultColor
+                                                ),
+                                                textAlign = TextAlign.Start
+                                            )
+
+                                            if (confidenceText.isNotEmpty()) {
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                                Text(
+                                                    text = "Confidence: $confidenceText%",
+                                                    style = MaterialTheme.typography.titleLarge.copy(
+                                                        fontWeight = FontWeight.Normal,
+                                                        fontSize = 18.sp,
+                                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
+                                                    ),
+                                                    textAlign = TextAlign.Start
+                                                )
+                                            }
                                         }
 
-                                        Text(
-                                            text = "Result: $displayResultText",
-                                            style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontWeight = FontWeight.ExtraBold,
-                                                fontSize = 28.sp,
-                                                color = resultColor
-                                            ),
-                                            textAlign = TextAlign.Center
-                                        )
-
-                                        if (confidenceText.isNotEmpty()) {
-                                            Spacer(modifier = Modifier.height(8.dp))
-                                            Text(
-                                                text = "Confidence: $confidenceText%",
-                                                style = MaterialTheme.typography.titleLarge.copy(
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 20.sp,
-                                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black()
-                                                ),
-                                                textAlign = TextAlign.Center
+                                        // Play Audio Button inside the row
+                                        if (!sanitizedAudioUriString.isNullOrEmpty() && sanitizedAudioUri != null) {
+                                            PlayAudioButton(
+                                                isPlaying = isPlaying,
+                                                onPlayClick = onPlayClick
                                             )
                                         }
                                     }
                                 }
                             }
-                            // --- Play Audio Button (only shows if audioUri exists) ---
-                            if (!sanitizedAudioUriString.isNullOrEmpty() && sanitizedAudioUri != null) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {
-                                        if (isPlaying) {
-                                            try {
-                                                mediaPlayer.stop()
-                                                mediaPlayer.reset()
-                                                isPlaying = false
-                                            } catch (e: Exception) {
-                                                Log.e(
-                                                    "ResultScreen",
-                                                    "Error stopping audio: ${e.message}",
-                                                    e
-                                                )
-                                                isPlaying = false
-                                            }
-                                        } else {
-                                            try {
-                                                val decodedAudioUri = sanitizedAudioUri
-                                                Log.d(
-                                                    "ResultScreen",
-                                                    "Attempting to play audio: $decodedAudioUri"
-                                                )
-
-                                                // Grant URI permission for content URIs (e.g., from Google Drive)
-                                                if (decodedAudioUri.scheme == "content") {
-                                                    try {
-                                                        // Try to take persistent URI permission if available
-                                                        context.contentResolver.takePersistableUriPermission(
-                                                            decodedAudioUri,
-                                                            Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                                        )
-                                                    } catch (e: SecurityException) {
-                                                        Log.w(
-                                                            "ResultScreen",
-                                                            "Could not take persistent URI permission (this is OK for temporary URIs): ${e.message}"
-                                                        )
-                                                        // This is expected for temporary URIs - MediaPlayer.setDataSource(context, uri) will handle it
-                                                    } catch (e: Exception) {
-                                                        Log.w(
-                                                            "ResultScreen",
-                                                            "Error taking URI permission: ${e.message}"
-                                                        )
-                                                        // Continue anyway - MediaPlayer might still work
-                                                    }
-                                                }
-
-                                                // Skip file access check for Google Drive URIs - MediaPlayer will handle it
-                                                val isGoogleDriveUri =
-                                                    decodedAudioUri.host?.contains("google.android.apps.docs") == true
-
-                                                // Only verify file accessibility for non-Google Drive URIs
-                                                if (!isGoogleDriveUri) {
-                                                    try {
-                                                        val inputStream =
-                                                            if (decodedAudioUri.scheme == "file") {
-                                                                java.io.FileInputStream(
-                                                                    decodedAudioUri.path
-                                                                )
-                                                            } else {
-                                                                context.contentResolver.openInputStream(
-                                                                    decodedAudioUri
-                                                                )
-                                                            }
-                                                        inputStream?.close()
-                                                    } catch (e: Exception) {
-                                                        Log.e(
-                                                            "ResultScreen",
-                                                            "Cannot access audio file: ${e.message}",
-                                                            e
-                                                        )
-                                                        throw Exception("Cannot access audio file. Please ensure the file is available.")
-                                                    }
-                                                }
-
-                                                mediaPlayer.apply {
-                                                    reset()
-                                                    setOnErrorListener { _, what, extra ->
-                                                        Log.e(
-                                                            "ResultScreen",
-                                                            "MediaPlayer error: what=$what, extra=$extra"
-                                                        )
-                                                        isPlaying = false
-                                                        false
-                                                    }
-
-
-                                                    when (decodedAudioUri.scheme) {
-                                                        "content" -> {
-                                                            try {
-                                                                setDataSource(
-                                                                    context,
-                                                                    decodedAudioUri
-                                                                )
-                                                                Log.d(
-                                                                    "ResultScreen",
-                                                                    "Set MediaPlayer data source using context and URI"
-                                                                )
-                                                            } catch (e: SecurityException) {
-                                                                Log.e(
-                                                                    "ResultScreen",
-                                                                    "Security exception setting data source: ${e.message}",
-                                                                    e
-                                                                )
-                                                                throw Exception("Cannot access audio file. For Google Drive files, please ensure you selected it using the file picker.")
-                                                            } catch (e: Exception) {
-                                                                Log.e(
-                                                                    "ResultScreen",
-                                                                    "Error setting data source: ${e.message}",
-                                                                    e
-                                                                )
-                                                                throw Exception("Cannot access audio file: ${e.message}")
-                                                            }
-                                                        }
-
-                                                        "file" -> {
-                                                            // For file URIs, use path directly
-                                                            setDataSource(
-                                                                decodedAudioUri.path
-                                                                    ?: throw Exception("Invalid file path")
-                                                            )
-                                                        }
-
-                                                        else -> throw Exception("Unsupported URI scheme: ${decodedAudioUri.scheme}")
-                                                    }
-
-                                                    prepareAsync() // Use async prepare
-                                                    setOnPreparedListener {
-                                                        Log.d(
-                                                            "ResultScreen",
-                                                            "MediaPlayer prepared, starting playback"
-                                                        )
-                                                        start()
-                                                    }
-                                                    setOnCompletionListener {
-                                                        Log.d(
-                                                            "ResultScreen",
-                                                            "Audio playback completed"
-                                                        )
-                                                        isPlaying = false
-                                                    }
-                                                }
-                                                isPlaying = true
-                                                Log.d("ResultScreen", "Audio playback started")
-                                            } catch (e: SecurityException) {
-                                                Log.e(
-                                                    "ResultScreen",
-                                                    "Security error accessing audio: ${e.message}",
-                                                    e
-                                                )
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Permission denied: Cannot access audio file. Please select the file again.",
-                                                    android.widget.Toast.LENGTH_LONG
-                                                ).show()
-                                                isPlaying = false
-                                            } catch (e: Exception) {
-                                                Log.e(
-                                                    "ResultScreen",
-                                                    "Error playing audio: ${e.message}",
-                                                    e
-                                                )
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Error playing audio: ${e.message}",
-                                                    android.widget.Toast.LENGTH_LONG
-                                                ).show()
-                                                isPlaying = false
-                                            }
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isPlaying) ThemeColorUtils.darkGray(Color.DarkGray) else Color(
-                                            0xFF7BC0F6
-                                        )
-                                    )
-                                ) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                        contentDescription = if (isPlaying) "Stop Audio" else "Play Audio"
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        if (isPlaying) "Stop Audio" else "Play Audio",
-                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color.Unspecified
-                                    )
-                                }
+                            
+                            // Sync status badge - shows when detection is queued for sync
+                            if (syncStatus.isQueued) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                SyncStatusBadge(
+                                    isQueued = true,
+                                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                                )
                             }
+                            
+                            // --- Play Audio Button (only shows if audioUri exists AND it's NOT an invalid result) ---
+                            // For invalid results, the button is shown in the Row above.
+
                         }
                     }
                 }
 
-                // --- Action Required Card (always shown) ---
-                item {
+
+
+                // --- Action Required Card (only shown for infected/unhealthy results) ---
+                if (!isInvalidDetection && !isHealthy) {
+                    item {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -677,15 +623,38 @@ fun ResultScreen(
                             modifier = Modifier.padding(24.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = "Action Required",
-                                style = MaterialTheme.typography.headlineMedium.copy(
-                                    fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 24.sp,
-                                    color = if (ThemeViewModel.isDarkMode) Color(0xFFE65100) else Color(0xFFE65100)
-                                ),
-                                textAlign = TextAlign.Center
-                            )
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Text(
+                                    text = "Action Required",
+                                    style = MaterialTheme.typography.headlineMedium.copy(
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 24.sp,
+                                        color = if (ThemeViewModel.isDarkMode) Color(0xFFE65100) else Color(0xFFE65100)
+                                    ),
+                                    modifier = Modifier.align(Alignment.CenterStart),
+                                    textAlign = TextAlign.Start
+                                )
+                                
+                                Row(
+                                    modifier = Modifier.align(Alignment.CenterEnd),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    IconButton(onClick = { showAddVetDialog = true }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Add Vet",
+                                            tint = Color.DarkGray
+                                        )
+                                    }
+                                    IconButton(onClick = { navController.navigate("vet_contacts") }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Contacts,
+                                            contentDescription = "Contacts",
+                                            tint = Color.DarkGray
+                                        )
+                                    }
+                                }
+                            }
                             Spacer(modifier = Modifier.height(8.dp))
                             // Formatted text with color variations
                             Row(
@@ -775,10 +744,12 @@ fun ResultScreen(
                             }
                         }
                     }
+                    }
                 }
 
                 // --- Recommended Actions After Detection ---
-                item {
+                if (!isInvalidDetection) {
+                    item {
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -865,11 +836,13 @@ fun ResultScreen(
                                 else -> {
                                     // Default suggestions for infected chickens
                                     listOf(
-                                        "Seek immediate veterinary consultation for proper diagnosis.",
-                                        "Isolate the infected chicken from the flock to prevent spread.",
-                                        "Disinfect the coop and equipment thoroughly.",
-                                        "Monitor other chickens closely for similar symptoms.",
-                                        "Follow veterinarian's prescribed treatment plan strictly."
+                                        "⚠️ CRITICAL: Consult a licensed veterinarian IMMEDIATELY for proper diagnosis and treatment.",
+                                        "⚠️ DO NOT self-medicate - only use medications prescribed by a licensed veterinarian.",
+                                        "Isolate the infected chicken from the flock immediately to prevent spread.",
+                                        "Disinfect the coop and equipment thoroughly to prevent further infection.",
+                                        "Monitor other chickens closely for similar symptoms and report to your veterinarian.",
+                                        "Follow ONLY the treatment plan prescribed by your licensed veterinarian.",
+                                        "Provide clean water and high-quality feed to support recovery."
                                     )
                                 }
                             }
@@ -900,6 +873,7 @@ fun ResultScreen(
                             }
                         }
                     }
+                    }
                 }
 
                 // --- Done/Try Again Button ---
@@ -925,12 +899,26 @@ fun ResultScreen(
                             containerColor = if (isInvalidDetection) Color(0xFFF44336) else Color(0xFF4CAF50)
                         )
                     ) {
-                        Text(
-                            text = if (isInvalidDetection) "Try Again" else "Done - Back to Dashboard",
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = ThemeColorUtils.white()
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (isInvalidDetection) "Try Again" else "Done",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ThemeColorUtils.white()
+                            )
+                            if (!isInvalidDetection) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Done",
+                                    tint = ThemeColorUtils.white(),
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -938,45 +926,88 @@ fun ResultScreen(
         }
 
         // Auto-save detection result when screen appears (ONLY if valid detection)
-        LaunchedEffect(Unit) {
-            // DO NOT save invalid detections
-            if (!isSaving && !isInvalidDetection) {
-                isSaving = true
-                try {
-                    // Extract confidence from decodedStatus
-                    val confidenceValue = if (confidenceText.isNotEmpty()) {
-                        confidenceText.toFloatOrNull()?.div(100f) ?: 0f
-                    } else {
-                        0f
-                    }
+        // Auto-save detection result when screen appears (ONLY if valid detection)
+        var hasAutoSaved by rememberSaveable(imageUri) { mutableStateOf(false) }
 
-                    // Get recommendations from DetectionService
-                    val detectionService = com.bisu.chickcare.backend.service.DetectionService(
-                        com.bisu.chickcare.backend.repository.DetectionRepository(),
-                        context
-                    )
-                    val recommendations = detectionService.getRemedySuggestions(!isHealthy)
-
-                    // Save to Firebase (with context for URI permissions, location, and recommendations)
-                    viewModel.saveDetectionResult(
-                        resultString = decodedStatus,
-                        isHealthy = isHealthy,
-                        confidence = confidenceValue,
-                        imageUri = sanitizedImageUriString,
-                        audioUri = sanitizedAudioUriString,
-                        context = context,
-                        recommendations = recommendations
-                    )
-
-                    Log.d("ResultScreen", "Detection result auto-saved successfully")
-                } catch (e: Exception) {
-                    Log.e("ResultScreen", "Error auto-saving detection: ${e.message}", e)
-                    // Don't show error to user, just log it
-                } finally {
-                    isSaving = false
+        // Function to perform save operation
+        fun saveDetection() {
+            if (hasAutoSaved) return
+            hasAutoSaved = true
+            
+            try {
+                // Extract confidence from decodedStatus
+                val confidenceValue = if (confidenceText.isNotEmpty()) {
+                    confidenceText.toFloatOrNull()?.div(100f) ?: 0f
+                } else {
+                    0f
                 }
-            } else if (isInvalidDetection) {
-                Log.d("ResultScreen", "Invalid detection detected - NOT saving to history")
+
+                // Save to Firebase (with context for URI permissions, location, and recommendations)
+                // Use the suggestions passed to the screen instead of recreating DetectionService
+                viewModel.saveDetectionResult(
+                    resultString = decodedStatus,
+                    isHealthy = isHealthy,
+                    confidence = confidenceValue,
+                    imageUri = sanitizedImageUriString,
+                    audioUri = sanitizedAudioUriString,
+                    context = context,
+                    recommendations = suggestions // Use passed suggestions
+                )
+
+                Log.d("ResultScreen", "Detection result auto-saved successfully")
+            } catch (e: Exception) {
+                Log.e("ResultScreen", "Error auto-saving detection: ${e.message}", e)
+            }
+        }
+
+        // Permission launcher to request location permissions
+        val locationPermissionLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            // Whether permission granted or not, we proceed to save
+            // If granted, DashboardViewModel will fetch location
+            // If denied, it will save with null location
+            val fineLocationGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] ?: false
+            val coarseLocationGranted = permissions[Manifest.permission.ACCESS_COARSE_LOCATION] ?: false
+            
+            Log.d("ResultScreen", "Location permissions result: fine=$fineLocationGranted, coarse=$coarseLocationGranted")
+            saveDetection()
+        }
+
+        LaunchedEffect(Unit) {
+            // DO NOT save invalid detections and don't save if already saved
+            if (!isInvalidDetection && !hasAutoSaved) {
+                // Check if location permissions are already granted
+                val hasFineLocation = ContextCompat.checkSelfPermission(
+                    context, 
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                
+                val hasCoarseLocation = ContextCompat.checkSelfPermission(
+                    context, 
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ) == PackageManager.PERMISSION_GRANTED
+                
+                if (hasFineLocation || hasCoarseLocation) {
+                    // Permission already granted, save immediately
+                    Log.d("ResultScreen", "Location permission already granted, saving...")
+                    saveDetection()
+                } else {
+                    // Request permissions
+                    Log.d("ResultScreen", "Requesting location permissions...")
+                    locationPermissionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                }
+            } else {
+                if (isInvalidDetection) {
+                    Log.d("ResultScreen", "Invalid detection detected - NOT saving to history")
+                } else {
+                    Log.d("ResultScreen", "Already auto-saved - skipping duplicate save")
+                }
             }
         }
     }

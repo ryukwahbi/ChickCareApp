@@ -93,7 +93,7 @@ fun ChangePhotoBottomSheet(
             }
             Spacer(modifier = Modifier.height(8.dp))
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Close")
+                Text("Close", color = Color(0xFF959597))
             }
         }
     }
@@ -136,53 +136,56 @@ fun PhotoPreviewDialog(
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 24.dp)
+                .padding(horizontal = 20.dp)
                 .wrapContentHeight(),
-            shape = RoundedCornerShape(24.dp),
+            shape = RoundedCornerShape(28.dp),
             colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-            elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 16.dp)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                val imageShape = RoundedCornerShape(20.dp)
-                var imageModifier = Modifier
-                    .fillMaxWidth()
-                    .clip(imageShape)
-
-                imageModifier = if (aspectRatio != null) {
-                    imageModifier.aspectRatio(aspectRatio)
-                } else {
-                    imageModifier.wrapContentHeight()
+                // Header with X button
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeColorUtils.black().copy(alpha = 0.7f)
+                        )
+                    }
                 }
 
+                val imageShape = RoundedCornerShape(20.dp)
                 Box(
-                    modifier = imageModifier,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp)
+                        .clip(imageShape)
+                        .then(
+                            if (aspectRatio != null) Modifier.aspectRatio(aspectRatio)
+                            else Modifier.wrapContentHeight()
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     AsyncImage(
                         model = imageModel,
                         contentDescription = "Photo preview",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .wrapContentHeight(),
+                        contentScale = ContentScale.Fit
                     )
                 }
-
-                // Close text aligned to bottom-right
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onDismiss) {
-                        Text("Close", color = Color(0xFF9C4A0C))
-                    }
-                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }
@@ -714,7 +717,7 @@ fun AddInfoDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text("Cancel", color = Color(0xFF959597))
             }
         }
     )

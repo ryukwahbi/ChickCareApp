@@ -245,16 +245,22 @@ class AudioSpectrogramConverter(private val context: Context) {
             decoder.configure(audioFormat, null, null, 0)
             decoder.start()
             
-            val audioSamples = mutableListOf<Float>()
+            // OPTIMIZATION: Use primitive FloatArray instead of List<Float> to avoid boxing overhead
+            // Limit decoding to a reasonable max duration (e.g., 45 seconds) to prevent OOM
+            val maxDecodingSeconds = 45
+            val maxSamples = sampleRate * maxDecodingSeconds
+            val audioBuffer = FloatArray(maxSamples)
+            var sampleCount = 0
+            
             var inputEOS = false
             var outputEOS = false
             
             // Decode audio
             // OPTIMIZED: Reduced timeout from 10000ms to 5000ms for faster processing
-            while (!outputEOS) {
+            while (!outputEOS && sampleCount < maxSamples) {
                 // Feed input
                 if (!inputEOS) {
-                    val inputBufferIndex = decoder.dequeueInputBuffer(5000) // Reduced from 10000 to 5000ms
+                    val inputBufferIndex = decoder.dequeueInputBuffer(5000)
                     if (inputBufferIndex >= 0) {
                         val inputBuffer = decoder.getInputBuffer(inputBufferIndex)
                         if (inputBuffer != null) {
@@ -274,7 +280,7 @@ class AudioSpectrogramConverter(private val context: Context) {
                 
                 // Get output
                 val bufferInfo = MediaCodec.BufferInfo()
-                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, 5000) // Reduced from 10000 to 5000ms
+                val outputBufferIndex = decoder.dequeueOutputBuffer(bufferInfo, 5000)
                 
                 when {
                     outputBufferIndex >= 0 -> {
@@ -286,8 +292,16 @@ class AudioSpectrogramConverter(private val context: Context) {
                             outputBuffer.get(pcmData, 0, bufferInfo.size)
                             
                             // Convert to float samples (assuming 16-bit PCM)
-                            val samples = pcmDataToFloatArray(pcmData)
-                            audioSamples.addAll(samples.toList())
+                            // Direct copy to our main buffer to avoid allocation
+                            val buffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN)
+                            val shortsCount = pcmData.size / 2
+                            
+                            for (i in 0 until shortsCount) {
+                                if (sampleCount >= maxSamples) break
+                                val sample = buffer.short.toInt()
+                                // Normalize to -1.0 to 1.0 range
+                                audioBuffer[sampleCount++] = (sample / 32768.0f).coerceIn(-1f, 1f)
+                            }
                         }
                         
                         decoder.releaseOutputBuffer(outputBufferIndex, false)
@@ -304,21 +318,24 @@ class AudioSpectrogramConverter(private val context: Context) {
                 }
             }
             
+            // Create final array of exact size
+            val resultSamples = audioBuffer.copyOf(sampleCount)
+            
             // Resample if needed to match SAMPLE_RATE
-            val result = if (sampleRate != SAMPLE_RATE && audioSamples.isNotEmpty()) {
-                resampleAudio(audioSamples.toFloatArray(), sampleRate, SAMPLE_RATE)
+            val result = if (sampleRate != SAMPLE_RATE && resultSamples.isNotEmpty()) {
+                resampleAudio(resultSamples, sampleRate, SAMPLE_RATE)
             } else {
-                audioSamples.toFloatArray()
+                resultSamples
             }
             
             // Smart trimming: If audio is longer than 10 seconds, extract the most active segment
-            val maxSamples = SAMPLE_RATE * MAX_DURATION_SECONDS
+            val finalMaxSamples = SAMPLE_RATE * MAX_DURATION_SECONDS
             val audioDurationSeconds = result.size.toFloat() / SAMPLE_RATE
-            return if (result.size > maxSamples) {
+            return if (result.size > finalMaxSamples) {
                 android.util.Log.i("AudioSpectrogramConverter", 
                     "🔧 AUTO-CROPPING: Audio is ${String.format("%.1f", audioDurationSeconds)}s (longer than ${MAX_DURATION_SECONDS}s). " +
                     "Extracting the most active ${MAX_DURATION_SECONDS}-second segment for better accuracy...")
-                val cropped = extractMostActiveSegment(result, maxSamples)
+                val cropped = extractMostActiveSegment(result, finalMaxSamples)
                 android.util.Log.i("AudioSpectrogramConverter", 
                     "✅ AUTO-CROPPING: Successfully extracted ${String.format("%.1f", cropped.size.toFloat() / SAMPLE_RATE)}s segment with highest energy")
                 cropped
@@ -337,21 +354,7 @@ class AudioSpectrogramConverter(private val context: Context) {
 
 
     
-    /**
-     * Convert PCM byte array to float array (16-bit PCM)
-     */
-    private fun pcmDataToFloatArray(pcmData: ByteArray): FloatArray {
-        val samples = FloatArray(pcmData.size / 2)
-        val buffer = ByteBuffer.wrap(pcmData).order(ByteOrder.LITTLE_ENDIAN)
-        
-        for (i in samples.indices) {
-            val sample = buffer.short.toInt()
-            // Normalize to -1.0 to 1.0 range
-            samples[i] = (sample / 32768.0f).coerceIn(-1f, 1f)
-        }
-        
-        return samples
-    }
+
     
     /**
      * Simple linear resampling

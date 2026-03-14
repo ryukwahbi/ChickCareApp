@@ -197,6 +197,26 @@ class ReminderViewModel(application: Application) : AndroidViewModel(application
         }
     }
     
+    /**
+     * Delete/Disable a predefined reminder by disabling it and clearing its schedule
+     * This effectively "cancels" the reminder scheduling
+     */
+    fun deleteReminder(type: ReminderType) {
+        viewModelScope.launch {
+            // Cancel the scheduled reminder
+            reminderService.cancelReminder(type)
+            
+            // Disable and reset to defaults (empty days = no schedule)
+            updateReminder(
+                type = type,
+                hour = getDefaultHour(type),
+                minute = getDefaultMinute(type),
+                enabled = false,
+                selectedDays = emptySet() // Empty set means no days selected = no schedule
+            )
+        }
+    }
+    
     private fun saveCustomReminders(reminders: List<ReminderData>) {
         val remindersString = reminders.joinToString(";") { reminder ->
             "${reminder.id}|${reminder.title}|${reminder.description}|${reminder.icon}|${reminder.hour}|${reminder.minute}|${reminder.enabled}|${reminder.selectedDays.joinToString(",")}"

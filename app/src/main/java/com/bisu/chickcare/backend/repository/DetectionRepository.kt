@@ -1,11 +1,20 @@
 package com.bisu.chickcare.backend.repository
 
 import android.util.Log
+import android.content.Context
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
+import androidx.work.Constraints
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.workDataOf
+import com.bisu.chickcare.backend.worker.MediaSyncWorker
+import com.bisu.chickcare.frontend.utils.persistUriToAppStorage
 import kotlinx.coroutines.tasks.await
 
 data class DetectionEntry(
@@ -13,12 +22,12 @@ data class DetectionEntry(
     val result: String = "",
     @get:com.google.firebase.firestore.PropertyName("isHealthy")
     val isHealthy: Boolean = false,
-    val confidence: Float = 0f, // 0.0 to 1.0
+    val confidence: Float = 0f,
     val imageUri: String? = null,
     val audioUri: String? = null,
     val timestamp: Long = 0,
-    val location: String? = null, // Location where detection was performed
-    val recommendations: List<String> = emptyList(), // Recommended actions
+    val location: String? = null,
+    val recommendations: List<String> = emptyList(),
     @get:com.google.firebase.firestore.PropertyName("isRead")
     val isRead: Boolean = false,
     @get:com.google.firebase.firestore.PropertyName("isDeleted")
@@ -27,13 +36,66 @@ data class DetectionEntry(
     @get:com.google.firebase.firestore.PropertyName("isFavorite")
     val isFavorite: Boolean = false,
     @get:com.google.firebase.firestore.PropertyName("isArchived")
-    val isArchived: Boolean = false
+    val isArchived: Boolean = false,
+    val treatment: String? = null,
+    val treatmentDate: Long? = null,
+    val nextDoseDate: Long? = null,
+    val treatmentNotes: String? = null,
+    val cloudUrl: String? = null,
+    val cloudAudioUrl: String? = null,
+    val localImageUri: String? = null,
+    val localAudioUri: String? = null
 )
 
 class DetectionRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val usersCollection = firestore.collection("users")
 
+
+    /**
+     * Helper to parse DetectionEntry from DocumentSnapshot to avoid duplication
+     */
+    private fun parseDetectionEntry(doc: com.google.firebase.firestore.DocumentSnapshot): DetectionEntry? {
+        return try {
+            DetectionEntry(
+                id = doc.id,
+                result = doc.getString("result") ?: "",
+                isHealthy = doc.getBoolean("isHealthy") ?: false,
+                confidence = (doc.getDouble("confidence")?.toFloat()) ?: 0f,
+                imageUri = doc.getString("imageUri"),
+                audioUri = doc.getString("audioUri"),
+                timestamp = doc.getLong("timestamp") ?: 0L,
+                location = doc.getString("location"),
+                recommendations = (doc.get("recommendations") as? List<*>)?.mapNotNull { 
+                    val str = it as? String ?: return@mapNotNull null
+                    try {
+                        java.net.URLDecoder.decode(str, "UTF-8")
+                    } catch (_: Exception) {
+                        str 
+                    }
+                } ?: emptyList(),
+                isRead = doc.getBoolean("isRead") ?: false,
+                isDeleted = doc.getBoolean("isDeleted") ?: false,
+                deletedTimestamp = doc.getLong("deletedTimestamp") ?: 0L,
+                isFavorite = doc.getBoolean("isFavorite") ?: false,
+                isArchived = doc.getBoolean("isArchived") ?: false,
+                treatment = doc.getString("treatment"),
+                treatmentDate = doc.getLong("treatmentDate"),
+                nextDoseDate = doc.getLong("nextDoseDate"),
+                treatmentNotes = doc.getString("treatmentNotes"),
+                cloudUrl = doc.getString("cloudUrl"),
+                cloudAudioUrl = doc.getString("cloudAudioUrl")
+            )
+        } catch (e: Exception) {
+            Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Save detection result to Firestore.
+     * Returns SaveResult indicating whether it was saved immediately or queued for offline sync.
+     */
     suspend fun saveDetection(
         userId: String,
         result: String,
@@ -43,7 +105,7 @@ class DetectionRepository {
         audioUri: String?,
         location: String? = null,
         recommendations: List<String> = emptyList()
-    ) {
+    ): SaveResult {
         val detectionData = hashMapOf(
             "result" to result,
             "isHealthy" to isHealthy,
@@ -56,27 +118,96 @@ class DetectionRepository {
             "isRead" to false,
             "isDeleted" to false,
             "isFavorite" to false,
-            "isArchived" to false
+            "isArchived" to false,
+            "cloudUrl" to null,
+            "cloudAudioUrl" to null,
+            "localImageUri" to null,
+            "localAudioUri" to null
         )
+        
+        val context = com.bisu.chickcare.ChickCareApplication.getInstance() // I'll need to add this to ChickCareApplication
+        
+        // 1. Persist media to internal storage IMMEDIATELY (Offline-First)
+        val persistentImageUri = if (imageUri != null) {
+            persistUriToAppStorage(context, imageUri, "detections/images", "jpg", "DetectionRepo")
+        } else null
+        
+        val persistentAudioUri = if (audioUri != null) {
+            persistUriToAppStorage(context, audioUri, "detections/audio", "mp3", "DetectionRepo")
+        } else null
+        
+        detectionData["imageUri"] = persistentImageUri
+        detectionData["audioUri"] = persistentAudioUri
+        detectionData["localImageUri"] = persistentImageUri
+        detectionData["localAudioUri"] = persistentAudioUri
         try {
-            usersCollection.document(userId).collection("detections").add(detectionData).await()
-            Log.d("DetectionRepository", "Detection saved successfully")
+            // 1. Save initial document to Firestore (Offline First)
+            // Use await() to ensure local persistence logic works
+            val docRef = usersCollection.document(userId).collection("detections").add(detectionData).await()
+            Log.d("DetectionRepository", "Detection saved locally/Firestore with ID: ${docRef.id}")
+
+            // 2. Schedule Background Sync Worker
+            scheduleSyncWorker(context, userId, docRef.id)
+
+            return SaveResult.Success(docRef.id)
+
         } catch (_: java.net.UnknownHostException) {
-            // Use verbose logging for network errors to reduce logcat spam
-            Log.v("DetectionRepository", "Network unavailable - detection will be saved when online (offline persistence enabled)")
-            // With offline persistence enabled, Firestore will queue this write
-            // and sync when connection is restored
-            throw Exception("No internet connection. Detection will be saved when you're back online.")
+             // Network unavailable - Firestore persistence will queue this write
+            // Don't throw exception, just return queued status
+            Log.d("DetectionRepository", "Network unavailable - detection queued for sync (offline persistence enabled)")
+            try {
+                usersCollection.document(userId).collection("detections").add(detectionData)
+                return SaveResult.Queued
+            } catch (e: Exception) {
+                Log.w("DetectionRepository", "Error queuing detection: ${e.message}")
+                return SaveResult.Queued
+            }
         } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
             if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE) {
-                // Use verbose logging for network errors to reduce logcat spam
-                Log.v("DetectionRepository", "Firestore unavailable (offline) - detection will be saved when online")
-                throw Exception("No internet connection. Detection will be saved when you're back online.")
+                // Firestore unavailable (offline) - queue the write
+                Log.d("DetectionRepository", "Firestore unavailable (offline) - detection queued for sync")
+                 try {
+                    usersCollection.document(userId).collection("detections").add(detectionData)
+                    return SaveResult.Queued
+                } catch (queueError: Exception) {
+                    Log.w("DetectionRepository", "Error queuing detection: ${queueError.message}")
+                     return SaveResult.Queued
+                }
             }
-            throw e
+            Log.e("DetectionRepository", "Error saving detection: ${e.message}", e)
+            return SaveResult.Error(e.message ?: "Unknown error")
         } catch (e: Exception) {
             Log.e("DetectionRepository", "Error saving detection: ${e.message}", e)
-            throw e
+            return SaveResult.Error(e.message ?: "Unknown error")
+        }
+    }
+
+    /**
+     * Result of save operation
+     */
+    sealed class SaveResult {
+        data class Success(val documentId: String) : SaveResult()
+        object Queued : SaveResult() // Queued for sync when online
+        data class Error(val message: String) : SaveResult()
+    }
+
+    suspend fun getDetection(userId: String, detectionId: String): DetectionEntry? {
+        return try {
+            val document = usersCollection.document(userId)
+                .collection("detections")
+                .document(detectionId)
+                .get()
+                .await()
+
+            if (document.exists()) {
+                parseDetectionEntry(document)
+            } else {
+                Log.w("DetectionRepository", "Detection document not found: $detectionId")
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("DetectionRepository", "Error fetching detection: ${e.message}", e)
+            null
         }
     }
 
@@ -84,7 +215,7 @@ class DetectionRepository {
         var listener: com.google.firebase.firestore.ListenerRegistration? = null
         var fallbackListener: com.google.firebase.firestore.ListenerRegistration? = null
         var hasAttemptedFallback = false
-        
+
         try {
             listener = usersCollection.document(userId).collection("detections")
                 .whereEqualTo("isDeleted", false) // Only get non-deleted items
@@ -93,13 +224,13 @@ class DetectionRepository {
                     if (error != null) {
                         val errorMsg = error.message ?: ""
                         val errorCode = error.code
-                        
+
                         // Check for network/offline errors
                         val isNetworkError = errorMsg.contains("Unable to resolve host", ignoreCase = true) ||
                             errorMsg.contains("UnknownHostException", ignoreCase = true) ||
                             errorMsg.contains("No address associated with hostname", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
-                        
+
                         if (isNetworkError) {
                             // Use verbose logging for network errors to reduce logcat spam
                             // These are expected when device is offline
@@ -109,7 +240,7 @@ class DetectionRepository {
                             trySend(emptyList())
                             return@addSnapshotListener
                         }
-                        
+
                         // If index error, try simpler query without orderBy
                         val isIndexError = errorMsg.contains("index", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
@@ -133,52 +264,21 @@ class DetectionRepository {
 
                     if (snapshot != null && !snapshot.isEmpty) {
                         try {
-                            val history = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                                entry.copy(id = snapshot.documents[index].id)
+                            // Use manual parsing to prevent crashes from null values in non-nullable fields
+                            // toObjects() uses reflection and might bypass Kotlin null safety if Firestore fields are null/missing
+                            val history = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    parseDetectionEntry(doc)
+                                } catch (e: Exception) {
+                                    Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
+                                    null
+                                }
                             }
                             Log.d("DetectionRepository", "Main query returned ${history.size} detection entries")
                             trySend(history)
                         } catch (e: Exception) {
                             Log.e("DetectionRepository", "Error processing main query results: ${e.message}", e)
-                            // Try to manually construct entries if automatic mapping fails
-                            try {
-                                val manualHistory = snapshot.documents.mapNotNull { doc ->
-                                    try {
-                                        DetectionEntry(
-                                            id = doc.id,
-                                            result = doc.getString("result") ?: "",
-                                            isHealthy = doc.getBoolean("isHealthy") ?: false,
-                                            confidence = (doc.getDouble("confidence")?.toFloat()) ?: 0f,
-                                            imageUri = doc.getString("imageUri"),
-                                            audioUri = doc.getString("audioUri"),
-                                            timestamp = doc.getLong("timestamp") ?: 0L,
-                                            location = doc.getString("location"),
-                                            recommendations = (doc.get("recommendations") as? List<*>)?.mapNotNull { 
-                                                val str = it as? String ?: return@mapNotNull null
-                                                // Decode URL-encoded recommendations (spaces might be encoded as +)
-                                                try {
-                                                    java.net.URLDecoder.decode(str, "UTF-8")
-                                                } catch (_: Exception) {
-                                                    str // Return original if decoding fails
-                                                }
-                                            } ?: emptyList(),
-                                            isRead = doc.getBoolean("isRead") ?: false,
-                                            isDeleted = doc.getBoolean("isDeleted") ?: false,
-                                            deletedTimestamp = doc.getLong("deletedTimestamp") ?: 0L,
-                                            isFavorite = doc.getBoolean("isFavorite") ?: false,
-                                            isArchived = doc.getBoolean("isArchived") ?: false
-                                        )
-                                    } catch (e: Exception) {
-                                        Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
-                                        null
-                                    }
-                                }
-                                Log.d("DetectionRepository", "Manual parsing returned ${manualHistory.size} detection entries")
-                                trySend(manualHistory)
-                            } catch (e2: Exception) {
-                                Log.e("DetectionRepository", "Manual parsing also failed: ${e2.message}", e2)
-                                trySend(emptyList())
-                            }
+                            trySend(emptyList())
                         }
                     } else if (snapshot != null && snapshot.isEmpty) {
                         // Use verbose logging for empty snapshots (expected when no data exists)
@@ -207,13 +307,13 @@ class DetectionRepository {
                 if (error != null) {
                     val errorMsg = error.message ?: ""
                     val errorCode = error.code
-                    
+
                     // Check for network/offline errors
                     val isNetworkError = errorMsg.contains("Unable to resolve host", ignoreCase = true) ||
                         errorMsg.contains("UnknownHostException", ignoreCase = true) ||
                         errorMsg.contains("No address associated with hostname", ignoreCase = true) ||
                         errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
-                    
+
                     if (isNetworkError) {
                         // Use verbose logging for network errors to reduce logcat spam
                         Log.v("DetectionRepository", "Fallback query: Network unavailable - will use cached data")
@@ -222,7 +322,7 @@ class DetectionRepository {
                         onResult(emptyList())
                         return@addSnapshotListener
                     }
-                    
+
                     Log.e("DetectionRepository", "Error in fallback query: $errorMsg", error)
                     onResult(emptyList())
                     return@addSnapshotListener
@@ -230,8 +330,14 @@ class DetectionRepository {
 
                 if (snapshot != null && !snapshot.isEmpty) {
                     try {
-                        val history = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                            entry.copy(id = snapshot.documents[index].id)
+                        // Use manual parsing to prevent crashes from null values in non-nullable fields
+                        val history = snapshot.documents.mapNotNull { doc ->
+                            try {
+                                parseDetectionEntry(doc)
+                            } catch (e: Exception) {
+                                Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
+                                null
+                            }
                         }
                             .filter { !it.isDeleted }
                             .sortedByDescending { it.timestamp }
@@ -239,38 +345,8 @@ class DetectionRepository {
                         onResult(history)
                     } catch (e: Exception) {
                         Log.e("DetectionRepository", "Error processing fallback query results: ${e.message}", e)
-                        // Try to manually construct entries if automatic mapping fails
-                        try {
-                            val manualHistory = snapshot.documents.mapNotNull { doc ->
-                                try {
-                                    DetectionEntry(
-                                        id = doc.id,
-                                        result = doc.getString("result") ?: "",
-                                        isHealthy = doc.getBoolean("isHealthy") ?: false,
-                                        confidence = (doc.getDouble("confidence")?.toFloat()) ?: 0f,
-                                        imageUri = doc.getString("imageUri"),
-                                        audioUri = doc.getString("audioUri"),
-                                        timestamp = doc.getLong("timestamp") ?: 0L,
-                                        location = doc.getString("location"),
-                                        recommendations = (doc.get("recommendations") as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                                        isRead = doc.getBoolean("isRead") ?: false,
-                                        isDeleted = doc.getBoolean("isDeleted") ?: false,
-                                        deletedTimestamp = doc.getLong("deletedTimestamp") ?: 0L,
-                                        isFavorite = doc.getBoolean("isFavorite") ?: false,
-                                        isArchived = doc.getBoolean("isArchived") ?: false
-                                    )
-                                } catch (e: Exception) {
-                                    Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
-                                    null
-                                }
-                            }.filter { !it.isDeleted }
-                             .sortedByDescending { it.timestamp }
-                            Log.d("DetectionRepository", "Manual parsing returned ${manualHistory.size} detection entries")
-                            onResult(manualHistory)
-                        } catch (e2: Exception) {
-                            Log.e("DetectionRepository", "Manual parsing also failed: ${e2.message}", e2)
-                            onResult(emptyList())
-                        }
+                        // Manual parsing already attempted above, so just return empty
+                        onResult(emptyList())
                     }
                 } else if (snapshot != null && snapshot.isEmpty) {
                     // Use verbose logging for empty snapshots (expected when no data exists)
@@ -352,7 +428,7 @@ class DetectionRepository {
                         val errorMsg = error.message ?: ""
                         val isIndexError = errorMsg.contains("index", ignoreCase = true) ||
                             error.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
-                        
+
                         if (isIndexError && !hasAttemptedFallback) {
                             // Use verbose logging for expected index errors (reduce logcat noise)
                             // These are expected until Firestore indexes are created
@@ -374,10 +450,15 @@ class DetectionRepository {
                         trySend(emptyList())
                         return@addSnapshotListener
                     }
-                    
+
                     if (snapshot != null) {
-                        val deletedItems = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                            entry.copy(id = snapshot.documents[index].id)
+                        val deletedItems = snapshot.documents.mapNotNull { doc ->
+                            try {
+                                parseDetectionEntry(doc)
+                            } catch (e: Exception) {
+                                Log.w("DetectionRepository", "Error parsing document ${doc.id}: ${e.message}")
+                                null
+                            }
                         }
                         trySend(deletedItems)
                     }
@@ -389,13 +470,13 @@ class DetectionRepository {
                 trySend(deleted)
             }
         }
-        
+
         awaitClose { 
             listener?.remove()
             fallbackListener?.remove()
         }
     }
-    
+
     private fun tryFallbackDeletedQuery(userId: String, onResult: (List<DetectionEntry>) -> Unit): com.google.firebase.firestore.ListenerRegistration {
         // Fallback: Get all and filter/sort in-memory
         return usersCollection.document(userId).collection("detections")
@@ -405,10 +486,15 @@ class DetectionRepository {
                     onResult(emptyList())
                     return@addSnapshotListener
                 }
-                
+
                 if (snapshot != null) {
-                    val deletedItems = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                        entry.copy(id = snapshot.documents[index].id)
+                    val deletedItems = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            parseDetectionEntry(doc)
+                        } catch (e: Exception) {
+                            Log.w("DetectionRepository", "Error parsing fallback deleted item ${doc.id}: ${e.message}")
+                            null
+                        }
                     }
                         .filter { it.isDeleted }
                         .sortedByDescending { it.deletedTimestamp }
@@ -416,7 +502,7 @@ class DetectionRepository {
                 }
             }
     }
-    
+
     // Restore deleted item
     suspend fun restoreDetection(userId: String, detectionId: String) {
         usersCollection.document(userId)
@@ -430,7 +516,7 @@ class DetectionRepository {
             )
             .await()
     }
-    
+
     // Permanently delete all items in trash
     suspend fun permanentlyDeleteAllTrash(userId: String) {
         val snapshot = usersCollection.document(userId)
@@ -438,12 +524,12 @@ class DetectionRepository {
             .whereEqualTo("isDeleted", true)
             .get()
             .await()
-        
+
         snapshot.documents.forEach { doc ->
             doc.reference.delete().await()
         }
     }
-    
+
     // Restore all deleted items
     suspend fun restoreAllDetections(userId: String) {
         val snapshot = usersCollection.document(userId)
@@ -451,7 +537,7 @@ class DetectionRepository {
             .whereEqualTo("isDeleted", true)
             .get()
             .await()
-        
+
         snapshot.documents.forEach { doc ->
             doc.reference.update(
                 mapOf(
@@ -461,7 +547,7 @@ class DetectionRepository {
             ).await()
         }
     }
-    
+
     // Toggle favorite
     suspend fun toggleFavorite(userId: String, detectionId: String, isFavorite: Boolean) {
         usersCollection.document(userId)
@@ -470,7 +556,7 @@ class DetectionRepository {
             .update("isFavorite", isFavorite)
             .await()
     }
-    
+
     // Toggle archive
     suspend fun toggleArchive(userId: String, detectionId: String, isArchived: Boolean) {
         usersCollection.document(userId)
@@ -479,13 +565,13 @@ class DetectionRepository {
             .update("isArchived", isArchived)
             .await()
     }
-    
+
     // Get favorite detections
     fun getFavoriteDetections(userId: String): Flow<List<DetectionEntry>> = callbackFlow {
         var listener: com.google.firebase.firestore.ListenerRegistration? = null
         var fallbackListener: com.google.firebase.firestore.ListenerRegistration? = null
         var hasAttemptedFallback = false
-        
+
         try {
             listener = usersCollection.document(userId).collection("detections")
                 .whereEqualTo("isDeleted", false)
@@ -495,18 +581,18 @@ class DetectionRepository {
                     if (error != null) {
                         val errorMsg = error.message ?: ""
                         val errorCode = error.code
-                        
+
                         val isNetworkError = errorMsg.contains("Unable to resolve host", ignoreCase = true) ||
                             errorMsg.contains("UnknownHostException", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
-                        
+
                         if (isNetworkError) {
                             // Use verbose logging for network errors to reduce logcat spam
                             Log.v("DetectionRepository", "Network unavailable for favorites")
                             trySend(emptyList())
                             return@addSnapshotListener
                         }
-                        
+
                         val isIndexError = errorMsg.contains("index", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
 
@@ -529,8 +615,13 @@ class DetectionRepository {
 
                     if (snapshot != null && !snapshot.isEmpty) {
                         try {
-                            val favorites = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                                entry.copy(id = snapshot.documents[index].id)
+                            val favorites = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    parseDetectionEntry(doc)
+                                } catch (e: Exception) {
+                                    Log.w("DetectionRepository", "Error parsing favorite item ${doc.id}: ${e.message}")
+                                    null
+                                }
                             }
                             trySend(favorites)
                         } catch (e: Exception) {
@@ -545,19 +636,19 @@ class DetectionRepository {
             Log.e("DetectionRepository", "Error setting up favorites listener: ${e.message}", e)
             trySend(emptyList())
         }
-        
+
         awaitClose {
             listener?.remove()
             fallbackListener?.remove()
         }
     }
-    
+
     // Get archived detections
     fun getArchivedDetections(userId: String): Flow<List<DetectionEntry>> = callbackFlow {
         var listener: com.google.firebase.firestore.ListenerRegistration? = null
         var fallbackListener: com.google.firebase.firestore.ListenerRegistration? = null
         var hasAttemptedFallback = false
-        
+
         try {
             listener = usersCollection.document(userId).collection("detections")
                 .whereEqualTo("isDeleted", false)
@@ -567,18 +658,18 @@ class DetectionRepository {
                     if (error != null) {
                         val errorMsg = error.message ?: ""
                         val errorCode = error.code
-                        
+
                         val isNetworkError = errorMsg.contains("Unable to resolve host", ignoreCase = true) ||
                             errorMsg.contains("UnknownHostException", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.UNAVAILABLE
-                        
+
                         if (isNetworkError) {
                             // Use verbose logging for network errors to reduce logcat spam
                             Log.v("DetectionRepository", "Network unavailable for archived")
                             trySend(emptyList())
                             return@addSnapshotListener
                         }
-                        
+
                         val isIndexError = errorMsg.contains("index", ignoreCase = true) ||
                             errorCode == com.google.firebase.firestore.FirebaseFirestoreException.Code.FAILED_PRECONDITION
 
@@ -601,8 +692,13 @@ class DetectionRepository {
 
                     if (snapshot != null && !snapshot.isEmpty) {
                         try {
-                            val archived = snapshot.toObjects(DetectionEntry::class.java).mapIndexed { index, entry ->
-                                entry.copy(id = snapshot.documents[index].id)
+                            val archived = snapshot.documents.mapNotNull { doc ->
+                                try {
+                                    parseDetectionEntry(doc)
+                                } catch (e: Exception) {
+                                    Log.w("DetectionRepository", "Error parsing archived item ${doc.id}: ${e.message}")
+                                    null
+                                }
                             }
                             trySend(archived)
                         } catch (e: Exception) {
@@ -617,13 +713,13 @@ class DetectionRepository {
             Log.e("DetectionRepository", "Error setting up archived listener: ${e.message}", e)
             trySend(emptyList())
         }
-        
+
         awaitClose {
             listener?.remove()
             fallbackListener?.remove()
         }
     }
-    
+
     // Cleanup items that are older than 14 days (14 days = 14 * 24 * 60 * 60 * 1000 milliseconds)
     suspend fun cleanupOldDeletedItems(userId: String) {
         try {
@@ -634,7 +730,7 @@ class DetectionRepository {
                 .whereLessThan("deletedTimestamp", fourteenDaysAgo)
                 .get()
                 .await()
-            
+
             snapshot.documents.forEach { doc ->
                 doc.reference.delete().await()
             }
@@ -650,10 +746,10 @@ class DetectionRepository {
                         .whereEqualTo("isDeleted", true)
                         .get()
                         .await()
-                    
+
                     snapshot.documents.forEach { doc ->
                         val deletedTimestamp = doc.getLong("deletedTimestamp") ?: 0L
-                        if (deletedTimestamp < fourteenDaysAgo && deletedTimestamp > 0) {
+                        if (deletedTimestamp in 1..<fourteenDaysAgo) {
                             doc.reference.delete().await()
                         }
                     }
@@ -661,11 +757,11 @@ class DetectionRepository {
                     Log.e("DetectionRepository", "Error in cleanup fallback: ${fallbackError.message}", fallbackError)
                 }
             } else {
-                throw e // Re-throw if it's not an index error
+                throw e
             }
         }
     }
-    
+
     // Mark all unread detections as read
     suspend fun markAllDetectionsAsRead(userId: String) {
         try {
@@ -676,7 +772,7 @@ class DetectionRepository {
                 .whereEqualTo("isDeleted", false)
                 .get()
                 .await()
-            
+
             var markedCount = 0
             snapshot.documents.forEach { doc ->
                 // Check if isRead field exists and is false, or if field doesn't exist (treat as unread)
@@ -690,5 +786,53 @@ class DetectionRepository {
         } catch (e: Exception) {
             Log.e("DetectionRepository", "Error marking detections as read: ${e.message}", e)
         }
+    }
+
+    // Update treatment for a detection entry
+    suspend fun updateTreatment(
+        userId: String,
+        detectionId: String,
+        treatment: String?,
+        treatmentDate: Long? = null,
+        nextDoseDate: Long? = null,
+        treatmentNotes: String? = null
+    ) {
+        try {
+            // Build update map with only non-null values for Firestore
+            val updateData = hashMapOf<String, Any>()
+
+            treatment?.let { updateData["treatment"] = it }
+            updateData["treatmentDate"] = treatmentDate ?: System.currentTimeMillis()
+            nextDoseDate?.let { updateData["nextDoseDate"] = it }
+            treatmentNotes?.let { updateData["treatmentNotes"] = it }
+
+            usersCollection.document(userId)
+                .collection("detections")
+                .document(detectionId)
+                .update(updateData)
+                .await()
+
+            Log.d("DetectionRepository", "Treatment updated for detection: $detectionId")
+        } catch (e: Exception) {
+            Log.e("DetectionRepository", "Error updating treatment: ${e.message}", e)
+            throw e
+        }
+    }
+
+    private fun scheduleSyncWorker(context: Context, userId: String, detectionId: String) {
+        val constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
+
+        val syncRequest = OneTimeWorkRequestBuilder<MediaSyncWorker>()
+            .setConstraints(constraints)
+            .setInputData(workDataOf(
+                "userId" to userId,
+                "detectionId" to detectionId
+            ))
+            .build()
+
+        WorkManager.getInstance(context).enqueue(syncRequest)
+        Log.d("DetectionRepository", "Scheduled MediaSyncWorker for detection: $detectionId")
     }
 }

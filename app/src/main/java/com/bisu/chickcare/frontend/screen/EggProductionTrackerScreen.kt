@@ -115,7 +115,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         "Egg Production",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -131,13 +131,13 @@ fun EggProductionTrackerScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         },
@@ -188,13 +188,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
                     )
                 }
 
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
-                    thickness = 1.dp
-                )
+                Spacer(modifier = Modifier.height(24.dp))
 
                 // Today's Details Card
                 if (todayRecord != null) {

@@ -18,6 +18,9 @@ data class UserProfile(
     val specialization: String = "",
     val numberOfBirds: String = "",
     val yearsExperience: String = "",
+    // Social/follower fields
+    val followers: List<String> = emptyList(),
+    val following: List<String> = emptyList(),
     val fieldPrivacy: Map<String, String> = mapOf(
         "email" to "public",
         "contact" to "public",
@@ -30,5 +33,6 @@ data class UserProfile(
         "specialization" to "public",
         "numberOfBirds" to "public",
         "yearsExperience" to "public"
-    )
+    ),
+    val showActiveStatus: Boolean = true
 )

@@ -39,6 +39,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.ParagraphStyle
+import androidx.compose.ui.text.style.TextIndent
+import androidx.compose.ui.text.style.TextAlign
 
 data class Announcement(
     val id: String,
@@ -56,22 +61,29 @@ fun AnnouncementsScreen(navController: NavController) {
             Announcement(
                 id = "1",
                 title = "Welcome to ChickCare!",
-                content = "Thank you for using ChickCare! We're here to help you monitor and care for your chickens. Stay tuned for updates and new features.",
+                content = "We are thrilled to welcome you to ChickCare! Our goal is to assist you in monitoring and caring for your chickens with the best tools available. Stay tuned for continuous updates and exciting new features coming your way.",
                 date = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000),
                 priority = "high"
             ),
             Announcement(
                 id = "2",
                 title = "New Feature: Health Trend Analysis",
-                content = "Check out the new Health Trend Analysis feature in your dashboard. Track your chickens' health over the last 5 days with detailed confidence metrics.",
+                content = "Explore the newly added Health Trend Analysis on your dashboard. This feature allows you to track your chickens' health trends over the last 5 days, providing detailed confidence metrics for more informed decision-making.",
                 date = System.currentTimeMillis() - (3 * 24 * 60 * 60 * 1000), // 3 days ago
                 priority = "normal"
             ),
             Announcement(
                 id = "3",
                 title = "Tips for Better Detection",
-                content = "For best detection results, ensure good lighting and clear audio when using the image and audio detection features. Keep your chickens calm during the detection process.",
+                content = "To ensure the best possible detection results, please use the image and audio features in well-lit and quiet environments. Keeping your chickens calm during the process significantly improves accuracy.",
                 date = System.currentTimeMillis() - (14 * 24 * 60 * 60 * 1000), // 14 days ago
+                priority = "normal"
+            ),
+            Announcement(
+                id = "4",
+                title = "Stay Connected",
+                content = "Did you know you can connect with other poultry enthusiasts? Visit the Community section to share insights, compare health trends, and learn from fellow breeders in the ChickCare network.",
+                date = System.currentTimeMillis() - (20 * 24 * 60 * 60 * 1000), // 20 days ago
                 priority = "normal"
             )
         )
@@ -85,7 +97,7 @@ fun AnnouncementsScreen(navController: NavController) {
                         "Announcements",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -101,13 +113,13 @@ fun AnnouncementsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -116,7 +128,7 @@ fun AnnouncementsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -209,16 +221,24 @@ fun AnnouncementItem(announcement: Announcement) {
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+            
+            val indentedContent = buildAnnotatedString {
+                withStyle(style = ParagraphStyle(textIndent = TextIndent(firstLine = 24.sp))) {
+                    append(announcement.content)
+                }
+            }
+            
             Text(
-                text = announcement.content,
+                text = indentedContent,
                 style = MaterialTheme.typography.bodyMedium,
-                color = Color(0xFF464644)
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color(0xFF464644),
+                textAlign = TextAlign.Justify
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(Date(announcement.date)),
                 style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF888888) else Color.Gray
             )
         }
     }

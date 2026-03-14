@@ -1,16 +1,18 @@
 package com.bisu.chickcare.backend.viewmodels
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.bisu.chickcare.backend.repository.Expense
 import com.bisu.chickcare.backend.repository.ExpenseRepository
+import com.bisu.chickcare.backend.utils.OfflineAuthHelper
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class ExpenseTrackerViewModel : ViewModel() {
+class ExpenseTrackerViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = ExpenseRepository()
     private val auth = FirebaseAuth.getInstance()
     
@@ -20,12 +22,18 @@ class ExpenseTrackerViewModel : ViewModel() {
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
     
+    private fun getCurrentUserId(): String? {
+        val firebaseUid = auth.currentUser?.uid
+        if (firebaseUid != null) return firebaseUid
+        return OfflineAuthHelper.getCurrentLocalUserId(getApplication())
+    }
+    
     init {
         loadExpenses()
     }
 
     private fun loadExpenses() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -41,7 +49,7 @@ class ExpenseTrackerViewModel : ViewModel() {
     }
 
     fun saveExpense(expense: Expense) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -55,7 +63,7 @@ class ExpenseTrackerViewModel : ViewModel() {
     }
 
     fun deleteExpense(expenseId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true

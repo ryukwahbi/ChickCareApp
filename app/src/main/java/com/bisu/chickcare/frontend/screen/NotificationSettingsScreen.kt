@@ -49,19 +49,22 @@ import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotificationSettingsScreen(navController: NavController) {
-    var pushNotificationsEnabled by remember { mutableStateOf(true) }
-    var detectionAlertsEnabled by remember { mutableStateOf(true) }
-    var reminderNotificationsEnabled by remember { mutableStateOf(true) }
-    var friendRequestsEnabled by remember { mutableStateOf(true) }
-    var vibrationEnabled by remember { mutableStateOf(true) }
-    var soundEnabled by remember { mutableStateOf(true) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val settingsRepository = remember { com.bisu.chickcare.backend.repository.SettingsRepository(context) }
+    
+    var pushNotificationsEnabled by remember { mutableStateOf(settingsRepository.getPushNotificationsEnabled()) }
+    var detectionAlertsEnabled by remember { mutableStateOf(settingsRepository.getDetectionAlertsEnabled()) }
+    var reminderNotificationsEnabled by remember { mutableStateOf(settingsRepository.getReminderNotificationsEnabled()) }
+    var friendRequestsEnabled by remember { mutableStateOf(settingsRepository.getFriendRequestsEnabled()) }
+    var vibrationEnabled by remember { mutableStateOf(settingsRepository.getVibrationEnabled()) }
+    var soundEnabled by remember { mutableStateOf(settingsRepository.getSoundEnabled()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
                     Text(
-                        "Notifications",
+                        androidx.compose.ui.res.stringResource(R.string.notif_settings_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.black()
@@ -71,7 +74,7 @@ fun NotificationSettingsScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -105,7 +108,7 @@ fun NotificationSettingsScreen(navController: NavController) {
             // General Notifications
             item {
                     Text(
-                        text = "General",
+                        text = androidx.compose.ui.res.stringResource(R.string.notif_section_general),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -116,10 +119,13 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_push_notifications_flaticon,
-                    title = "Push Notifications",
-                    description = "Receive notifications on your device",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_push_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_push_desc),
                     isEnabled = pushNotificationsEnabled,
-                    onToggle = { pushNotificationsEnabled = it }
+                    onToggle = { 
+                        pushNotificationsEnabled = it
+                        settingsRepository.setPushNotificationsEnabled(it)
+                    }
                 )
             }
 
@@ -127,7 +133,7 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Detection & Health",
+                        text = androidx.compose.ui.res.stringResource(R.string.notif_section_detection),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -138,20 +144,26 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_detection_alerts_flaticon,
-                    title = "Detection Alerts",
-                    description = "Get notified when health issues are detected",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_detection_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_detection_desc),
                     isEnabled = detectionAlertsEnabled,
-                    onToggle = { detectionAlertsEnabled = it }
+                    onToggle = { 
+                        detectionAlertsEnabled = it
+                        settingsRepository.setDetectionAlertsEnabled(it)
+                    }
                 )
             }
 
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_reminder_flaticon,
-                    title = "Reminder Notifications",
-                    description = "Receive reminders for vaccinations and checkups",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_reminder_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_reminder_desc),
                     isEnabled = reminderNotificationsEnabled,
-                    onToggle = { reminderNotificationsEnabled = it }
+                    onToggle = { 
+                        reminderNotificationsEnabled = it
+                        settingsRepository.setReminderNotificationsEnabled(it)
+                    }
                 )
             }
 
@@ -159,7 +171,7 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Social",
+                        text = androidx.compose.ui.res.stringResource(R.string.notif_section_social),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -170,10 +182,13 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_friend_requests_flaticon,
-                    title = "Friend Requests",
-                    description = "Get notified about friend requests",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_friend_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_friend_desc),
                     isEnabled = friendRequestsEnabled,
-                    onToggle = { friendRequestsEnabled = it }
+                    onToggle = { 
+                        friendRequestsEnabled = it
+                        settingsRepository.setFriendRequestsEnabled(it)
+                    }
                 )
             }
 
@@ -181,7 +196,7 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Preferences",
+                        text = androidx.compose.ui.res.stringResource(R.string.notif_section_pref),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -192,20 +207,26 @@ fun NotificationSettingsScreen(navController: NavController) {
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_vibration_flaticon,
-                    title = "Vibration",
-                    description = "Enable vibration for notifications",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_vibration_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_vibration_desc),
                     isEnabled = vibrationEnabled,
-                    onToggle = { vibrationEnabled = it }
+                    onToggle = { 
+                        vibrationEnabled = it
+                        settingsRepository.setVibrationEnabled(it)
+                    }
                 )
             }
 
             item {
                 NotificationSettingCard(
                     icon = R.drawable.ic_notifications_off_flaticon,
-                    title = "Sound",
-                    description = "Play sound for notifications",
+                    title = androidx.compose.ui.res.stringResource(R.string.notif_sound_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.notif_sound_desc),
                     isEnabled = soundEnabled,
-                    onToggle = { soundEnabled = it }
+                    onToggle = { 
+                        soundEnabled = it
+                        settingsRepository.setSoundEnabled(it)
+                    }
                 )
             }
 
@@ -231,7 +252,7 @@ fun NotificationSettingsScreen(navController: NavController) {
                             modifier = Modifier.size(38.dp)
                         )
                         Text(
-                            text = "You can customize notification preferences for each category",
+                            text = androidx.compose.ui.res.stringResource(R.string.notif_cust_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = ThemeColorUtils.black()
                         )

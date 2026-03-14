@@ -8,22 +8,27 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DividerDefaults
@@ -58,8 +63,8 @@ import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.repository.PostRepository
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
-import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -74,7 +79,6 @@ fun PostDetectionHistoryScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val history by dashboardViewModel.detectionHistory.collectAsState()
     val userProfile by authViewModel.userProfile.collectAsState()
-    val auth = FirebaseAuth.getInstance()
     
     val postRepository = remember { PostRepository() }
     var expandedMenuId by remember { mutableStateOf<String?>(null) }
@@ -101,33 +105,38 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ThemeColorUtils.white()
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.black()
                 )
             )
         }
     ) { paddingValues ->
-        if (history.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No detection history yet.",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = ThemeColorUtils.lightGray(Color.Gray)
-                )
-            }
-        } else {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
+                .padding(paddingValues)
+        ) {
+            if (history.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No detection history yet.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = ThemeColorUtils.lightGray(Color.Gray)
+                    )
+                }
+            } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(paddingValues)
                     .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(vertical = 16.dp)
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
             ) {
                 if (showSuccessMessage != null) {
                     item {
@@ -160,21 +169,35 @@ fun PostDetectionHistoryScreen(navController: NavController) {
                             expandedMenuId = null
                         },
                         onPostToTimeline = { visibility ->
-                            val userId = auth.currentUser?.uid ?: return@DetectionHistoryItem
+                            val context = dashboardViewModel.getApplication<android.app.Application>()
+                            val userId = authViewModel.getCurrentUserId(context) ?: return@DetectionHistoryItem
                             CoroutineScope(Dispatchers.IO).launch {
                                 try {
                                     postRepository.createPost(
                                         userId = userId,
                                         userName = userProfile?.fullName ?: "User",
                                         userPhotoUrl = userProfile?.photoUrl,
+                                        location = userProfile?.farmLocation ?: "", // Use farm location
                                         detectionId = detection.id,
                                         detectionResult = detection.result,
                                         isHealthy = detection.isHealthy,
                                         confidence = detection.confidence,
                                         imageUri = detection.imageUri,
                                         audioUri = detection.audioUri,
-                                        visibility = visibility
+                                        visibility = visibility,
+                                        cloudImageUri = detection.cloudUrl,
+                                        cloudAudioUri = detection.cloudAudioUrl
                                     )
+                                    // Play success sound on main thread
+                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                        try {
+                                            val mediaPlayer = android.media.MediaPlayer.create(context, com.bisu.chickcare.R.raw.posted_sound)
+                                            mediaPlayer?.setOnCompletionListener { it.release() }
+                                            mediaPlayer?.start()
+                                        } catch (e: Exception) {
+                                            android.util.Log.e("PostDetection", "Error playing sound: ${e.message}")
+                                        }
+                                    }
                                     showSuccessMessage = "Posted to timeline as $visibility!"
                                     expandedMenuId = null
                                     selectedVisibility = selectedVisibility - detection.id
@@ -193,6 +216,7 @@ fun PostDetectionHistoryScreen(navController: NavController) {
             }
         }
     }
+    }
 }
 
 @SuppressLint("DefaultLocale")
@@ -210,19 +234,20 @@ fun DetectionHistoryItem(
     val dateFormat = SimpleDateFormat("MMMM dd, yyyy 'at' HH:mm", Locale.getDefault())
     val dateString = dateFormat.format(Date(detection.timestamp))
     val isMenuExpanded = expandedMenuId == detection.id
+    var showDetectionDetails by remember { mutableStateOf(false) }
     
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.white()
+            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white()
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 2.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -234,10 +259,12 @@ fun DetectionHistoryItem(
                     Icon(
                         Icons.Default.MoreVert,
                         contentDescription = "More options",
-                        tint = Color(0xFF100E0E),
+                        tint = ThemeColorUtils.black(),
                         modifier = Modifier.size(20.dp)
                     )
                 }
+                
+
                 
                 DropdownMenu(
                     expanded = isMenuExpanded,
@@ -257,12 +284,20 @@ fun DetectionHistoryItem(
                             onVisibilitySelected("private")
                         }
                     )
+                    HorizontalDivider(Modifier, DividerDefaults.Thickness, DividerDefaults.color)
+                    DropdownMenuItem(
+                        text = { Text("View Details") },
+                        onClick = {
+                           onMenuExpandedChange(null)
+                           showDetectionDetails = true
+                        }
+                    )
                 }
             }
             
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 Row(
                     verticalAlignment = Alignment.Top,
@@ -305,13 +340,13 @@ fun DetectionHistoryItem(
                                 text = userName,
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                                color = ThemeColorUtils.black()
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                             )
                             selectedVisibility?.let { visibility ->
                                 Icon(
                                     imageVector = if (visibility == "public") Icons.Default.Public else Icons.Default.Lock,
                                     contentDescription = visibility,
-                                    tint = ThemeColorUtils.lightGray(Color.Gray),
+                                    tint = if (ThemeViewModel.isDarkMode) Color(0xFFB0B3B8) else ThemeColorUtils.lightGray(Color.Gray),
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
@@ -319,7 +354,7 @@ fun DetectionHistoryItem(
                         Text(
                             text = "- $dateString",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.lightGray(Color.Gray)
+                            color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B3B8) else ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -327,7 +362,7 @@ fun DetectionHistoryItem(
                 Column(
                     modifier = Modifier
                         .padding(start = 64.dp)
-                        .offset(y = (-2).dp)
+                        .offset(y = (-18).dp)
                 ) {
                     Text(
                         text = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusText(detection.isHealthy, detection.confidence),
@@ -340,7 +375,7 @@ fun DetectionHistoryItem(
                         Text(
                             text = "Confidence: ${String.format("%.1f", detection.confidence * 100)}%",
                             style = MaterialTheme.typography.bodySmall,
-                            color = ThemeColorUtils.lightGray(Color.Gray)
+                            color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B3B8) else ThemeColorUtils.lightGray(Color.Gray)
                         )
                     }
                 }
@@ -378,5 +413,214 @@ fun DetectionHistoryItem(
                 }
             }
         }
+    }
+
+
+    if (showDetectionDetails) {
+        ViewDetectionDialog(
+            entry = detection,
+            onDismiss = { showDetectionDetails = false }
+        )
+    }
+}
+
+@Composable
+fun ViewDetectionDialog(
+    entry: DetectionEntry,
+    onDismiss: () -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var mediaPlayer by remember { mutableStateOf<android.media.MediaPlayer?>(null) }
+    var showFullscreenImage by remember { mutableStateOf(false) }
+    val imageModel = com.bisu.chickcare.frontend.utils.getAccessibleUri(context, entry.imageUri, entry.cloudUrl)
+
+    fun stopPlayback() {
+        try {
+            mediaPlayer?.stop()
+        } catch (_: Exception) {
+        }
+        try {
+            mediaPlayer?.release()
+        } catch (_: Exception) {
+        }
+        mediaPlayer = null
+        isPlaying = false
+    }
+
+    androidx.compose.runtime.DisposableEffect(Unit) {
+        onDispose { stopPlayback() }
+    }
+
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFF2C2C2C)) else ThemeColorUtils.white())
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Detection Details",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                    )
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.offset(x = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.black(),
+                        )
+                    }
+                }
+                
+                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Image
+                if (imageModel != null) {
+                    val imageRequest = coil.request.ImageRequest.Builder(context)
+                        .data(imageModel)
+                        .crossfade(true)
+                        .build()
+
+                    AsyncImage(
+                        model = imageRequest,
+                        contentDescription = "Detection Image",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { showFullscreenImage = true },
+                        contentScale = ContentScale.Crop
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+
+                // Results
+                 val statusText = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusText(entry.isHealthy, entry.confidence)
+                 val statusColor = com.bisu.chickcare.frontend.utils.DetectionDisplayUtils.statusColor(entry.isHealthy, entry.confidence)
+                 
+                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Result: ",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                    )
+                    Text(
+                        text = statusText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = statusColor
+                    )
+                 }
+                 
+                 if (entry.confidence > 0f) {
+                     Text(
+                         text = "Confidence: ${String.format("%.1f", entry.confidence * 100)}%",
+                         style = MaterialTheme.typography.bodyMedium,
+                         color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
+                     )
+                 }
+                 Spacer(modifier = Modifier.height(8.dp))
+
+                // Play Audio button
+                val audioUri = entry.audioUri
+                val cloudAudioUri = entry.cloudAudioUrl
+                val audioModel = com.bisu.chickcare.frontend.utils.getAccessibleUri(context, audioUri, cloudAudioUri)
+
+                if (audioModel != null) {
+                    androidx.compose.material3.Button(
+                        onClick = {
+                            if (isPlaying) {
+                                stopPlayback()
+                                return@Button
+                            }
+                            try {
+                                stopPlayback()
+                                
+                                val player = android.media.MediaPlayer()
+                                
+                                if (audioModel is android.net.Uri) {
+                                     player.setDataSource(context, audioModel)
+                                } else if (audioModel is String) {
+                                     player.setDataSource(audioModel)
+                                }
+                                
+                                player.prepareAsync()
+                                player.setOnPreparedListener { 
+                                    it.start() 
+                                    mediaPlayer = it
+                                    isPlaying = true
+                                }
+                                player.setOnCompletionListener { 
+                                    stopPlayback() 
+                                }
+                                player.setOnErrorListener { _, what, extra ->
+                                     stopPlayback()
+                                     false
+                                }
+
+                            } catch (_: Exception) {
+                                stopPlayback()
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(999.dp),
+                        colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+                            contentColor = ThemeColorUtils.black()
+                        )
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Stop else androidx.compose.material.icons.Icons.Filled.PlayArrow,
+                            contentDescription = if (isPlaying) "Stop audio" else "Play audio",
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (isPlaying) "Stop Audio" else "Play Audio",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+                
+                // Date
+                Text(
+                    text = SimpleDateFormat("MMMM dd, yyyy 'at' hh:mm a", Locale.getDefault()).format(
+                        Date(entry.timestamp)
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B3B8) else Color.Gray
+                )
+            }
+        }
+    }
+
+    // Fullscreen image viewer
+    if (showFullscreenImage && imageModel != null) {
+        com.bisu.chickcare.frontend.components.FullscreenImageViewer(
+            images = listOf(imageModel.toString()),
+            initialIndex = 0,
+            onDismiss = { showFullscreenImage = false }
+        )
     }
 }

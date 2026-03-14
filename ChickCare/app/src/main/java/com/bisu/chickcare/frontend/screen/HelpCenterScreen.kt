@@ -46,28 +46,23 @@ import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 @Composable
 fun HelpCenterScreen(paddingValues: PaddingValues) {
     val authViewModel: AuthViewModel = viewModel()
-    // FIX: Observe the userProfile StateFlow from the ViewModel
     val userProfile by authViewModel.userProfile.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var showPrioritySupport by remember { mutableStateOf(true) }
     var expandedSections by remember { mutableStateOf(setOf<String>()) }
 
-    // Use the collected userProfile state directly.
-    // If the profile is not null, get the first name. Otherwise, default to "User".
     val userName = userProfile?.fullName?.split(" ")?.firstOrNull() ?: "User"
 
-    // ERROR FIX: The problematic LaunchedEffect has been removed.
-
     val topics = listOf(
-        "Disease Information" to "Learn about Infectious Bronchitis (IB), a highly contagious respiratory disease caused by the avian gammacoronavirus. It affects chickens of all ages, leading to reduced egg production, growth issues, and potential mortality. Variants can also impact kidneys (nephropathogenic strains).",
-        "Symptoms" to "Common signs include coughing, sneezing, nasal discharge, tracheal rales, gasping, and dyspnea. In chicks: conjunctivitis and facial swelling. In layers: drop in egg production (up to 70%), misshapen/soft/wrinkled eggs with watery albumen. Nephropathogenic strains cause lethargy, wet droppings, excessive thirst, and higher mortality (up to 60% with complications). Early infection in chicks may lead to false layer syndrome due to oviduct damage.",
-        "Causes" to "Caused by Infectious Bronchitis Virus (IBV), with many antigenic types. Severity depends on virus strain, bird age/breed/immune status/diet, environmental factors (ventilation, ammonia, temperature), and concurrent infections (e.g., E. coli, Mycoplasma). Virus mutates rapidly via genetic drift or recombination.",
+        "Disease Information" to "Learn about Infectious Bronchitis or IB, a highly contagious respiratory disease caused by the avian gammacoronavirus. It affects chickens of all ages, leading to reduced egg production, growth issues, and potential mortality. Variants can also impact kidneys (nephropathogenic strains).",
+        "Symptoms" to "Common signs include coughing, sneezing, nasal discharge, tracheal rales, gasping, and dyspnea. In chicks: conjunctivitis and facial swelling. In layers: drop in egg production (up to 70%), misshapen or wrinkled eggs with watery albumen. Nephropathogenic strains cause lethargy, wet droppings, excessive thirst, and higher mortality (up to 60% with complications). Early infection in chicks may lead to false layer syndrome due to oviduct damage.",
+        "Causes" to "Caused by Infectious Bronchitis Virus or IBV, with many antigenic types. Severity depends on virus strain, bird age, or immune diet, environmental factors (such as ventilation, ammonia, temperature), and concurrent infections (example like coli, and Mycoplasma). Virus mutates rapidly via genetic drift or recombination.",
         "Transmission" to "Spreads via aerosols from respiratory discharges, feces ingestion, or contact with contaminated equipment/clothing/personnel/feed/water. Incubation: 24-48 hours. Peak shedding: 3-5 days post-infection. Birds shed virus up to 20 weeks. Prevent with strict biosecurity: isolate new birds, disinfect regularly.",
-        "Preventive Measures" to "Vaccination is key: Use live attenuated (e.g., Massachusetts strains like H120) for chicks (1-14 days via spray/water/eye drops), revaccinate layers. Killed vaccines for breeders. Match vaccines to local strains via surveillance. Biosecurity: Clean environments, good ventilation, balanced diets, avoid overcrowding. Monitor and quarantine.",
-        "Treatment" to "No specific antiviral; focus on supportive care. Antimicrobials for secondary bacterial infections. Increase temperature in cold weather, reduce protein for kidney strains, add electrolytes to water. Isolate sick birds, improve ventilation, reduce stress. Consult vet for prescriptions; early action minimizes mortality to ~5%.",
-        "Vaccines" to "Live attenuated for initial protection; killed/adjuvanted for layers/breeders to pass maternal antibodies. Common: M41, H120, H52. Use different serotypes for boosters. Autogenous for local variants. Store refrigerated, vaccinate uniformly. Efficacy depends on strain match; revaccinate as needed.",
-        "Farm Tips" to "Monitor daily for signs; separate sick birds. Ensure proper ventilation/ammonia control. Provide clean water/feed. Vaccinate based on local threats. Reduce stress (e.g., avoid overcrowding). Use app for early detection to act fast and prevent outbreaks."
+        "Preventive Measures" to "Vaccination is key: Use live attenuated such as: Massachusetts strains like H120, for chicks: (1 to 14 days via spray water or eye drops) revaccinate layers. Killed vaccines for breeders. Biosecurity like clean environments, good ventilation, balanced diets, avoid overcrowding and monitor quarantine.",
+        "Treatment" to "No specific antiviral; focus on supportive care. Antimicrobials for secondary bacterial infections. Increase temperature in cold weather, reduce protein for kidney strains, add electrolytes to water. Isolate sick birds, improve ventilation, reduce stress. Consult veterinarian for prescriptions; early action minimizes mortality to ~5%.",
+        "Vaccines" to "Live attenuated for initial protection; killed or adjuvanted for layers or breeders to pass maternal antibodies. Common: M41, H120, H52. Use different serotypes for boosters. Autogenous for local variants. Store refrigerated, vaccinate uniformly. Efficacy depends on strain match; revaccinate as needed.",
+        "Farm Tips" to "Monitor daily for signs; separate sick birds. Ensure proper ventilation or ammonia control. Provide clean water or feeds. Vaccinate based on local threats. Reduce stress (such as avoid overcrowding). Use app for early detection to act fast and prevent outbreaks."
     )
 
     // FIX: Corrected indentation

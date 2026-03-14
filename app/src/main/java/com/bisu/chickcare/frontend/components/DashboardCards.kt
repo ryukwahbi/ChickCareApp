@@ -62,13 +62,18 @@ fun ChickenGalleryCard() {
             R.drawable.chicken_background_1,
             R.drawable.chicken_background_2,
             R.drawable.chicken_background_3,
-            R.drawable.chicken_background_4
+            R.drawable.chicken_background_4,
+            R.drawable.chicken_background_5,
+            R.drawable.chicken_background_6,
+            R.drawable.chicken_background_7,
+            R.drawable.chicken_background_8,
+            R.drawable.chicken_background_9
         )
     }
-    
+
     var currentIndex by remember { mutableIntStateOf(0) }
     var slideDirection by remember { mutableIntStateOf(1) }
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -104,7 +109,7 @@ fun ChickenGalleryCard() {
                     modifier = Modifier.fillMaxSize()
                 )
             }
-            
+
             // Left navigation arrow (Previous)
             Box(
                 modifier = Modifier
@@ -132,7 +137,7 @@ fun ChickenGalleryCard() {
                     )
                 }
             }
-            
+
             // Right navigation arrow (Next)
             Box(
                 modifier = Modifier
@@ -180,12 +185,12 @@ fun StatsSummaryCard(
     calendar.set(java.util.Calendar.SECOND, 0)
     calendar.set(java.util.Calendar.MILLISECOND, 0)
     val startOfDay = calendar.timeInMillis
-    
+
     // Filter today's detections and calculate sum of all confidence percentages
     val todaysDetections = remember(detectionHistory, startOfDay) {
         detectionHistory.filter { it.timestamp >= startOfDay }
     }
-    
+
     val dailySum = remember(todaysDetections) {
         if (todaysDetections.isNotEmpty()) {
             // Sum all confidence percentages from today's detections
@@ -195,7 +200,7 @@ fun StatsSummaryCard(
             0.0
         }
     }
-    
+
     Column(
         modifier = Modifier.padding(horizontal = Dimens.PaddingLarge),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -269,7 +274,7 @@ fun StatsSummaryCard(
                     chartType = ChartType.HEALTHY_ONLY,
                     modifier = Modifier.weight(1f)
                 )
-                
+
                 HealthyRatePieChart(
                     healthyRate = healthyRate,
                     unhealthyRate = unhealthyRate,
@@ -292,9 +297,7 @@ fun DetectionHistoryCard(
             .fillMaxWidth()
             .padding(horizontal = Dimens.PaddingLarge),
         elevation = CardDefaults.cardElevation(Dimens.CardElevation),
-        colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.white()
-        )
+        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f)))
     ) {
         Column(modifier = Modifier.padding(Dimens.PaddingLarge)) {
             Text(
@@ -352,20 +355,20 @@ fun DetectionHistoryCard(
 }
 
 private fun formatDetectionResult(rawResult: String): String {
-    val trimmed = rawResult.trim()
-    val parts = trimmed.split(" ", limit = 2)
+    // Remove any non-standard characters (keep only letters, digits, spaces, periods, colons, parentheses)
+    val cleaned = rawResult.replace(Regex("[^a-zA-Z0-9\\s.:%()]+"), "").trim()
+    val parts = cleaned.split(" ", limit = 2)
     return if (parts.size == 2) {
         val label = parts[0].trim().trimEnd(':')
         val percentage = parts[1]
             .replace("%%", "%")
-            .replace("�", "%")
             .replace("%", "")
             .trim()
             .trimStart('(')
             .trimEnd(')')
         "$label: $percentage%"
     } else {
-        trimmed.replace("�", "%")
+        cleaned
     }
 }
 
@@ -387,7 +390,7 @@ fun FarmTipsCard(navController: NavController) {
                 color = ThemeColorUtils.black()
             )
             Spacer(modifier = Modifier.height(Dimens.PaddingMedium))
-            
+
             // Tips list (non-scrollable, shows first few tips)
             Column(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -413,9 +416,9 @@ fun FarmTipsCard(navController: NavController) {
                     color = ThemeColorUtils.black()
                 )
             }
-            
+
             Spacer(modifier = Modifier.height(Dimens.PaddingMedium))
-            
+
             Text(
                 text = "See more...",
                 color = ThemeColorUtils.darkGray(Color(0xFF666666)),
@@ -462,4 +465,3 @@ fun StatCard(
         }
     }
 }
-

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.bisu.chickcare.backend.repository.FeedingScheduleEntry
 import com.bisu.chickcare.backend.repository.FeedingScheduleRepository
 import com.bisu.chickcare.backend.service.FeedingScheduleNotificationManager
+import com.bisu.chickcare.backend.utils.OfflineAuthHelper
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -23,12 +24,18 @@ class FeedingScheduleViewModel(application: Application) : AndroidViewModel(appl
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
+    private fun getCurrentUserId(): String? {
+        val firebaseUid = auth.currentUser?.uid
+        if (firebaseUid != null) return firebaseUid
+        return OfflineAuthHelper.getCurrentLocalUserId(getApplication())
+    }
+
     init {
         loadSchedules()
     }
 
     private fun loadSchedules() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true
@@ -45,12 +52,12 @@ class FeedingScheduleViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun saveSchedule(entry: FeedingScheduleEntry) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true
                 val documentId = repository.saveSchedule(userId, entry)
-                val resolvedEntry = entry.copy(id = if (entry.id.isNotBlank()) entry.id else documentId)
+                val resolvedEntry = entry.copy(id = entry.id.ifBlank { documentId })
                 notificationManager.schedule(resolvedEntry)
             } catch (_: Exception) {
             } finally {
@@ -60,7 +67,7 @@ class FeedingScheduleViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun toggleCompletion(scheduleId: String, completed: Boolean) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         val schedule = _schedules.value.firstOrNull { it.id == scheduleId }
         viewModelScope.launch {
             try {
@@ -76,7 +83,7 @@ class FeedingScheduleViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun deleteSchedule(scheduleId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 _isLoading.value = true

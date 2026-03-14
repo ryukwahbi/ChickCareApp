@@ -9,9 +9,12 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,6 +28,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
@@ -41,9 +46,11 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,26 +63,43 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
+import com.bisu.chickcare.backend.repository.AccountManager
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
-import com.bisu.chickcare.frontend.utils.Validators
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.Validators
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
-fun LoginScreen(navController: NavController) {
+fun LoginScreen(navController: NavController, initialEmail: String? = null) {
     val viewModel: AuthViewModel = viewModel()
     val context = LocalContext.current
-    var email by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf(initialEmail ?: "") }
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
+    var showSuccessToast by remember { mutableStateOf(false) }
+    val accountManager = remember { AccountManager(context) }
+    var hasSavedAccounts by remember { mutableStateOf(false) }
+
+    // Auto-hide toast and navigate
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        hasSavedAccounts = accountManager.getSavedAccounts().isNotEmpty()
+    }
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -105,7 +129,6 @@ fun LoginScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .then(
-                    // Only apply scale transform, reducing recomposition overhead
                     Modifier.scale(scale)
                 )
                 .alpha(0.4f)
@@ -135,16 +158,19 @@ fun LoginScreen(navController: NavController) {
                     .fillMaxSize()
                     .padding(horizontal = 24.dp)
                     .verticalScroll(rememberScrollState())
-                    .clickable(onClick = {
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
                         keyboardController?.hide()
                         focusManager.clearFocus()
-                    }),
+                    },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
                 Image(
                     painter = painterResource(id = R.drawable.chicken_icon),
-                    contentDescription = "ChickCare Logo",
+                    contentDescription = stringResource(R.string.app_logo_desc),
                     modifier = Modifier
                         .size(130.dp)
                         .alpha(0.8f)
@@ -154,13 +180,17 @@ fun LoginScreen(navController: NavController) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Mobile number or email") },
+                    label = { Text(stringResource(R.string.login_email_label)) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    isError = email.isNotEmpty() && !Validators.isValidEmail(email),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        imeAction = ImeAction.Next
+                    ),
+                    isError = email.isNotEmpty() && !(Validators.isValidEmail(email) || Validators.isValidPhoneNumber(email)),
                     supportingText = {
-                        if (email.isNotEmpty() && !Validators.isValidEmail(email))
-                            Text("Invalid email format", color = MaterialTheme.colorScheme.error)
+                        if (email.isNotEmpty() && !(Validators.isValidEmail(email) || Validators.isValidPhoneNumber(email)))
+                            Text(stringResource(R.string.login_email_error), color = MaterialTheme.colorScheme.error)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = ThemeColorUtils.black(),
@@ -182,23 +212,50 @@ fun LoginScreen(navController: NavController) {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.login_password_label)) },
                     visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
                         IconButton(onClick = { showPassword = !showPassword }) {
                             Icon(
                                 imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                contentDescription = "Toggle password visibility",
+                                contentDescription = stringResource(R.string.password_visibility_toggle),
                                 tint = ThemeColorUtils.darkGray(Color.DarkGray)
                             )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            keyboardController?.hide()
+                            isLoading = true
+                            viewModel.login(email, password, context = context) { success, msg ->
+                                isLoading = false
+                                if (success) {
+                                    showSuccessToast = true
+                                    message = "" // Clear error message if any
+                                    scope.launch {
+                                        delay(600)
+                                        showSuccessToast = false
+                                        navController.navigate("dashboard") {
+                                            popUpTo("login") { inclusive = true }
+                                        }
+                                    }
+                                } else {
+                                    message = msg
+                                }
+                            }
+                        }
+                    ),
                     isError = password.isNotEmpty() && password.length < 6,
                     supportingText = {
                         if (password.isNotEmpty() && password.length < 6)
-                            Text("Password must be at least 6 characters", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.login_password_error), color = MaterialTheme.colorScheme.error)
                     },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = ThemeColorUtils.black(),
@@ -227,7 +284,7 @@ fun LoginScreen(navController: NavController) {
                         horizontalArrangement = Arrangement.End
                     ) {
                         Text(
-                            text = "Forgot Password?",
+                            text = stringResource(R.string.login_forgot_password),
                             color = ThemeColorUtils.white(),
                             modifier = Modifier
                                 .clickable { navController.navigate("reset_password") }
@@ -243,11 +300,18 @@ fun LoginScreen(navController: NavController) {
                         isLoading = true
                         viewModel.login(email, password, context = context) { success, msg ->
                             isLoading = false
-                            message = msg
                             if (success) {
-                                navController.navigate("dashboard") {
-                                    popUpTo("login") { inclusive = true }
+                                showSuccessToast = true
+                                message = ""
+                                scope.launch {
+                                    delay(600)
+                                    showSuccessToast = false
+                                    navController.navigate("dashboard") {
+                                        popUpTo("login") { inclusive = true }
+                                    }
                                 }
+                            } else {
+                                message = msg
                             }
                         }
                     },
@@ -263,14 +327,17 @@ fun LoginScreen(navController: NavController) {
                     if (isLoading) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = ThemeColorUtils.white())
                     } else {
-                        Text("Log In")
+                        Text(stringResource(R.string.login_button))
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(
-                    text = message,
-                    color = if (message.contains("successful")) Color.Green else Color.Red
-                )
+                if (message.isNotEmpty()) {
+                    Text(
+                        text = message,
+                        color = Color.Red,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
@@ -279,33 +346,62 @@ fun LoginScreen(navController: NavController) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Don't have an account? ",
+                        text = stringResource(R.string.login_no_account),
                         color = ThemeColorUtils.white(),
                         fontWeight = FontWeight.Normal
                     )
                     Text(
-                        text = "Sign up",
+                        text = stringResource(R.string.login_signup_link),
                         color = Color(0xFFD27D2D),
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.clickable { navController.navigate("signup") }
                     )
                 }
             }
+            }
+
+        // --- SUCCESS TOAST ---
+        AnimatedVisibility(
+            visible = showSuccessToast,
+            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 60.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp)
+                    .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Login successful!",
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
         }
 
         // --- SETTINGS ICON (rendered last so it's on top and clickable) ---
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 42.dp, end = 20.dp)
-                .clickable { navController.navigate("manage_profiles") }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color(0xFF363230),
-                modifier = Modifier.size(32.dp)
-            )
+        // Only show if there are saved accounts
+        if (hasSavedAccounts) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 42.dp, end = 20.dp)
+                    .clickable { navController.navigate("manage_profiles") }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Settings,
+                    contentDescription = stringResource(R.string.settings_icon_desc),
+                    tint = Color(0xFF363230),
+                    modifier = Modifier.size(32.dp)
+                )
+            }
         }
     }
 }

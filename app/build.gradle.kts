@@ -1,11 +1,12 @@
-import java.util.Properties
 import java.io.FileInputStream
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.google.gms.google.services)
+    alias(libs.plugins.ksp)
 }
 
 // Load local.properties file
@@ -112,13 +113,13 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.ui)
+    implementation(libs.androidx.foundation)
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
-    implementation(libs.androidprofanityfilter)
     implementation(libs.okhttp)
     implementation(libs.gson)
     implementation(libs.ucrop)
@@ -149,6 +150,9 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.guava)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     implementation(libs.tensorflow.lite) {
         exclude(group = "com.google.ai.edge.litert", module = "litert-support-api")
     }

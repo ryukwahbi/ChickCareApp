@@ -61,7 +61,7 @@ fun FarmInsightsScreen(navController: NavController) {
                         "Farm Insights",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -77,13 +77,13 @@ fun FarmInsightsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -92,7 +92,7 @@ fun FarmInsightsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -129,20 +129,7 @@ fun FarmInsightsScreen(navController: NavController) {
                         icon = Icons.Default.BarChart
                     )
                 }
-                item {
-                    InsightCard(
-                        title = "Image Detections",
-                        value = uiState.imageDetections.toString(),
-                        icon = Icons.Default.BarChart
-                    )
-                }
-                item {
-                    InsightCard(
-                        title = "Audio Detections",
-                        value = uiState.audioDetections.toString(),
-                        icon = Icons.Default.BarChart
-                    )
-                }
+
             }
         }
     }
@@ -177,7 +164,7 @@ fun InsightCard(
                     Text(
                         text = title,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color.Gray
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
@@ -190,7 +177,7 @@ fun InsightCard(
                 Icon(
                     icon,
                     contentDescription = null,
-                    tint = ThemeColorUtils.darkGray(Color(0xFF231C16)),
+                    tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color(0xFF231C16),
                     modifier = Modifier.size(32.dp)
                 )
             }

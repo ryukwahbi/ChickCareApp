@@ -74,13 +74,16 @@ class FeedingScheduleReminderWorker(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val soundUri = android.net.Uri.parse("android.resource://${applicationContext.packageName}/${com.bisu.chickcare.R.raw.notify_sound}")
+
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_popup_reminder)
             .setContentTitle(title)
             .setContentText(message)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setDefaults(NotificationCompat.DEFAULT_LIGHTS or NotificationCompat.DEFAULT_VIBRATE) // Don't use DEFAULT_SOUND or DEFAULT_ALL
+            .setSound(soundUri)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
@@ -90,6 +93,13 @@ class FeedingScheduleReminderWorker(
 
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+
+            val soundUri = android.net.Uri.parse("android.resource://${applicationContext.packageName}/${com.bisu.chickcare.R.raw.notify_sound}")
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
@@ -98,6 +108,7 @@ class FeedingScheduleReminderWorker(
                 description = CHANNEL_DESCRIPTION
                 enableVibration(true)
                 enableLights(true)
+                setSound(soundUri, audioAttributes)
             }
 
             val manager = applicationContext.getSystemService(NotificationManager::class.java)
@@ -114,7 +125,7 @@ class FeedingScheduleReminderWorker(
         const val KEY_TITLE = "title"
         const val KEY_MESSAGE = "message"
 
-        private const val CHANNEL_ID = "feeding_schedule_channel"
+        private const val CHANNEL_ID = "feeding_schedule_channel_v2"
         private const val CHANNEL_NAME = "Feeding Schedule Alerts"
         private const val CHANNEL_DESCRIPTION = "Notifications for upcoming feeding schedules"
     }

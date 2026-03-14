@@ -105,7 +105,7 @@ fun MedicationsLogScreen(navController: NavController) {
                         "Medications Log",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -121,13 +121,13 @@ fun MedicationsLogScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         },
@@ -189,13 +189,7 @@ fun MedicationsLogScreen(navController: NavController) {
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                HorizontalDivider(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    color = ThemeColorUtils.lightGray(Color(0xFFBDBDBD)),
-                    thickness = 1.dp
-                )
+                Spacer(modifier = Modifier.height(6.dp))
                 Spacer(modifier = Modifier.height(6.dp))
 
                 val filteredMedications = when (selectedTab) {
@@ -254,27 +248,19 @@ fun MedicationsLogScreen(navController: NavController) {
 
 @Composable
 private fun EmptyStateCard(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Card(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(32.dp),
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-        elevation = CardDefaults.cardElevation(2.dp)
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Icon(icon, contentDescription = null, modifier = Modifier.size(48.dp), tint = ThemeColorUtils.lightGray(Color.Gray))
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                color = ThemeColorUtils.lightGray(Color.Gray)
-            )
-        }
+        Icon(icon, contentDescription = null, modifier = Modifier.size(48.dp), tint = ThemeColorUtils.lightGray(Color.Gray))
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = ThemeColorUtils.lightGray(Color.Gray)
+        )
     }
 }
 

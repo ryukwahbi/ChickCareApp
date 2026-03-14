@@ -1,6 +1,5 @@
 package com.bisu.chickcare.frontend.screen
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -55,7 +54,7 @@ fun AboutScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        "About",
+                        androidx.compose.ui.res.stringResource(R.string.about_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.black()
@@ -73,7 +72,7 @@ fun AboutScreen(navController: NavController) {
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -121,20 +120,20 @@ fun AboutScreen(navController: NavController) {
                         ) {
                             Image(
                                 painter = painterResource(id = R.drawable.chicken_icon),
-                                contentDescription = "App Icon",
+                                contentDescription = androidx.compose.ui.res.stringResource(R.string.app_logo_desc),
                                 modifier = Modifier.size(60.dp)
                             )
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
                                 Text(
-                                    text = "ChickCare",
+                                    text = androidx.compose.ui.res.stringResource(R.string.about_app_name),
                                     style = MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Bold,
                                     color = ThemeColorUtils.black()
                                 )
                                 Text(
-                                    text = "Version 1.0.0",
+                                    text = androidx.compose.ui.res.stringResource(R.string.about_version),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = ThemeColorUtils.darkGray(Color(0xFF666666))
                                 )
@@ -163,17 +162,18 @@ fun AboutScreen(navController: NavController) {
                                 .padding(20.dp)
                         ) {
                             Text(
-                                text = "About ChickCare",
+                                text = androidx.compose.ui.res.stringResource(R.string.about_desc_title),
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
-                                text = "ChickCare is an innovative mobile application designed to help poultry farmers monitor and maintain the health of their chickens. Using advanced AI technology, the app can detect early signs of diseases, particularly Infectious Bronchitis, through image and audio analysis.",
+                                text = androidx.compose.ui.res.stringResource(R.string.about_description),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = ThemeColorUtils.darkGray(Color(0xFF666666)),
-                                lineHeight = 22.sp
+                                lineHeight = 22.sp,
+                                textAlign = TextAlign.Justify
                             )
                         }
                     }
@@ -181,7 +181,7 @@ fun AboutScreen(navController: NavController) {
 
                 item {
                     Text(
-                        text = "Features",
+                        text = androidx.compose.ui.res.stringResource(R.string.about_features_title),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -190,27 +190,35 @@ fun AboutScreen(navController: NavController) {
                 }
 
                 item {
-                    AboutFeatureCard(
-                        icon = R.drawable.ic_ai_detection_flaticon,
-                        title = "AI-Powered Detection",
-                        description = "Advanced machine learning algorithms for accurate health monitoring"
-                    )
-                }
-
-                item {
-                    AboutFeatureCard(
-                        icon = R.drawable.ic_realtime_monitoring_flaticon,
-                        title = "Real-time Monitoring",
-                        description = "Track your flock's health status in real-time"
-                    )
-                }
-
-                item {
-                    AboutFeatureCard(
-                        icon = R.drawable.ic_records_flaticon,
-                        title = "Comprehensive Records",
-                        description = "Keep detailed records of all detections and health history"
-                    )
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_ai),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_ai_desc)
+                        )
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_realtime),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_realtime_desc)
+                        )
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_records),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_records_desc)
+                        )
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_vaccine),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_vaccine_desc)
+                        )
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_community),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_community_desc)
+                        )
+                        FeatureTextItem(
+                            title = androidx.compose.ui.res.stringResource(R.string.about_feat_offline),
+                            description = androidx.compose.ui.res.stringResource(R.string.about_feat_offline_desc)
+                        )
+                    }
                 }
 
                 item {
@@ -228,107 +236,49 @@ fun AboutScreen(navController: NavController) {
                     ) {
                         Icon(
                             imageVector = Icons.Default.Share,
-                            contentDescription = "Share",
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.about_share_btn),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(
-                            text = "Share App",
+                            text = androidx.compose.ui.res.stringResource(R.string.about_share_btn),
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp
                         )
                     }
                 }
 
-                item {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFD9D5D0)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp)
-                        ) {
-                            Text(
-                                text = "Developed with care",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = ThemeColorUtils.black(),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "For the poultry farmers worldwide",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = ThemeColorUtils.black(),
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
-                    }
-                }
+
             }
         }
     }
 }
 
 @Composable
-fun AboutFeatureCard(
-    @androidx.annotation.DrawableRes icon: Int,
+fun FeatureTextItem(
     title: String,
     description: String
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        border = BorderStroke(
-            width = 1.dp,
-            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
-        ),
-        colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
-            contentColor = ThemeColorUtils.black()
-        ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 5.dp,
-            pressedElevation = 8.dp,
-            hoveredElevation = 6.dp,
-            focusedElevation = 6.dp
-        )
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Image(
-                painter = painterResource(id = icon),
-                contentDescription = title,
-                modifier = Modifier.size(38.dp)
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.Top) {
+            Text(
+                text = "- ",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ThemeColorUtils.black()
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.black()
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
-                )
-            }
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = ThemeColorUtils.black()
+            )
         }
+        Text(
+            text = description,
+            style = MaterialTheme.typography.bodyMedium,
+            color = ThemeColorUtils.darkGray(Color(0xFF666666)),
+            modifier = Modifier.padding(start = 12.dp)
+        )
     }
 }

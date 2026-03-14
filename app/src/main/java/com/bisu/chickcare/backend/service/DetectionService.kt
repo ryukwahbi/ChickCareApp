@@ -71,14 +71,10 @@ class DetectionService(
                     withContext(NonCancellable) {
                         Log.d("DetectionService", "Step 1: Loading image bitmap...")
                         // Load image bitmap
-                        val decodedImageUri = imageUri.toUri()
-                        val imageBitmap = if (decodedImageUri.scheme == "file") {
-                            BitmapFactory.decodeFile(decodedImageUri.path)
-                        } else {
-                            context.contentResolver.openInputStream(decodedImageUri)?.use { inputStream ->
-                                BitmapFactory.decodeStream(inputStream)
-                            }
-                        } ?: throw Exception("Failed to decode image bitmap")
+                        // Load optimized image bitmap
+                        Log.d("DetectionService", "Step 1: Loading optimized image bitmap...")
+                        val imageBitmap = loadOptimizedBitmap(imageUri)
+                            ?: throw Exception("Failed to decode image bitmap")
                         
                         Log.d("DetectionService", "Image loaded: ${imageBitmap.width}x${imageBitmap.height}")
                         
@@ -318,15 +314,7 @@ class DetectionService(
                     Log.d("DetectionService", "Skipping image-only detection, fusion model should be used instead")
                 } else {
                     val bitmap = try {
-                        val decodedUri = imageUri.toUri()
-                        Log.d("DetectionService", "Decoded URI: $decodedUri")
-                        if (decodedUri.scheme == "file") {
-                            BitmapFactory.decodeFile(decodedUri.path)
-                        } else {
-                            context.contentResolver.openInputStream(decodedUri)?.use { inputStream ->
-                                BitmapFactory.decodeStream(inputStream)
-                            }
-                        } ?: throw Exception("Failed to decode image bitmap")
+                        loadOptimizedBitmap(imageUri) ?: throw Exception("Failed to decode image bitmap")
                     } catch (e: Exception) {
                         Log.e("DetectionService", "Error loading image: ${e.message}", e)
                         return@withContext false to "Failed to load image: ${e.message}"
@@ -499,19 +487,22 @@ class DetectionService(
     suspend fun getRemedySuggestions(isInfected: Boolean): List<String> = withContext(Dispatchers.IO) {
         if (isInfected) {
             listOf(
-                "⚠️ IMPORTANT: Go to the veterinarian immediately for proper diagnosis and treatment.",
-                "Isolate infected chicken immediately to prevent disease spread.",
-                "Administer antibiotics only as prescribed by a veterinarian.",
-                "Improve ventilation in the coop to reduce infection risk.",
-                "Ensure clean water and high-quality feed to support recovery.",
-                "Monitor affected chickens closely and report symptoms to the vet."
+                "⚠️ CRITICAL: Consult a licensed veterinarian IMMEDIATELY for proper diagnosis and treatment.",
+                "⚠️ DO NOT self-medicate or use antibiotics without veterinary prescription - this can worsen the condition and cause antibiotic resistance.",
+                "Isolate the infected chicken immediately from the flock to prevent disease spread.",
+                "Keep the isolated chicken in a clean, well-ventilated area with access to fresh water.",
+                "Disinfect the coop, equipment, and feeding areas thoroughly to prevent further spread.",
+                "Monitor other chickens closely for similar symptoms and report to your veterinarian.",
+                "Follow ONLY the treatment plan prescribed by your licensed veterinarian.",
+                "Provide high-quality feed and clean water to support the chicken's immune system during recovery."
             )
         } else {
             listOf(
                 "Your chicken appears healthy. Continue regular health monitoring.",
-                "Maintain clean and dry coop conditions.",
-                "Provide balanced nutrition and fresh water.",
-                "Schedule regular check-ups with a veterinarian for preventive care."
+                "Maintain clean and dry coop conditions to prevent disease.",
+                "Provide balanced nutrition and fresh water daily.",
+                "Schedule regular check-ups with a licensed veterinarian for preventive care.",
+                "Observe daily behavior and physical appearance for any changes."
             )
         }
     }
@@ -798,5 +789,52 @@ class DetectionService(
         val real = q1 - q2 * cos(omega)
         val imag = q2 * sin(omega)
         return (real * real + imag * imag).toFloat() / n
+    }
+    private fun loadOptimizedBitmap(uriString: String, maxDimension: Int = 640): Bitmap? {
+        try {
+            val uri = uriString.toUri()
+            
+            // First pass: Get dimensions only
+            val options = BitmapFactory.Options().apply {
+                inJustDecodeBounds = true
+            }
+            
+            if (uri.scheme == "file") {
+                BitmapFactory.decodeFile(uri.path, options)
+            } else {
+                context.contentResolver.openInputStream(uri)?.use { 
+                    BitmapFactory.decodeStream(it, null, options)
+                }
+            }
+            
+            if (options.outWidth == -1 || options.outHeight == -1) return null
+            
+            // Calculate sample size
+            var inSampleSize = 1
+            if (options.outHeight > maxDimension || options.outWidth > maxDimension) {
+                val halfHeight: Int = options.outHeight / 2
+                val halfWidth: Int = options.outWidth / 2
+                while ((halfHeight / inSampleSize) >= maxDimension && (halfWidth / inSampleSize) >= maxDimension) {
+                    inSampleSize *= 2
+                }
+            }
+            
+            // Second pass: Decode with sample size
+            val decodeOptions = BitmapFactory.Options().apply {
+                inJustDecodeBounds = false
+                inSampleSize = inSampleSize
+            }
+            
+            return if (uri.scheme == "file") {
+                BitmapFactory.decodeFile(uri.path, decodeOptions)
+            } else {
+                context.contentResolver.openInputStream(uri)?.use {
+                    BitmapFactory.decodeStream(it, null, decodeOptions)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DetectionService", "Error loading optimized bitmap: ${e.message}")
+            return null
+        }
     }
 }

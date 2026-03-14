@@ -13,7 +13,8 @@ data class FriendSuggestion(
     val lastActive: Long = 0L,
     val mutualFriendsCount: Int = 0,
     val isPinned: Boolean? = null,
-    val notificationsMuted: Boolean? = null
+    val notificationsMuted: Boolean? = null,
+    val address: String? = null
 )
 
 data class FriendRequest(
@@ -35,25 +36,34 @@ class FriendRepository {
      */
     suspend fun getFriendSuggestions(currentUserId: String, limit: Int = 50): List<FriendSuggestion> {
         return try {
-            // Use Source.SERVER: only fetches from server, fails when offline
-            // This ensures suggestions only show when online, empty when offline
-            val source = Source.SERVER
+            // Try to fetch from server first to get latest users
+            var source = Source.SERVER
             
-            Log.d("FriendRepository", "Fetching friend suggestions for user: $currentUserId")
+            Log.d("FriendRepository", "Fetching friend suggestions for user: $currentUserId from SERVER")
             
             // Get all users (we'll filter out current user and friends)
             // Increase limit to ensure we get enough after filtering
-            val allUsers = usersCollection
-                .limit((limit * 2).toLong()) // Get more to account for filtering
-                .get(source)
-                .await()
+            val allUsers = try {
+                 usersCollection
+                    .limit((limit * 2).toLong()) // Get more to account for filtering
+                    .get(Source.SERVER)
+                    .await()
+            } catch (e: Exception) {
+                // Fallback to cache if server fails (offline)
+                Log.w("FriendRepository", "Server fetch failed, falling back to CACHE: ${e.message}")
+                source = Source.CACHE // Switch to CACHE for subsequent calls
+                usersCollection
+                    .limit((limit * 2).toLong())
+                    .get(Source.CACHE)
+                    .await()
+            }
             
-            Log.d("FriendRepository", "Total users fetched from server: ${allUsers.size()}")
+            Log.d("FriendRepository", "Total users fetched: ${allUsers.size()} (Source: $source)")
             
             // Get current user's friends
             val friendsSnapshot = usersCollection.document(currentUserId)
                 .collection("friends")
-                .get(source)
+                .get(source) // Uses updated source (SERVER or CACHE)
                 .await()
             
             val friendIds = friendsSnapshot.documents.map { it.id }.toSet()
@@ -133,7 +143,7 @@ class FriendRepository {
     
     private suspend fun calculateMutualFriendsCount(user1Id: String, user2Id: String): Int {
         return try {
-            val source = Source.SERVER // Use server source to match main query
+            val source = Source.DEFAULT // Allow cache usage
             val user1Friends = usersCollection.document(user1Id)
                 .collection("friends")
                 .get(source)
@@ -188,6 +198,38 @@ class FriendRepository {
         )
     }
     
+    /**
+     * Cancel a sent friend request
+     */
+    suspend fun cancelFriendRequest(
+        fromUserId: String,
+        toUserId: String
+    ) {
+        try {
+            // Find the pending request from this user in the target user's collection
+            val requestsSnapshot = usersCollection.document(toUserId)
+                .collection("friendRequests")
+                .whereEqualTo("fromUserId", fromUserId)
+                .whereEqualTo("status", "pending")
+                .get()
+                .await()
+            
+            for (doc in requestsSnapshot.documents) {
+                // Delete the request
+                usersCollection.document(toUserId)
+                    .collection("friendRequests")
+                    .document(doc.id)
+                    .delete()
+                    .await()
+            }
+            
+            Log.d("FriendRepository", "Cancelled friend request from $fromUserId to $toUserId")
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error cancelling friend request: ${e.message}", e)
+            throw e
+        }
+    }
+    
     suspend fun acceptFriendRequest(
         requestId: String, 
         currentUserId: String, 
@@ -224,27 +266,8 @@ class FriendRepository {
         val currentUserName = currentUserDoc.data?.get("fullName") as? String ?: "User"
         
         // Add to friends collection for both users
-        currentUser.collection("friends")
-            .document(actualFriendUserId)
-            .set(hashMapOf(
-                "friendId" to actualFriendUserId,
-                "friendName" to actualFriendName,
-                "addedAt" to System.currentTimeMillis(),
-                "isPinned" to false,
-                "notificationsMuted" to false
-            ))
-            .await()
-        
-        friendUser.collection("friends")
-            .document(currentUserId)
-            .set(hashMapOf(
-                "friendId" to currentUserId,
-                "friendName" to currentUserName,
-                "addedAt" to System.currentTimeMillis(),
-                "isPinned" to false,
-                "notificationsMuted" to false
-            ))
-            .await()
+        addFriendToCollection(currentUserId, actualFriendUserId, actualFriendName)
+        addFriendToCollection(actualFriendUserId, currentUserId, currentUserName)
         
         // Send notification to the person who originally sent the request (fromUserId)
         notificationRepository?.addNotification(
@@ -258,6 +281,67 @@ class FriendRepository {
         )
     }
     
+    /**
+     * Add a friend to a user's friend collection
+     */
+    private suspend fun addFriendToCollection(userId: String, friendId: String, friendName: String) {
+         usersCollection.document(userId)
+            .collection("friends")
+            .document(friendId)
+            .set(hashMapOf(
+                "friendId" to friendId,
+                "friendName" to friendName,
+                "addedAt" to System.currentTimeMillis(),
+                "isPinned" to false,
+                "notificationsMuted" to false
+            ), com.google.firebase.firestore.SetOptions.merge())
+            .await()
+    }
+
+    /**
+     * Repair friendship (ensure mutual connection).
+     * Call this when we know users SHOULD be friends (e.g. one side says so),
+     * but we suspect the other side is missing the record.
+     */
+    suspend fun repairFriendship(currentUserId: String, otherUserId: String) {
+        try {
+            // Check if I am in OTHER's friend list
+            val amIFriend = isFriend(otherUserId, currentUserId)
+            
+            if (!amIFriend) {
+                Log.d("FriendRepository", "Repairing friendship: Adding $currentUserId to $otherUserId's friends")
+                
+                // Get my name
+                val myName = try {
+                    usersCollection.document(currentUserId).get().await().getString("fullName") ?: "Unknown"
+                } catch (e: Exception) {
+                    "Unknown"
+                }
+                
+                // Add me to their list
+                addFriendToCollection(otherUserId, currentUserId, myName)
+            }
+            
+            // Check if THEY are in MY friend list (just in case)
+            val areTheyFriend = isFriend(currentUserId, otherUserId)
+            if (!areTheyFriend) {
+                 Log.d("FriendRepository", "Repairing friendship: Adding $otherUserId to $currentUserId's friends")
+                 
+                 // Get their name
+                val theirName = try {
+                    usersCollection.document(otherUserId).get().await().getString("fullName") ?: "Unknown"
+                } catch (e: Exception) {
+                    "Unknown"
+                }
+                
+                 addFriendToCollection(currentUserId, otherUserId, theirName)
+            }
+            
+        } catch (e: Exception) {
+            Log.e("FriendRepository", "Error repairing friendship: ${e.message}")
+        }
+    }
+
     suspend fun declineFriendRequest(requestId: String, currentUserId: String) {
         usersCollection.document(currentUserId)
             .collection("friendRequests")
@@ -298,14 +382,27 @@ class FriendRepository {
      */
     suspend fun getRequestStatus(currentUserId: String, targetUserId: String): String? {
         return try {
-            val source = Source.SERVER
+            // Try to fetch from server first
+            var source = Source.SERVER
+            
             // Check in target user's friendRequests collection for requests from current user
-            val requestsSnapshot = usersCollection.document(targetUserId)
-                .collection("friendRequests")
-                .whereEqualTo("fromUserId", currentUserId)
-                .limit(1)
-                .get(source)
-                .await()
+            val requestsSnapshot = try {
+                usersCollection.document(targetUserId)
+                    .collection("friendRequests")
+                    .whereEqualTo("fromUserId", currentUserId)
+                    .limit(1)
+                    .get(source)
+                    .await()
+            } catch (e: Exception) {
+                // Fallback to cache if server fails
+                Log.w("FriendRepository", "Server check failed for request status, falling back to CACHE: ${e.message}")
+                usersCollection.document(targetUserId)
+                    .collection("friendRequests")
+                    .whereEqualTo("fromUserId", currentUserId)
+                    .limit(1)
+                    .get(Source.CACHE)
+                    .await()
+            }
             
             if (requestsSnapshot.isEmpty) {
                 null // No request found
@@ -321,10 +418,19 @@ class FriendRepository {
     suspend fun getFriends(userId: String): List<FriendSuggestion> {
         return try {
             Log.d("FriendRepository", "Loading friends for user: $userId")
-            val friendsSnapshot = usersCollection.document(userId)
-                .collection("friends")
-                .get()
-                .await()
+            // Fetch from SERVER first for accurate friends count, fallback to CACHE if offline
+            val friendsSnapshot = try {
+                usersCollection.document(userId)
+                    .collection("friends")
+                    .get(Source.SERVER)
+                    .await()
+            } catch (e: Exception) {
+                Log.w("FriendRepository", "Server fetch failed for friends list, using cache: ${e.message}")
+                usersCollection.document(userId)
+                    .collection("friends")
+                    .get(Source.CACHE)
+                    .await()
+            }
             
             Log.d("FriendRepository", "Found ${friendsSnapshot.size()} friend documents")
             
@@ -343,7 +449,14 @@ class FriendRepository {
                 Log.d("FriendRepository", "Processing friend: $friendId (docId: ${friendDoc.id})")
                 
                 try {
-                    val friendData = usersCollection.document(friendId).get().await().data
+                    // Fetch friend profile from SERVER first for fresh lastActive timestamp
+                    // Fall back to CACHE if offline
+                    val friendData = try {
+                        usersCollection.document(friendId).get(Source.SERVER).await().data
+                    } catch (e: Exception) {
+                        Log.w("FriendRepository", "Server fetch failed for $friendId, using cache: ${e.message}")
+                        usersCollection.document(friendId).get(Source.CACHE).await().data
+                    }
                     
                     if (friendData == null) {
                         Log.w("FriendRepository", "Friend $friendId profile not found")
@@ -354,14 +467,23 @@ class FriendRepository {
                     val isPinned = friendDoc.getBoolean("isPinned") ?: false
                     val notificationsMuted = friendDoc.getBoolean("notificationsMuted") ?: false
                     
+                    // Respect privacy setting
+                    val showActiveStatus = (friendData["showActiveStatus"] as? Boolean) ?: true
+                    val effectiveLastActive = if (showActiveStatus) {
+                        (friendData["lastActive"] as? Long) ?: 0L
+                    } else {
+                        0L // Hide active status
+                    }
+                    
                     FriendSuggestion(
                         userId = friendId,
                         fullName = friendData["fullName"] as? String ?: "Unknown",
                         email = friendData["email"] as? String ?: "",
                         photoUrl = friendData["photoUrl"] as? String,
-                        lastActive = (friendData["lastActive"] as? Long) ?: 0L,
+                        lastActive = effectiveLastActive,
                         isPinned = isPinned,
-                        notificationsMuted = notificationsMuted
+                        notificationsMuted = notificationsMuted,
+                        address = friendData["address"] as? String
                     )
                 } catch (e: Exception) {
                     Log.e("FriendRepository", "Error loading friend $friendId: ${e.message}", e)
@@ -464,14 +586,47 @@ class FriendRepository {
      */
     suspend fun isBlocked(currentUserId: String, targetUserId: String): Boolean {
         return try {
-            val blockedDoc = usersCollection.document(currentUserId)
-                .collection("blockedUsers")
-                .document(targetUserId)
-                .get()
-                .await()
+            val blockedDoc = try {
+                usersCollection.document(currentUserId)
+                    .collection("blockedUsers")
+                    .document(targetUserId)
+                    .get(Source.SERVER)
+                    .await()
+            } catch (e: Exception) {
+                 usersCollection.document(currentUserId)
+                    .collection("blockedUsers")
+                    .document(targetUserId)
+                    .get(Source.CACHE)
+                    .await()
+            }
             blockedDoc.exists()
         } catch (e: Exception) {
             Log.w("FriendRepository", "Error checking if blocked: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Check if a user is a friend
+     */
+    suspend fun isFriend(currentUserId: String, targetUserId: String): Boolean {
+        return try {
+            val friendDoc = try {
+                usersCollection.document(currentUserId)
+                    .collection("friends")
+                    .document(targetUserId)
+                    .get(Source.SERVER)
+                    .await()
+            } catch (e: Exception) {
+                usersCollection.document(currentUserId)
+                    .collection("friends")
+                    .document(targetUserId)
+                    .get(Source.CACHE)
+                    .await()
+            }
+            friendDoc.exists()
+        } catch (e: Exception) {
+            Log.w("FriendRepository", "Error checking if friend: ${e.message}")
             false
         }
     }
@@ -585,21 +740,24 @@ class FriendRepository {
      */
     suspend fun getMutualFriends(user1Id: String, user2Id: String): List<FriendSuggestion> {
         return try {
+            // Force SERVER fetch to ensure we have permission and latest data
+            // This is critical after permission rule updates
             val user1Friends = usersCollection.document(user1Id)
                 .collection("friends")
-                .get()
+                .get(Source.SERVER)
                 .await()
                 .documents.map { it.getString("friendId") ?: it.id }
                 .toSet()
             
             val user2Friends = usersCollection.document(user2Id)
                 .collection("friends")
-                .get()
+                .get(Source.SERVER)
                 .await()
                 .documents.map { it.getString("friendId") ?: it.id }
                 .toSet()
             
             val mutualFriendIds = user1Friends.intersect(user2Friends)
+            Log.d("FriendRepository", "Mutual friends calculation: User1 has ${user1Friends.size}, User2 has ${user2Friends.size}, Intersection: ${mutualFriendIds.size}")
             
             mutualFriendIds.mapNotNull { friendId ->
                 try {
@@ -617,7 +775,7 @@ class FriendRepository {
                 }
             }
         } catch (e: Exception) {
-            Log.e("FriendRepository", "Error getting mutual friends: ${e.message}", e)
+            Log.e("FriendRepository", "Error getting mutual friends: ${e.message} (User1: $user1Id, User2: $user2Id)", e)
             emptyList()
         }
     }

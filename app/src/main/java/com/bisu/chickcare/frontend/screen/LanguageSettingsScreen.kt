@@ -2,12 +2,8 @@ package com.bisu.chickcare.frontend.screen
 
 import android.content.Context
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.indication
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,42 +11,40 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.LanguageViewModel
@@ -68,6 +62,7 @@ fun LanguageSettingsScreen(navController: NavController) {
     val context = LocalContext.current
     val currentLanguageCode = LanguageViewModel.currentLanguage
     var selectedLanguage by remember { mutableStateOf(currentLanguageCode) }
+    var searchQuery by remember { mutableStateOf("") }
 
     // Comprehensive list of world languages
     val languages = listOf(
@@ -147,26 +142,17 @@ fun LanguageSettingsScreen(navController: NavController) {
         LanguageOption("sw", "Swahili", "Kiswahili"),
         LanguageOption("zu", "Zulu", "isiZulu"),
         LanguageOption("af", "Afrikaans", "Afrikaans"),
-        LanguageOption("xh", "Xhosa", "isiXhosa"),
-        LanguageOption("am", "Amharic", "አማርኛ"),
-        LanguageOption("ha", "Hausa", "Hausa"),
-        LanguageOption("yo", "Yoruba", "Yorùbá"),
-        LanguageOption("ig", "Igbo", "Asụsụ Igbo"),
-        LanguageOption("so", "Somali", "Soomaali"),
-        LanguageOption("rw", "Kinyarwanda", "Ikinyarwanda"),
-        LanguageOption("sn", "Shona", "ChiShona"),
-        LanguageOption("st", "Sesotho", "Sesotho"),
-        LanguageOption("tn", "Tswana", "Setswana"),
-        LanguageOption("ve", "Venda", "Tshivenda"),
-        LanguageOption("ts", "Tsonga", "Xitsonga"),
-        LanguageOption("ss", "Swati", "SiSwati"),
-        LanguageOption("nr", "Ndebele", "isiNdebele"),
-        LanguageOption("nso", "Northern Sotho", "Sesotho sa Leboa")
+        LanguageOption("en", "English", "English"),
+        LanguageOption("fil", "Filipino", "Filipino"),
+        LanguageOption("ceb", "Cebuano", "Cebuano"),
+        LanguageOption("es", "Spanish", "Español"),
+        LanguageOption("fr", "French", "Français"),
+        LanguageOption("zh", "Chinese", "中文")
     )
 
-    // Update selected language when current language changes
-    LaunchedEffect(currentLanguageCode) {
-        selectedLanguage = currentLanguageCode
+    val filteredLanguages = languages.filter {
+        it.name.contains(searchQuery, ignoreCase = true) ||
+        it.nativeName.contains(searchQuery, ignoreCase = true)
     }
 
     Scaffold(
@@ -174,17 +160,15 @@ fun LanguageSettingsScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        "Language",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.black()
+                        androidx.compose.ui.res.stringResource(R.string.language_settings_title_screen),
+                        fontWeight = FontWeight.Bold
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -200,61 +184,67 @@ fun LanguageSettingsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
+                .padding(innerPadding)
         ) {
-            HorizontalDivider(
-                color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
-                thickness = 1.dp
+            // Info Card
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = ThemeColorUtils.primary().copy(alpha = 0.1f)
+                ),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        Icons.Default.Language,
+                        contentDescription = null,
+                        tint = ThemeColorUtils.primary(),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        text = androidx.compose.ui.res.stringResource(R.string.language_info_text),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ThemeColorUtils.black()
+                    )
+                }
+            }
+
+            // Search Bar
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                placeholder = { Text(androidx.compose.ui.res.stringResource(R.string.settings_search_hint)) },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = ThemeColorUtils.white(),
+                    unfocusedContainerColor = ThemeColorUtils.white(),
+                    focusedBorderColor = ThemeColorUtils.primary(),
+                    unfocusedBorderColor = Color.LightGray
+                ),
+                shape = RoundedCornerShape(12.dp),
+                singleLine = true
             )
 
+            // Language List
             LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(
-                            containerColor = Color(0xFFD9D5D0)
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Image(
-                                painter = painterResource(id = R.drawable.ic_language_info_flaticon),
-                                contentDescription = null,
-                                modifier = Modifier.size(38.dp)
-                            )
-                            Text(
-                                text = "Select your preferred language for the app. The app will restart to apply changes.",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = ThemeColorUtils.black()
-                            )
-                        }
-                    }
-                }
-
-                items(languages) { language ->
-                    LanguageOptionCard(
+                items(filteredLanguages) { language ->
+                    LanguageItem(
                         language = language,
-                        isSelected = selectedLanguage == language.code,
-                        onClick = {
-                            if (selectedLanguage != language.code) {
-                                selectedLanguage = language.code
-                                LanguageViewModel.setLanguage(context, language.code)
-                                restartApp(context)
-                            }
-                        }
+                        isSelected = language.name == selectedLanguage,
+                        onSelect = { selectedLanguage = language.name }
                     )
                 }
             }
@@ -263,67 +253,47 @@ fun LanguageSettingsScreen(navController: NavController) {
 }
 
 @Composable
-fun LanguageOptionCard(
+fun LanguageItem(
     language: LanguageOption,
     isSelected: Boolean,
-    onClick: () -> Unit
+    onSelect: () -> Unit
 ) {
-    val shape = RoundedCornerShape(16.dp)
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .indication(interactionSource, ripple(bounded = true))
-            .clickable(
-                onClick = onClick,
-                interactionSource = interactionSource
-            ),
-        border = BorderStroke(
-            width = 1.dp,
-            color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C))
-        ),
+            .clickable(onClick = onSelect),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isSelected) ThemeColorUtils.white() else ThemeColorUtils.surface(Color(0xFFE5E2DE)),
-            contentColor = ThemeColorUtils.black()
+            containerColor = if (isSelected) ThemeColorUtils.primary().copy(alpha = 0.1f)
+                           else ThemeColorUtils.white()
         ),
-        shape = shape,
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = if (isPressed) 8.dp else 5.dp,
-            pressedElevation = 8.dp,
-            hoveredElevation = 6.dp,
-            focusedElevation = 6.dp
-        )
+        border = if (isSelected) BorderStroke(1.dp, ThemeColorUtils.primary()) else null
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            Column {
                 Text(
                     text = language.nativeName,
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
-                    color = ThemeColorUtils.black()
+                    fontWeight = FontWeight.Bold
                 )
-                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = language.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.darkGray(Color(0xFF666666))
+                    color = ThemeColorUtils.darkGray(Color.Gray)
                 )
             }
+
             if (isSelected) {
                 Icon(
-                    Icons.Default.Check,
-                    contentDescription = "Selected",
-                    tint = ThemeColorUtils.black(),
-                    modifier = Modifier.size(24.dp)
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = ThemeColorUtils.primary()
                 )
             }
         }
@@ -331,13 +301,13 @@ fun LanguageOptionCard(
 }
 
 private fun restartApp(context: Context) {
-    val intent = (context as? android.app.Activity)?.packageManager?.getLaunchIntentForPackage(
-        context.packageName
-    )
+    val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
     intent?.let {
         it.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP)
         it.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         context.startActivity(it)
-        context.finish()
+        if (context is android.app.Activity) {
+            context.finish()
+        }
     }
 }

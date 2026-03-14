@@ -17,13 +17,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -50,14 +50,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
+import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -71,6 +73,7 @@ fun TrashScreen(navController: NavController) {
     var showDeleteAllDialog by remember { mutableStateOf(false) }
     var showRestoreSelectedDialog by remember { mutableStateOf(false) }
     var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    var showEmptyingTrash by remember { mutableStateOf(false) }
     
     // Calculate days remaining for each item
     val itemsWithDaysRemaining = recentlyDeleted.map { entry ->
@@ -87,7 +90,7 @@ fun TrashScreen(navController: NavController) {
                         "Trash",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -103,7 +106,7 @@ fun TrashScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
@@ -115,7 +118,7 @@ fun TrashScreen(navController: NavController) {
                                 selectionMode = false
                             }
                         ) {
-                            Text("Cancel", color = ThemeColorUtils.darkGray(Color(0xFF231C16)))
+                            Text("Cancel", color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16))
                         }
                     } else {
                         TextButton(
@@ -123,13 +126,13 @@ fun TrashScreen(navController: NavController) {
                                 selectionMode = true
                             }
                         ) {
-                            Text("Select", color = ThemeColorUtils.darkGray(Color(0xFF231C16)))
+                            Text("Select", color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16))
                         }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -138,7 +141,7 @@ fun TrashScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             // Action buttons when in selection mode
             if (selectionMode && selectedItems.isNotEmpty()) {
@@ -266,110 +269,80 @@ fun TrashScreen(navController: NavController) {
     
     // Restore All Dialog
     if (showRestoreAllDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestoreAllDialog = false },
-            title = { Text("Restore All Items") },
-            text = { Text("Are you sure you want to restore all deleted items?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        dashboardViewModel.restoreAllDetections()
-                        showRestoreAllDialog = false
-                        selectionMode = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text("Restore All", color = ThemeColorUtils.white())
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestoreAllDialog = false }) {
-                    Text("Cancel")
-                }
+        CustomConfirmationDialog(
+            title = "Restore All Items",
+            message = "Are you sure you want to restore all deleted items?",
+            confirmText = "Restore All",
+            confirmColor = Color(0xFF4CAF50),
+            onDismiss = { showRestoreAllDialog = false },
+            onConfirm = {
+                dashboardViewModel.restoreAllDetections()
+                showRestoreAllDialog = false
+                selectionMode = false
             }
         )
     }
     
-    // Delete All Dialog
+    // Delete All Dialog (renamed to "Empty Trash?")
     if (showDeleteAllDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteAllDialog = false },
-            title = { Text("Permanently Delete All") },
-            text = { Text("Are you sure you want to permanently delete all items? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        dashboardViewModel.permanentlyDeleteAllTrash()
-                        showDeleteAllDialog = false
-                        selectionMode = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Delete All", color = ThemeColorUtils.white())
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteAllDialog = false }) {
-                    Text("Cancel")
-                }
+        CustomConfirmationDialog(
+            title = "Empty Trash?",
+            message = "You're about to delete all items from the Trash. This can't be undone.",
+            confirmText = "Empty Trash",
+            confirmColor = Color(0xFFE53935),
+            onDismiss = { showDeleteAllDialog = false },
+            onConfirm = {
+                showDeleteAllDialog = false
+                showEmptyingTrash = true
+            }
+        )
+    }
+    
+    // Emptying Trash Loading Dialog
+    if (showEmptyingTrash) {
+        EmptyingTrashDialog(
+            onComplete = {
+                dashboardViewModel.permanentlyDeleteAllTrash()
+                showEmptyingTrash = false
+                selectionMode = false
             }
         )
     }
     
     // Restore Selected Dialog
     if (showRestoreSelectedDialog) {
-        AlertDialog(
-            onDismissRequest = { showRestoreSelectedDialog = false },
-            title = { Text("Restore Selected Items") },
-            text = { Text("Are you sure you want to restore ${selectedItems.size} item(s)?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        selectedItems.forEach { id ->
-                            dashboardViewModel.restoreDetection(id)
-                        }
-                        selectedItems = emptySet()
-                        selectionMode = false
-                        showRestoreSelectedDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50))
-                ) {
-                    Text("Restore", color = ThemeColorUtils.white())
+        CustomConfirmationDialog(
+            title = "Restore Selected Items",
+            message = "Are you sure you want to restore ${selectedItems.size} item(s)?",
+            confirmText = "Restore",
+            confirmColor = Color(0xFF4CAF50),
+            onDismiss = { showRestoreSelectedDialog = false },
+            onConfirm = {
+                selectedItems.forEach { id ->
+                    dashboardViewModel.restoreDetection(id)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showRestoreSelectedDialog = false }) {
-                    Text("Cancel")
-                }
+                selectedItems = emptySet()
+                selectionMode = false
+                showRestoreSelectedDialog = false
             }
         )
     }
     
     // Delete Selected Dialog
     if (showDeleteSelectedDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteSelectedDialog = false },
-            title = { Text("Permanently Delete Selected") },
-            text = { Text("Are you sure you want to permanently delete ${selectedItems.size} item(s)? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        selectedItems.forEach { id ->
-                            dashboardViewModel.permanentlyDeleteDetection(id)
-                        }
-                        selectedItems = emptySet()
-                        selectionMode = false
-                        showDeleteSelectedDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Delete", color = ThemeColorUtils.white())
+        CustomConfirmationDialog(
+            title = "Permanently Delete Selected",
+            message = "Are you sure you want to permanently delete ${selectedItems.size} item(s)? This action cannot be undone.",
+            confirmText = "Delete",
+            confirmColor = Color(0xFFE53935),
+            onDismiss = { showDeleteSelectedDialog = false },
+            onConfirm = {
+                selectedItems.forEach { id ->
+                    dashboardViewModel.permanentlyDeleteDetection(id)
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteSelectedDialog = false }) {
-                    Text("Cancel")
-                }
+                selectedItems = emptySet()
+                selectionMode = false
+                showDeleteSelectedDialog = false
             }
         )
     }
@@ -416,7 +389,12 @@ fun TrashItemCard(
                 Checkbox(
                     checked = isSelected,
                     onCheckedChange = onSelectChanged,
-                    modifier = Modifier.padding(end = 12.dp)
+                    modifier = Modifier.padding(end = 12.dp),
+                    colors = androidx.compose.material3.CheckboxDefaults.colors(
+                        checkedColor = Color(0xFF4D5961),
+                        uncheckedColor = Color(0xFF4D5961),
+                        checkmarkColor = Color.White
+                    )
                 )
             }
             
@@ -441,17 +419,42 @@ fun TrashItemCard(
             Column(
                 modifier = Modifier.weight(1f)
             ) {
+                // Format result text: "Status - Confidence%" instead of "Status (Confidence)"
+                val formattedResult = remember(entry.result, entry.confidence) {
+                    // Extract just the status word (Healthy/Infected) from entry.result
+                    // entry.result might be "Infected (96.0%)" or "Healthy (87.4%)"
+                    val statusText = when {
+                        entry.result.contains("Healthy", ignoreCase = true) && 
+                        !entry.result.contains("Unhealthy", ignoreCase = true) -> "Healthy"
+                        entry.result.contains("Infected", ignoreCase = true) || 
+                        entry.result.contains("Unhealthy", ignoreCase = true) -> "Infected"
+                        entry.isHealthy -> "Healthy"
+                        else -> "Infected"
+                    }
+                    
+                    // Format as "Status - Confidence%"
+                    if (entry.confidence > 0f) {
+                        val confidencePercent = (entry.confidence * 100).let { 
+                            if (it % 1 == 0f) it.toInt().toString() 
+                            else String.format("%.1f", it)
+                        }
+                        "$statusText - $confidencePercent%"
+                    } else {
+                        statusText
+                    }
+                }
+                
                 Text(
-                    text = entry.result,
+                    text = formattedResult,
                     style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF26201C)
+                    color = ThemeColorUtils.black()
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = dateFormat.format(Date(entry.timestamp)),
                     style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color.Gray)
+                    color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color.Gray
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -498,26 +501,219 @@ fun TrashItemCard(
     
     // Permanent delete confirmation dialog
     if (showDeleteDialog) {
-        AlertDialog(
-            onDismissRequest = { showDeleteDialog = false },
-            title = { Text("Permanently Delete") },
-            text = { Text("Are you sure you want to permanently delete this item? This action cannot be undone.") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        onPermanentDelete()
-                        showDeleteDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
-                ) {
-                    Text("Delete", color = ThemeColorUtils.white())
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDeleteDialog = false }) {
-                    Text("Cancel")
-                }
+        CustomConfirmationDialog(
+            title = "Permanently Delete",
+            message = "Are you sure you want to permanently delete this item? This action cannot be undone.",
+            confirmText = "Delete",
+            confirmColor = Color(0xFFFF0000),
+            onDismiss = { showDeleteDialog = false },
+            onConfirm = {
+                onPermanentDelete()
+                showDeleteDialog = false
             }
         )
+    }
+}
+
+@Composable
+private fun CustomConfirmationDialog(
+    title: String,
+    message: String,
+    confirmText: String,
+    confirmColor: Color,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // Background scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(onClick = onDismiss)
+            )
+            
+            // Bottom sheet content
+            androidx.compose.material3.Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                color = Color.White,
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 28.dp)
+                ) {
+                    // Title
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 28.sp
+                        ),
+                        color = Color(0xFF1A1A1A)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Message
+                    Text(
+                        text = message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF545454),
+                        lineHeight = 22.sp
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Confirm Button (Red, full width)
+                    Button(
+                        onClick = onConfirm,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = confirmColor),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = confirmText,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    // Cancel Button (White with border, full width)
+                    androidx.compose.material3.OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0))
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            color = Color(0xFF1A1A1A),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun EmptyingTrashDialog(
+    onComplete: () -> Unit
+) {
+    var progress by remember { mutableStateOf(0f) }
+    
+    // Animate progress from 0 to 1 over 2 seconds
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        val duration = 2000L
+        while (progress < 1f) {
+            val elapsed = System.currentTimeMillis() - startTime
+            progress = (elapsed.toFloat() / duration).coerceIn(0f, 1f)
+            kotlinx.coroutines.delay(16) // ~60fps
+        }
+        kotlinx.coroutines.delay(300) // Small delay before completing
+        onComplete()
+    }
+    
+    Dialog(
+        onDismissRequest = { /* Cannot dismiss while emptying */ },
+        properties = androidx.compose.ui.window.DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false
+        )
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            // Background scrim
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+            )
+            
+            // Bottom sheet content
+            androidx.compose.material3.Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                color = Color.White,
+                tonalElevation = 8.dp
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    // Trash Image
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.bisu.chickcare.R.drawable.trash_pic),
+                        contentDescription = "Emptying Trash",
+                        modifier = Modifier.size(100.dp)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
+                    
+                    // Title
+                    Text(
+                        text = "Emptying the trash",
+                        style = MaterialTheme.typography.headlineSmall.copy(
+                            fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
+                            fontWeight = FontWeight.ExtraBold
+                        ),
+                        color = Color(0xFF1A1A1A)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    
+                    // Subtitle
+                    Text(
+                        text = "This may take a few moments...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF545454),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                    
+                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    // Progress Bar
+                    androidx.compose.material3.LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(6.dp)
+                            .background(Color(0xFFE0E0E0), RoundedCornerShape(3.dp)),
+                        color = Color(0xFFE53935),
+                        trackColor = Color(0xFFE0E0E0)
+                    )
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+            }
+        }
     }
 }

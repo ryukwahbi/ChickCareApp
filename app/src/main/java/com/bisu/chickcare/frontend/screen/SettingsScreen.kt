@@ -16,8 +16,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -52,12 +55,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
@@ -70,45 +76,170 @@ import com.bisu.chickcare.frontend.utils.ThemeColorUtils.NeutralRole
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(navController: NavController) {
+    val context = LocalContext.current
     val authViewModel: AuthViewModel = viewModel()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var searchQuery by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
-    
+    var showDataStorageDialog by remember { mutableStateOf(false) }
+
     // Helper function to get icon resource with fallback for missing resources
     fun getSettingIcon(title: String): Int {
         return when (title) {
             "Account" -> R.drawable.ic_account_flaticon
             "Security and Privacy" -> R.drawable.ic_security_flaticon
+            "Emergency Contacts" -> R.drawable.ic_security_flaticon
             "Notifications" -> R.drawable.ic_notifications_flaticon
             "Language" -> R.drawable.ic_language_flaticon
             "Theme" -> R.drawable.ic_theme_flaticon
-            "Blocked Users" -> R.drawable.ic_security_flaticon // Using security icon as fallback
+            "Blocked Users" -> R.drawable.ic_security_flaticon
+            "Data and Storage Info" -> R.drawable.ic_about_flaticon
             "About" -> R.drawable.ic_about_flaticon
             "Logout" -> R.drawable.ic_logout_flaticon
             else -> R.drawable.ic_account_flaticon
         }
     }
-    
+
+    // Create settings list using resources
+    val accountTitle = stringResource(R.string.settings_account_title)
+    val securityTitle = stringResource(R.string.settings_security_title)
+    val emergencyTitle = stringResource(R.string.settings_emergency_title)
+    val notificationsTitle = stringResource(R.string.settings_notifications_title)
+    val languageTitle = stringResource(R.string.settings_language_title)
+    val themeTitle = stringResource(R.string.settings_theme_title)
+    val blockedTitle = stringResource(R.string.settings_blocked_title)
+    val aboutTitle = stringResource(R.string.settings_about_title)
+    val dataStorageTitle = stringResource(R.string.settings_data_storage_title)
+    val logoutTitle = stringResource(R.string.settings_logout_title)
+
     val allSettingsOptions = listOf(
-        SettingOption("Account", "Manage your account details", getSettingIcon("Account")),
-        SettingOption("Security and Privacy", "Control your data and privacy options", getSettingIcon("Security and Privacy")),
-        SettingOption("Notifications", "Customize alert preferences", getSettingIcon("Notifications")),
-        SettingOption("Language", "Change app language", getSettingIcon("Language")),
-        SettingOption("Theme", "Switch between light and dark modes", getSettingIcon("Theme")),
-        SettingOption("Blocked Users", "Manage blocked users", getSettingIcon("Blocked Users")),
-        SettingOption("About", "View app version and information", getSettingIcon("About")),
-        SettingOption("Logout", "", getSettingIcon("Logout"), isLogout = true)
+        SettingOption(
+            title = accountTitle,
+            subtitle = stringResource(R.string.settings_account_subtitle),
+            icon = getSettingIcon("Account"),
+            keywords = listOf(
+                "full name", "name", "email", "email address", "birthdate", "birthday", "birth date",
+                "date of birth", "gender", "contact", "contact number", "phone", "phone number",
+                "mobile", "mobile number", "account information", "profile", "personal info",
+                "personal information", "edit profile", "update profile", "change name", "change email",
+                "farm location", "location", "address", "farm name", "bio", "about me",
+                "delete account", "remove account", "deactivate account"
+            )
+        ),
+        SettingOption(
+            title = securityTitle,
+            subtitle = stringResource(R.string.settings_security_subtitle),
+            icon = getSettingIcon("Security and Privacy"),
+            keywords = listOf(
+                "password", "change password", "update password", "reset password", "old password",
+                "new password", "confirm password", "security",
+                "privacy", "privacy settings", "who can see", "visibility", "public", "private",
+                "friends only", "profile visibility", "post visibility",
+                "2fa", "two-factor", "authentication", "verify", "verification",
+                "data", "download data", "export data", "backup", "data privacy"
+            )
+        ),
+        SettingOption(
+            title = emergencyTitle,
+            subtitle = stringResource(R.string.settings_emergency_subtitle),
+            icon = getSettingIcon("Emergency Contacts"),
+            keywords = listOf(
+                "emergency", "emergency contact", "emergency contacts", "veterinarian", "vet",
+                "vet contact", "veterinary", "animal doctor", "doctor", "clinic", "animal clinic",
+                "rescue", "hotline", "help", "urgent", "add contact", "add vet", "add veterinarian",
+                "hospital", "animal hospital"
+            )
+        ),
+        SettingOption(
+            title = notificationsTitle,
+            subtitle = stringResource(R.string.settings_notifications_subtitle),
+            icon = getSettingIcon("Notifications"),
+            keywords = listOf(
+                "notification", "notifications", "alert", "alerts", "push notification",
+                "push notifications", "notify", "reminder", "reminders",
+                "sound", "notification sound", "ring", "ringtone", "tone",
+                "vibration", "vibrate", "vibration pattern", "haptic", "haptic feedback",
+                "silent", "mute", "do not disturb", "dnd",
+                "preferences", "preference", "customize", "settings",
+                "disease alert", "health alert", "detection alert", "friend request",
+                "message notification", "chat notification", "activity", "updates"
+            )
+        ),
+        SettingOption(
+            title = languageTitle,
+            subtitle = stringResource(R.string.settings_language_subtitle),
+            icon = getSettingIcon("Language"),
+            keywords = listOf(
+                "language", "language settings", "app language", "change language",
+                "english", "tagalog", "filipino", "cebuano", "bisaya", "visayan",
+                "hiligaynon", "ilonggo", "waray", "kapampangan", "pangasinan",
+                "ilocano", "bicolano", "locale", "region", "translation", "translate"
+            )
+        ),
+        SettingOption(
+            title = themeTitle,
+            subtitle = stringResource(R.string.settings_theme_subtitle),
+            icon = getSettingIcon("Theme"),
+            keywords = listOf(
+                "theme", "themes", "dark mode", "light mode", "dark theme", "light theme",
+                "night mode", "day mode", "appearance", "color scheme", "colors",
+                "mode", "display", "display settings", "brightness", "dark", "light",
+                "switch mode", "toggle theme"
+            )
+        ),
+        SettingOption(
+            title = blockedTitle,
+            subtitle = stringResource(R.string.settings_blocked_subtitle),
+            icon = getSettingIcon("Blocked Users"),
+            keywords = listOf(
+                "blocked", "blocked users", "block user", "block", "unblock",
+                "unblock user", "blocked list", "block list", "blacklist",
+                "restrict", "restricted", "mute user", "hide user"
+            )
+        ),
+        SettingOption(
+            title = dataStorageTitle,
+            subtitle = stringResource(R.string.settings_data_storage_subtitle),
+            icon = getSettingIcon("Data and Storage Info"),
+            keywords = listOf(
+                "data", "storage", "photos", "images", "clear data", "delete", "warning",
+                "privacy", "local storage", "backup", "lost photos", "missing images"
+            )
+        ),
+        SettingOption(
+            title = aboutTitle,
+            subtitle = stringResource(R.string.settings_about_subtitle),
+            icon = getSettingIcon("About"),
+            keywords = listOf(
+                "about", "about app", "app info", "app information", "version",
+                "app version", "build", "build number", "credits", "developers",
+                "team", "contact us", "support", "help", "faq", "terms", "terms of service",
+                "privacy policy", "license", "licenses", "open source", "chickcare",
+                "chick care", "bisu", "application", "feedback"
+            )
+        ),
+        SettingOption(
+            title = logoutTitle,
+            subtitle = "",
+            icon = getSettingIcon("Logout"),
+            isLogout = true,
+            keywords = listOf(
+                "logout", "log out", "sign out", "signout", "exit", "leave"
+            )
+        )
     )
-    
+
     val filteredOptions = remember(searchQuery) {
         if (searchQuery.isEmpty()) {
             allSettingsOptions
         } else {
-            allSettingsOptions.filter {
-                it.title.contains(searchQuery, ignoreCase = true) ||
-                it.subtitle.contains(searchQuery, ignoreCase = true)
+            allSettingsOptions.filter { option ->
+                option.title.contains(searchQuery, ignoreCase = true) ||
+                        option.subtitle.contains(searchQuery, ignoreCase = true) ||
+                        option.keywords.any { keyword ->
+                            keyword.contains(searchQuery, ignoreCase = true)
+                        }
             }
         }
     }
@@ -116,13 +247,13 @@ fun SettingsScreen(navController: NavController) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { 
+                title = {
                     Text(
-                        "Settings",
+                        stringResource(R.string.settings_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.black()
-                    ) 
+                    )
                 },
                 navigationIcon = {
                     IconButton(
@@ -136,7 +267,7 @@ fun SettingsScreen(navController: NavController) {
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -169,155 +300,217 @@ fun SettingsScreen(navController: NavController) {
                 contentPadding = PaddingValues(vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-            // Search Bar
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { newValue -> searchQuery = newValue },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF424141))
-                        )
-                    },
-                    trailingIcon = {
-                        if (searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { searchQuery = "" }) {
-                                Icon(
-                                    Icons.Default.Close,
-                                    contentDescription = "Clear",
-                                    tint = ThemeColorUtils.darkGray(Color(0xFF424141))
-                                )
-                            }
-                        }
-                    },
-                    placeholder = { Text("Search settings", color = ThemeColorUtils.darkGray(Color(0xFF424141))) },
-                    shape = RoundedCornerShape(28.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = ThemeColorUtils.themedColor(
-                            lightColor = Color(0xCDFFFFFF),
-                            role = NeutralRole.White
-                        ),
-                        unfocusedContainerColor = ThemeColorUtils.white(),
-                        focusedTextColor = ThemeColorUtils.darkGray(Color(0xFF212121)),
-                        unfocusedTextColor = ThemeColorUtils.darkGray(Color(0xFF212121)),
-                        focusedBorderColor = ThemeColorUtils.black(),
-                        unfocusedBorderColor = ThemeColorUtils.black(),
-                        focusedLabelColor = ThemeColorUtils.darkGray(Color(0xFF424242)),
-                        unfocusedLabelColor = ThemeColorUtils.lightGray(Color(0xFFB9B5B5))
-                    ),
-                    singleLine = true
-                )
-            }
-            
-            item {
-                HorizontalDivider(
-                    modifier = Modifier.padding(vertical = 8.dp),
-                    color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
-                    thickness = 1.dp
-                )
-            }
-            
-            // Settings Options
-            if (filteredOptions.isEmpty()) {
+                // Search Bar
                 item {
-                    Box(
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { newValue -> searchQuery = newValue },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No settings found",
-                            color = ThemeColorUtils.lightGray(Color.Gray),
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            } else {
-                items(filteredOptions) { option ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { /* Prevent parent click handler */ }
-                    ) {
-                        SettingItem(
-                            option = option,
-                            onClick = {
-                                focusManager.clearFocus()
-                                keyboardController?.hide()
-                                searchQuery = ""
-                                when (option.title) {
-                                    "Account" -> navController.navigate("account_settings")
-                                    "Security and Privacy" -> navController.navigate("security_privacy_settings")
-                                    "Notifications" -> navController.navigate("notification_settings")
-                                    "Language" -> navController.navigate("language_settings")
-                                    "Theme" -> {
-                                        ThemeViewModel.toggleTheme()
-                                    }
-                                    "Blocked Users" -> navController.navigate("blocked_users")
-                                    "About" -> navController.navigate("about_settings")
-                                    "Logout" -> {
-                                        showLogoutDialog = true
-                                    }
+                            .height(56.dp),
+                        leadingIcon = {
+                            Icon(
+                                Icons.Default.Search,
+                                contentDescription = stringResource(R.string.settings_search_hint),
+                                tint = ThemeColorUtils.darkGray(Color(0xFF424141))
+                            )
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        Icons.Default.Close,
+                                        contentDescription = stringResource(R.string.cancel),
+                                        tint = ThemeColorUtils.darkGray(Color(0xFF424141))
+                                    )
                                 }
                             }
-                        )
+                        },
+                        placeholder = { Text(stringResource(R.string.settings_search_hint), color = ThemeColorUtils.darkGray(Color(0xFF424141))) },
+                        shape = RoundedCornerShape(28.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = ThemeColorUtils.themedColor(
+                                lightColor = Color(0xCDFFFFFF),
+                                role = NeutralRole.White
+                            ),
+                            unfocusedContainerColor = ThemeColorUtils.white(),
+                            focusedTextColor = ThemeColorUtils.darkGray(Color(0xFF212121)),
+                            unfocusedTextColor = ThemeColorUtils.darkGray(Color(0xFF212121)),
+                            focusedBorderColor = ThemeColorUtils.black(),
+                            unfocusedBorderColor = ThemeColorUtils.black(),
+                            focusedLabelColor = ThemeColorUtils.darkGray(Color(0xFF424242)),
+                            unfocusedLabelColor = ThemeColorUtils.lightGray(Color(0xFFB9B5B5))
+                        ),
+                        singleLine = true
+                    )
+                }
+
+                item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = ThemeColorUtils.darkGray(Color(0xFF7E7C7C)),
+                        thickness = 1.dp
+                    )
+                }
+
+                // Settings Options
+                if (filteredOptions.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = stringResource(R.string.settings_no_results),
+                                color = ThemeColorUtils.lightGray(Color.Gray),
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                } else {
+                    items(filteredOptions) { option ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { /* Prevent parent click handler */ }
+                        ) {
+                            SettingItem(
+                                option = option,
+                                onClick = {
+                                    focusManager.clearFocus()
+                                    keyboardController?.hide()
+                                    searchQuery = ""
+                                    // Use the title string resource logic by comparing with the resolved string
+                                    when (option.title) {
+                                        accountTitle -> navController.navigate("account_settings")
+                                        securityTitle -> navController.navigate("security_privacy_settings")
+                                        emergencyTitle -> navController.navigate("emergency_contacts")
+                                        notificationsTitle -> navController.navigate("notification_settings")
+                                        languageTitle -> navController.navigate("language_settings")
+                                        themeTitle -> {
+                                            ThemeViewModel.toggleTheme()
+                                        }
+                                        blockedTitle -> navController.navigate("blocked_users")
+                                        dataStorageTitle -> showDataStorageDialog = true
+                                        aboutTitle -> navController.navigate("about_settings")
+                                        logoutTitle -> {
+                                            showLogoutDialog = true
+                                        }
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
             }
         }
-        }
     }
-    
+
     // Logout Confirmation Dialog
     if (showLogoutDialog) {
+        Dialog(onDismissRequest = { showLogoutDialog = false }) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.white()),
+                elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 16.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.settings_logout_dialog_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        color = ThemeColorUtils.black()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.settings_logout_dialog_message),
+                        fontSize = 16.sp,
+                        color = ThemeColorUtils.black()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .offset(x = 8.dp),
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        TextButton(
+                            onClick = { showLogoutDialog = false },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = ThemeColorUtils.black()
+                            )
+                        ) {
+                            Text(stringResource(R.string.cancel))
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                        TextButton(
+                            onClick = {
+                                authViewModel.logout(context)
+                                navController.navigate("login") {
+                                    popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                                }
+                                showLogoutDialog = false
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                contentColor = ThemeColorUtils.black()
+                            )
+                        ) {
+                            Text(stringResource(R.string.settings_logout_confirm), fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Data Storage Warning Dialog
+    if (showDataStorageDialog) {
         AlertDialog(
-            onDismissRequest = { showLogoutDialog = false },
+            onDismissRequest = { showDataStorageDialog = false },
             title = {
-                Text(
-                    text = "Sign Out",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Warning,
+                        contentDescription = null,
+                        tint = Color(0xFFFF9800),
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.data_storage_dialog_title),
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    )
+                }
             },
             text = {
                 Text(
-                    text = "Are you sure you want to sign out?",
-                    fontSize = 16.sp
+                    text = stringResource(R.string.data_storage_dialog_message),
+                    fontSize = 16.sp,
+                    color = ThemeColorUtils.black()
                 )
             },
             confirmButton = {
                 TextButton(
-                    onClick = {
-                        authViewModel.auth.signOut()
-                        navController.navigate("login") {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
-                        }
-                        showLogoutDialog = false
-                    },
+                    onClick = { showDataStorageDialog = false },
+                    modifier = Modifier.offset(x = 12.dp),
                     colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
                         contentColor = ThemeColorUtils.black()
                     )
                 ) {
-                    Text("Sign Out", fontWeight = FontWeight.Bold)
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { showLogoutDialog = false },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                        contentColor = ThemeColorUtils.black()
-                    )
-                ) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.common_ok), fontWeight = FontWeight.Bold)
                 }
             },
             containerColor = ThemeColorUtils.white(),
@@ -331,7 +524,7 @@ fun SettingItem(option: SettingOption, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -405,7 +598,7 @@ fun SettingItem(option: SettingOption, onClick: () -> Unit) {
                         )
                     }
                 }
-                if (option.title == "Theme" || option.title == "Dark Mode") {
+                if (option.title == stringResource(R.string.settings_theme_title)) {
                     Switch(
                         checked = ThemeViewModel.isDarkMode,
                         onCheckedChange = { onClick() },

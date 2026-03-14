@@ -1,0 +1,411 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">ChickCare</string>
+
+    <!-- Comments Screen -->
+    <string name="comments_title">Mga Komento</string>
+    <string name="no_comments_yet">Wala pang komento. Maging una sa pag-komento!</string>
+    <string name="write_a_comment">Sumulat ng komento...</string>
+    <string name="send_comment">Ipadala ang komento</string>
+    <string name="back">Bumalik</string>
+    <string name="your_avatar">Ang iyong avatar</string>
+    
+    <!-- Comment Actions -->
+    <string name="edit_comment">I-edit ang Komento</string>
+    <string name="delete_comment">I-delete ang Komento</string>
+    <string name="cancel">Kanselahin</string>
+    <string name="save">I-save</string>
+    <string name="delete">I-delete</string>
+    <string name="delete_comment_confirmation">Sigurado ka bang gusto mong i-delete ang komentong ito? Hindi na ito maibabalik.</string>
+
+    <!-- Login Screen -->
+    <string name="login_title">Mag-login</string>
+    <string name="login_email_label">Mobile number o email</string>
+    <string name="login_email_error">Maling format ng email o mobile number</string>
+    <string name="login_password_label">Password</string>
+    <string name="login_password_error">Dapat may kahit 6 na karakter ang password</string>
+    <string name="login_forgot_password">Nakalimutan ang Password?</string>
+    <string name="login_button">Mag-login</string>
+    <string name="login_no_account">"Wala pang account? "</string>
+    <string name="login_signup_link">Mag-sign up</string>
+    <string name="password_visibility_toggle">Ipakita o itago ang password</string>
+    <string name="settings_icon_desc">Mga Setting</string>
+    <string name="app_logo_desc">Logo ng ChickCare</string>
+
+    <!-- Signup Screen -->
+    <string name="signup_step1_title">Ano ang pangelan mo?</string>
+    <string name="signup_step1_subtitle">Ilagay ang pangalang ginagamit mo sa totoong buhay.</string>
+    <string name="signup_step2_title">Kailan ka ipinanganak?</string>
+    <string name="signup_step2_subtitle">Piliin ang iyong petsa ng kapanganakan. Dapat ikaw ay 18 taong gulang pataas.</string>
+    <string name="signup_step3_title">Ano ang iyong kasarian?</string>
+    <string name="signup_step3_subtitle">Maaari mong baguhin kung sino ang makakakita nito mamaya.</string>
+    <string name="signup_step4_title">Ano ang iyong numero?</string>
+    <string name="signup_step4_subtitle">Ilagay ang iyong mobile number. Gagamitin namin ito para sa beripikasyon.</string>
+    <string name="signup_step5_title">Ano ang iyong email?</string>
+    <string name="signup_step5_subtitle">Ilagay ang iyong email address.</string>
+    <string name="signup_step6_title">Gumawa ng password</string>
+    <string name="signup_step6_subtitle">Gumawa ng matibay na password.</string>
+    
+    <string name="signup_first_name_label">Pangalan</string>
+    <string name="signup_last_name_label">Apelyido</string>
+    <string name="signup_name_error">Gamitin ang totoong pangalan.</string>
+    
+    <string name="signup_date_label">Petsa ng Kapanganakan (MM/DD/YYYY)</string>
+    <string name="signup_select_date">Piliin ang petsa</string>
+    <string name="signup_age_error">Dapat ikaw ay 18 taong gulang pataas.</string>
+    
+    <string name="signup_gender_female">Babae</string>
+    <string name="signup_gender_male">Lalaki</string>
+    <string name="signup_gender_more">Iba pang opsyon</string>
+    <string name="signup_gender_custom_label">Kasarian (opsyonal)</string>
+    <string name="signup_gender_more_desc">Pumili ng iba pang opsyon para sa ibang kasarian.</string>
+    <string name="signup_gender_error">Piliin ang iyong kasarian.</string>
+    <string name="signup_pronoun_sheet_title">Piliin ang iyong pronoun</string>
+    <string name="signup_pronoun_sheet_subtitle">Ang iyong pronoun ay makikita ng lahat.</string>
+    
+    <string name="signup_country_label">Bansa</string>
+    <string name="signup_select_country">Piliin ang Bansa</string>
+    <string name="signup_mobile_label">Numero ng Mobile</string>
+    <string name="signup_mobile_error_ph">Maling format ng numero.</string>
+    
+    <string name="signup_email_label">Email</string>
+    <string name="signup_email_error_provider">Gamitin ang valid na email provider.</string>
+    
+    <string name="signup_password_label">Password</string>
+    <string name="signup_confirm_password_label">Kumpirmahin ang Password</string>
+    <string name="signup_password_mismatch">Hindi magkapareho ang password.</string>
+    <string name="signup_password_requirement">Dapat may 8 karakter at halo-halong titik.</string>
+    
+    <string name="next">Susunod</string>
+    <string name="ok">OK</string>
+    <string name="signup_button">Mag-sign Up</string>
+
+    <!-- Profile Screen -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_more_options">Iba pang opsyon</string>
+    <string name="profile_unfriend">Unfriend %1$s</string>
+    <string name="profile_block">I-block si %1$s</string>
+    <string name="profile_offline_error">Ikaw ay offline. Kumonekta upang makita ang profile.</string>
+    <string name="profile_load_error">Hindi mahanap o hindi ma-load ang profile.</string>
+    <string name="profile_tab_timeline">Timeline</string>
+    <string name="profile_tab_about">Tungkol</string>
+    <string name="profile_tab_photos">Mga Larawan</string>
+    <string name="profile_tab_audios">Mga Audio</string>
+    <string name="profile_tab_more">Iba pa</string>
+    <string name="profile_blocked_message">Na-block mo si %1$s</string>
+    <string name="profile_unblock_button">I-unblock</string>
+    <string name="profile_friends_status">Kaibigan</string>
+    <string name="profile_chat_button">Chat</string>
+    <string name="profile_requested_status">Requested</string>
+    <string name="profile_add_button">I-add</string>
+    <string name="profile_follow_button">Sundin</string>
+    <string name="profile_unfollow_button">Wag Sundin</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Mga Setting</string>
+    <string name="settings_search_hint">Maghanap ng setting</string>
+    <string name="settings_no_results">Walang nakitang setting</string>
+    
+    <string name="settings_account_title">Account</string>
+    <string name="settings_account_subtitle">Pamahalaan ang detalye ng account</string>
+    <string name="settings_security_title">Seguridad at Privacy</string>
+    <string name="settings_security_subtitle">Kontrolin ang iyong data at privacy</string>
+    <string name="settings_emergency_title">Emergency Contacts</string>
+    <string name="settings_emergency_subtitle">Pamahalaan ang mga beterinaryo at emergency contact</string>
+    <string name="settings_notifications_title">Mga Notification</string>
+    <string name="settings_notifications_subtitle">I-customize ang mga alerto</string>
+    <string name="settings_language_title">Wika</string>
+    <string name="settings_language_subtitle">Palitan ang wika ng app</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_subtitle">Palitan ang dark mode o light mode</string>
+    <string name="settings_blocked_title">Mga Na-block na User</string>
+    <string name="settings_blocked_subtitle">Pamahalaan ang mga na-block</string>
+    <string name="settings_about_title">Tungkol</string>
+    <string name="settings_about_subtitle">Tingnan ang bersyon at impormasyon ng app</string>
+    <string name="settings_logout_title">Mag-logout</string>
+    
+    <string name="settings_logout_dialog_title">Mag-sign Out</string>
+    <string name="settings_logout_dialog_message">Sigurado ka bang gusto mong mag-sign out?</string>
+    <string name="settings_logout_confirm">Mag-sign Out</string>
+
+    <!-- Account Settings Screen -->
+    <string name="account_title">Account</string>
+    <string name="account_basic_info_section">Impormasyon ng Account</string>
+    <string name="account_actions_section">Mga Aksyon sa Account</string>
+    
+    <string name="account_full_name">Buong Pangalan</string>
+    <string name="account_email">Email</string>
+    <string name="account_not_set">Hindi nakatakda</string>
+    <string name="account_no_email">Walang email</string>
+    
+    <string name="account_edit_profile_title">I-edit ang Profile</string>
+    <string name="account_edit_profile_desc">I-update ang personal na impormasyon</string>
+    <string name="account_delete_title">Burahin ang Account</string>
+    <string name="account_delete_desc">Permanenteng burahin ang account at datos</string>
+    
+    <string name="account_photo_desc">Larawan ng Profile</string>
+    <string name="account_crop_error">Error sa pag-crop ng larawan: %1$s</string>
+    <string name="account_email_edit_error">Kailangan ng beripikasyon sa pagpalit ng email. Gamitin ang password reset feature.</string>
+    
+    <string name="account_delete_dialog_title">Burahin ang Account</string>
+    <string name="account_delete_dialog_message">Sigurado ka bang gusto mong permanenteng burahin ang iyong account? Hindi na ito maibabalik. Ang lahat ng iyong data kabilang ang mga detection, post, at impormasyon sa profile ay permanenteng tatanggalin.</string>
+    <string name="account_delete_continue">Ituloy</string>
+    <string name="account_delete_cancel">Kanselahin</string>
+    
+    <string name="common_success">Tagumpay</string>
+    <string name="common_error">Error</string>
+    <string name="common_ok">OK</string>
+    <string name="common_cancel">Kanselahin</string>
+
+    <!-- Security & Privacy Screen -->
+    <string name="security_title">Seguridad at Pribado</string>
+    <string name="security_section_security">Seguridad</string>
+    <string name="security_section_privacy">Pribado</string>
+    <string name="security_section_legal">Legal</string>
+    
+    <string name="security_2fa_title">Two-Factor Authentication</string>
+    <string name="security_2fa_desc">Magdagdag ng dagdag na seguridad sa iyong account</string>
+    <string name="security_biometric_title">Biometric Authentication</string>
+    <string name="security_biometric_desc_enabled">Gamitin ang fingerprint o pagkilala sa mukha para mag-unlock</string>
+    <string name="security_change_password_title">Palitan ang Password</string>
+    <string name="security_change_password_desc">I-update ang password ng iyong account</string>
+    
+    <string name="security_encryption_title">Data Encryption</string>
+    <string name="security_encryption_desc">I-encrypt ang iyong data para sa mas matibay na seguridad</string>
+    <string name="security_privacy_mode_title">Privacy Mode</string>
+    <string name="security_privacy_mode_desc">Itago ang iyong aktibidad mula sa iba</string>
+    
+    <string name="security_policy_title">Patakaran sa Pribado</string>
+    <string name="security_policy_desc">Basahin ang aming patakaran sa pribado</string>
+    <string name="security_terms_title">Mga Tuntunin ng Serbisyo</string>
+    <string name="security_terms_desc">Basahin ang aming mga tuntunin ng serbisyo</string>
+    
+    <string name="security_biometric_prompt_title">Paganahin ang Biometric Authentication</string>
+    <string name="security_biometric_prompt_subtitle">Mag-authenticate para paganahin ang biometric login</string>
+    <string name="security_biometric_success">Matagumpay na pinagana ang biometric authentication</string>
+    <string name="security_biometric_disabled">Naka-disable ang biometric authentication</string>
+    <string name="security_2fa_disabled">Naka-disable ang two-factor authentication</string>
+    <string name="security_login_required">Mangyaring mag-login para paganahin ang two-factor authentication</string>
+
+    <!-- Notification Settings Screen -->
+    <string name="notif_settings_title">Mga Abiso</string>
+    <string name="notif_section_general">Pangkalahatan</string>
+    <string name="notif_section_detection">Pagtuklas at Kalusugan</string>
+    <string name="notif_section_social">Sosyal</string>
+    <string name="notif_section_pref">Mga Kagustuhan</string>
+    
+    <string name="notif_push_title">Push Notifications</string>
+    <string name="notif_push_desc">Makatanggap ng mga abiso sa iyong device</string>
+    <string name="notif_detection_title">Mga Alerto sa Pagtuklas</string>
+    <string name="notif_detection_desc">Maging notipikado kapag may natuklasang isyu sa kalusugan</string>
+    <string name="notif_reminder_title">Mga Abiso sa Paalala</string>
+    <string name="notif_reminder_desc">Makatanggap ng paalala para sa pagbabakuna at checkup</string>
+    <string name="notif_friend_title">Mga Friend Request</string>
+    <string name="notif_friend_desc">Maging notipikado tungkol sa friend requests</string>
+    <string name="notif_vibration_title">Vibration</string>
+    <string name="notif_vibration_desc">Paganahin ang vibration para sa mga abiso</string>
+    <string name="notif_sound_title">Tunog</string>
+    <string name="notif_sound_desc">Magpatugtog ng tunog para sa mga abiso</string>
+    <string name="notif_cust_hint">Maaari mong i-customize ang mga kagustuhan sa abiso para sa bawat kategorya</string>
+
+    <!-- Emergency Contacts Screen -->
+    <string name="emergency_title">Mga Emergency Contact</string>
+    <string name="emergency_empty_title">Walang Emergency Contact</string>
+    <string name="emergency_empty_desc">Idagdag ang iyong beterinaryo o katulong sa sakahan para sa mabilis na access sa emergency</string>
+    
+    <string name="emergency_type_vet">Beterinaryo</string>
+    <string name="emergency_type_help">Katulong sa Sakahan</string>
+    <string name="emergency_type_emergency">Emergency</string>
+    <string name="emergency_type_other">Iba pa</string>
+    
+    <string name="emergency_add_title">Magdagdag ng Emergency Contact</string>
+    <string name="emergency_edit_title">I-edit ang Contact</string>
+    <string name="emergency_field_name">Pangalan</string>
+    <string name="emergency_field_phone">Numero ng Telepono</string>
+    <string name="emergency_field_notes">Mga Tala (Opsyonal)</string>
+    <string name="emergency_save">I-save</string>
+
+    <!-- About Screen -->
+    <string name="about_title">Tungkol</string>
+    <string name="about_app_name">ChickCare</string>
+    <string name="about_version">Bersyon 1.0.0</string>
+    <string name="about_desc_title">Tungkol sa ChickCare</string>
+    <string name="about_description">     Ang ChickCare ay isang makabago at mobile application na dinisenyo upang tulungan ang mga magsasaka ng manok na subaybayan at panatilihin ang kalusugan ng kanilang mga alaga. Gamit ang advanced na AI technology, ang app ay nakakatuklas ng mga maagang senyales ng sakit, partikular na ang Infectious Bronchitis, sa pamamagitan ng pagsusuri ng imahe at audio.</string>
+    <string name="about_features_title">Mga Tampok</string>
+    <string name="about_feat_ai">AI-Powered Detection</string>
+    <string name="about_feat_ai_desc">Advanced machine learning algorithms para sa tumpak na pagsubaybay sa kalusugan.</string>
+    <string name="about_feat_realtime">Real-time Monitoring</string>
+    <string name="about_feat_realtime_desc">Subaybayan ang kalusugan ng iyong kawan sa real-time.</string>
+    <string name="about_feat_records">Comprehensive Records</string>
+    <string name="about_feat_records_desc">Magtabi ng detalyadong tala ng lahat ng natuklasan at kasaysayan ng kalusugan.</string>
+    <string name="about_feat_vaccine">Smart Vaccination Schedule</string>
+    <string name="about_feat_vaccine_desc">Makatanggap ng napapanahong paalala para sa pangangailangan sa bakuna ng iyong kawan.</string>
+    <string name="about_feat_community">Community Support</string>
+    <string name="about_feat_community_desc">Makipag-ugnayan sa ibang magsasaka at magbahagi ng karanasan.</string>
+    <string name="about_feat_offline">Offline Access</string>
+    <string name="about_feat_offline_desc">I-access ang iyong data at tala kahit walang internet connection.</string>
+    <string name="about_share_btn">Ibahagi ang App</string>
+    <string name="about_footer_dev">Binuo na may pagmamalasakit</string>
+    <string name="about_footer_for">Para sa mga magsasaka ng manok sa buong mundo</string>
+
+    <!-- Blocked Users Screen -->
+    <string name="blocked_title">Mga Na-block na User</string>
+    <string name="blocked_empty_title">Walang na-block na user</string>
+    <string name="blocked_empty_desc">Ang mga user na iyong, i-block ay lilitaw dito</string>
+    <string name="blocked_status">Na-block</string>
+    <string name="blocked_unblock_btn">I-unblock</string>
+    <string name="blocked_dialog_title">I-unblock si/ang %1$s?</string>
+    <string name="blocked_dialog_msg">Sigurado ka bang gusto mong i-unblock si %1$s? Makikita mo na ulit ang kanilang mga post at makakapagpadala ng mensahe sa kanila.</string>
+
+    <!-- Dashboard Screen -->
+    <string name="dashboard_login_success">Matagumpay na Pag-login!</string>
+    <string name="dashboard_analyzing">Sinusuri ang kalusugan ng manok...</string>
+    <string name="dashboard_trend_image">Uso ng Pagtuklas ng Imahe</string>
+    <string name="dashboard_trend_audio">Uso ng Pagtuklas ng Audio</string>
+
+    <!-- Notifications Screen -->
+    <string name="notifications_title">Mga Abiso</string>
+    <string name="notifications_mark_read">Markahan lahat bilang nabasa</string>
+    <string name="notifications_pending_fmt">(%1$d nakabinbin)</string>
+    <string name="notifications_empty_title">Wala pang abiso</string>
+    <string name="notifications_empty_desc">Makikita mo ang mga abiso dito kapag nakatanggap ka na</string>
+    <string name="notifications_delete_msg">Ang data na ito ay permanenteng tinanggal. Hindi mo na ito makikita.</string>
+    
+    <string name="notif_detail_title">Detalye ng Pagtuklas</string>
+    <string name="notif_detail_id">Notification ID</string>
+    <string name="notif_detail_result">Resulta</string>
+    <string name="notif_detail_date">Natanggap Noong</string>
+    
+    <string name="notif_btn_accept">Tanggapin</string>
+    <string name="notif_btn_decline">Tanggihan</string>
+    
+    <string name="notif_type_announcement">Bagong Anunsyo</string>
+    <string name="notif_type_friend_req">Friend Request</string>
+    <string name="notif_type_friend_accept">Tinanggap na Friend Request</string>
+    <string name="notif_type_detection">Resulta ng Pagtuklas</string>
+    <string name="notif_type_data_add">Bagong Data na Idinagdag</string>
+    <string name="notif_type_data_edit">Na-update na Data</string>
+    <string name="notif_type_data_del">Tinanggal na Data</string>
+    <string name="notif_type_sys_update">System Update</string>
+    <string name="notif_type_profile_update">Na-update na Profile</string>
+    <string name="notif_type_reaction">Bagong Reaksyon</string>
+    <string name="notif_type_comment">Bagong Komento</string>
+    <string name="notif_type_follow">Bagong Tagasunod</string>
+    <string name="notif_type_post">Bagong Post</string>
+    <string name="notif_type_disease">Alerto sa Sakit</string>
+    
+    <string name="time_just_now">Ngayon lang</string>
+    <string name="time_min_ago">%1$dm nakalipas</string>
+    <string name="time_hour_ago">%1$dh nakalipas</string>
+    <string name="time_day_ago">%1$dd nakalipas</string>
+
+    <!-- Farm Tips Screen -->
+    <string name="farm_tips_title">Mga Tip at Gabay sa Pagsasaka</string>
+    <string name="tip_cat_env">Kapaligiran</string>
+    <string name="tip_cat_nut">Nutrisyon</string>
+    <string name="tip_cat_health">Kalusugan</string>
+    <string name="tip_cat_safety">Kaligtasan</string>
+    
+    <string name="tip_1_title">Tamang Bentilasyon</string>
+    <string name="tip_1_desc">Panatilihing maayos ang daloy ng hangin sa kulungan ng manok upang maiwasan ang mga sakit sa paghinga. Maglagay ng bentilasyon na nagpapapasok ng sariwang hangin at nagpoprotekta mula sa hamog. Ang mahinang bentilasyon ay sanhi ng ammonia at impeksyon.</string>
+    <string name="tip_2_title">Malinis na Tubig Araw-araw</string>
+    <string name="tip_2_desc">Bigyan ng malinis na tubig ang mga manok araw-araw. Linisin palagi ang lagayan ng tubig upang maiwasan ang bacteria. Kailangan ng manok ng tubig para sa tamang panunaw at kalusugan. Ang kakulangan sa tubig ay nagpapababa ng itlog at nagdudulot ng sakit.</string>
+    <string name="tip_3_title">Regular na Pagsubaybay sa Kalusugan</string>
+    <string name="tip_3_desc">Gamitin ang feature ng app sa pagtuklas ng imahe at audio upang masubaybayan ang manok araw-araw. Ang maagang pagkatuklas ng sakit ay nakakaiwas sa pagkalat nito. Bantayan ang kakaibang kilos, tunog, o itsura na senyales ng sakit.</string>
+    <string name="tip_4_title">Malinis at Tuyong Kulungan</string>
+    <string name="tip_4_desc">Panatilihing malinis at tuyo ang kulungan. Ang regular na paglilinis ay pumipigil sa bacteria at parasito. Ang basang higaan ay sanhi ng sakit sa paa at paghinga. Palitan ang sapin linggo-linggo o kung kinakailangan.</string>
+    <string name="tip_5_title">Balanseng Nutrisyon</string>
+    <string name="tip_5_desc">Magbigay ng balanseng pagkain na angkop sa edad at uri ng manok (nangingitlog, broiler, atbp.). Isama ang bitamina at mineral. Iwasan ang sobra o kulang na pakain, dahil pareho itong nakakasama.</string>
+    <string name="tip_6_title">Ihiwalay ang May Sakit</string>
+    <string name="tip_6_desc">Agad na ihiwalay ang manok na may sakit upang hindi makahawa. Maghanda ng quarantine area. Bantayan ang nakahiwalay na manok at kumunsulta sa beterinaryo kung magtagal ang sintomas.</string>
+    <string name="tip_7_title">Temperatura</string>
+    <string name="tip_7_desc">Panatilihin ang tamang temperatura sa kulungan (18-24°C). Ang sobrang init o lamig ay nakaka-stress sa manok at nakakaapekto sa kalusugan. Gumamit ng heater o cooler kung kailangan.</string>
+    <string name="tip_8_title">Sapat na Espasyo</string>
+    <string name="tip_8_desc">Maglaan ng sapat na espasyo para makagalaw at makapahinga ang mga manok. Ang siksikan ay sanhi ng stress, panunuka, at sakit. Sundin ang rekomendasyon: 2-4 square feet bawat manok.</string>
+    <string name="tip_9_title">Regular na Pagbabakuna</string>
+    <string name="tip_9_desc">Sundin ang iskedyul ng bakuna mula sa beterinaryo para protektahan ang kawan sa mga sakit. Magtabi ng record ng bakuna at siguraduhing bakunado ang bagong manok bago isama sa kawan.</string>
+    <string name="tip_10_title">Proteksyon sa Maninila</string>
+    <string name="tip_10_desc">Siguraduhing may bakod at kandado ang kulungan laban sa mga maninila. Suriin kung may butas o sira. Gumamit ng ilaw at isara ang pinto sa gabi. Ang mga maninila ay nagdudulot ng stress at sugat.</string>
+    <string name="tip_play">I-play</string>
+    <string name="tip_pause">I-pause</string>
+    <string name="tip_mute">I-mute</string>
+    <string name="tip_unmute">I-unmute</string>
+
+    <!-- Chat Screen -->
+    <string name="chat_default_title">Chat</string>
+    <string name="chat_placeholder">Magpadala ng mensahe</string>
+    <string name="chat_send_desc">Ipadala</string>
+    <string name="chat_audio_msg">🎵 Audio message</string>
+    <string name="chat_menu_copy">Kopyahin</string>
+    <string name="chat_menu_delete">Burahin ang mensahe</string>
+    
+    <!-- Welcome Screen -->
+    <string name="welcome_icon_desc">ChickCare Icon</string>
+    <string name="welcome_logo_desc">ChickCare Logo</string>
+    <string name="welcome_slogan">Agapan ang Sakit Bago Lumala</string>
+
+    <!-- Language Settings Screen -->
+    <string name="language_settings_title_screen">Wika</string>
+    <string name="language_info_text">Piliin ang iyong nais na wika para sa app. Magre-restart ang app upang mailapat ang mga pagbabago.</string>
+    <string name="language_selected_desc">Napili</string>
+
+    <!-- Your Friends Screen -->
+    <string name="friends_title">Mga Kaibigan</string>
+    <string name="friends_chip_fmt">%1$d Kaibigan</string>
+    <string name="friends_tab_active">Aktibo</string>
+    <string name="friends_active_chip_fmt">%1$d Aktibo</string>
+    <string name="friends_empty">Wala pang kaibigan</string>
+    <string name="friends_place_placeholder">(Lugar)</string>
+    <string name="friends_mutual_fmt">%1$d common friend</string>
+    <string name="friends_mutual_plural_fmt">%1$d common friends</string>
+    <string name="friends_pinned_desc">Naka-pin</string>
+    <string name="friends_more_desc">Iba pang opsyon</string>
+    
+    <string name="friends_menu_view_profile">Tingnan ang Profile</string>
+    <string name="friends_menu_message">Mensahe</string>
+    <string name="friends_menu_share">Ibahagi ang Profile</string>
+    <string name="friends_menu_mutual">Tingnan ang Common Friends</string>
+    <string name="friends_menu_posts">Tingnan ang mga Post</string>
+    <string name="friends_menu_pin">I-pin ang Kaibigan</string>
+    <string name="friends_menu_unpin">I-unpin ang Kaibigan</string>
+    <string name="friends_menu_mute">I-mute ang Abiso</string>
+    <string name="friends_menu_unmute">i-unmute ang Abiso</string>
+    <string name="friends_menu_unfriend">Unfriend</string>
+    <string name="friends_menu_block">I-block</string>
+    <string name="friends_menu_report">I-report</string>
+    
+    <string name="friends_dialog_unfriend_title">Unfriend si %1$s?</string>
+    <string name="friends_dialog_unfriend_msg">Sigurado ka bang gusto mong tanggalin si %1$s sa iyong friends list? Hindi na ito maibabalik.</string>
+    <string name="friends_dialog_block_title">I-block si %1$s?</string>
+    <string name="friends_dialog_block_msg">Sigurado ka bang gusto mong i-block si %1$s? Hindi mo na makikita ang kanilang post o makakapagpadala ng mensahe. Maaari mo silang i-unblock sa settings.</string>
+    <string name="friends_dialog_report_title">I-report si %1$s</string>
+    <string name="friends_dialog_report_reason">Pumili ng dahilan ng pag-report:</string>
+    <string name="friends_dialog_report_details">Karagdagang detalye (opsyonal)</string>
+    <string name="friends_report_reason_spam">Spam o Scam</string>
+    <string name="friends_report_reason_harass">Harassment o Bullying</string>
+    <string name="friends_report_reason_inapp">Hindi Angkop na Nilalaman</string>
+    <string name="friends_report_reason_fake">Pekeng Profile</string>
+    <string name="friends_report_reason_other">Iba pa</string>
+
+    <!-- Active Friends Screen -->
+    <string name="active_friends_title">Aktibong Kaibigan</string>
+    <string name="active_friends_empty">Walang aktibong kaibigan</string>
+    <string name="active_group_now">Aktibo Ngayon</string>
+    <string name="active_group_min">Aktibo Ilang Minuto ang Nakalipas</string>
+    <string name="active_group_hour">Aktibo Ilang Oras ang Nakalipas</string>
+    <string name="active_group_day">Aktibo Ilang Araw ang Nakalipas</string>
+    <string name="active_group_week">Aktibo Ilang Linggo ang Nakalipas</string>
+    <string name="active_group_month">Aktibo Ilang Buwan ang Nakalipas</string>
+    
+    <string name="active_status_now">Aktibo ngayon</string>
+    <string name="active_status_min_fmt">Aktibo %1$d min nakalipas</string>
+    <string name="active_status_mins_fmt">Aktibo %1$d mins nakalipas</string>
+    <string name="active_status_hour_fmt">Aktibo %1$d oras nakalipas</string>
+    <string name="active_status_hours_fmt">Aktibo %1$d oras nakalipas</string>
+    <string name="active_status_day_fmt">Aktibo %1$d araw nakalipas</string>
+    <string name="active_status_days_fmt">Aktibo %1$d araw nakalipas</string>
+    <string name="active_status_week_fmt">Aktibo %1$d linggo nakalipas</string>
+    <string name="active_status_weeks_fmt">Aktibo %1$d linggo nakalipas</string>
+    <string name="active_status_month_fmt">Aktibo %1$d buwan nakalipas</string>
+    <string name="active_status_months_fmt">Aktibo %1$d buwan nakalipas</string>
+</resources>

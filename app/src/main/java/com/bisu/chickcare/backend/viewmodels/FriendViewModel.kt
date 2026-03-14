@@ -9,8 +9,12 @@ import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
-class FriendViewModel : ViewModel() {
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
+
+class FriendViewModel(application: Application) : AndroidViewModel(application) {
     private val friendRepository = FriendRepository()
     private val auth = FirebaseAuth.getInstance()
     
@@ -26,8 +30,23 @@ class FriendViewModel : ViewModel() {
     private val _pendingRequests = MutableStateFlow<List<FriendRequest>>(emptyList())
     val pendingRequests = _pendingRequests.asStateFlow()
 
+    private val _hiddenUserIds = MutableStateFlow<Set<String>>(emptySet())
+    val hiddenUserIds = _hiddenUserIds.asStateFlow()
+
+    fun hideUser(userId: String) {
+        val currentSet = _hiddenUserIds.value.toMutableSet()
+        currentSet.add(userId)
+        _hiddenUserIds.value = currentSet
+    }
+
+    private fun getCurrentUserId(): String? {
+        val firebaseUid = auth.currentUser?.uid
+        if (firebaseUid != null) return firebaseUid
+        return com.bisu.chickcare.backend.utils.OfflineAuthHelper.getCurrentLocalUserId(getApplication())
+    }
+
     fun loadFriendSuggestions() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         _isLoading.value = true
         
         viewModelScope.launch {
@@ -45,8 +64,8 @@ class FriendViewModel : ViewModel() {
         }
     }
     
-    fun loadFriends() {
-        val userId = auth.currentUser?.uid ?: return
+    fun loadFriends(targetUserId: String? = null) {
+        val userId = targetUserId ?: getCurrentUserId() ?: return
         
         viewModelScope.launch {
             try {
@@ -63,14 +82,27 @@ class FriendViewModel : ViewModel() {
         toUserName: String, 
         callback: (Boolean, String) -> Unit
     ) {
-        val fromUserId = auth.currentUser?.uid ?: run {
+        val fromUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
-        val fromUserName = auth.currentUser?.displayName ?: "User"
+        
+        // Check if offline first
+        val isOnline = com.bisu.chickcare.backend.service.NetworkConnectivityHelper.isOnline(getApplication())
         
         viewModelScope.launch {
             try {
+                // Fetch user name asynchronously using await() - with fallback for offline
+                val fromUserName = try {
+                    com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                        .collection("users").document(fromUserId)
+                        .get()
+                        .await()
+                        .getString("fullName") ?: "User"
+                } catch (e: Exception) {
+                    "User" // Fallback if fetch fails (e.g., offline)
+                }
+                
                 val notificationRepository = com.bisu.chickcare.backend.repository.NotificationRepository()
                 friendRepository.sendFriendRequest(
                     fromUserId = fromUserId, 
@@ -78,13 +110,50 @@ class FriendViewModel : ViewModel() {
                     toUserId = toUserId,
                     notificationRepository = notificationRepository
                 )
+                
                 // Optimistically remove the user from the suggestions list so the UI badge updates immediately
                 _suggestions.value = _suggestions.value.filterNot { it.userId == toUserId }
                 // Reload pending requests after sending (to update if user sent request to someone)
                 loadPendingFriendRequests()
-                callback(true, "Friend request sent to $toUserName")
+                
+                // Show appropriate message based on connectivity
+                if (isOnline) {
+                    callback(true, "Friend request sent to $toUserName")
+                } else {
+                    callback(true, "You're offline. Request to $toUserName will be sent when you're back online.")
+                }
             } catch (e: Exception) {
-                callback(false, "Failed to send friend request to $toUserName: ${e.message}")
+                // Check if it's a network/cancellation error while offline
+                if (!isOnline || e is kotlinx.coroutines.CancellationException || 
+                    e.message?.contains("cancelled", ignoreCase = true) == true ||
+                    e.message?.contains("offline", ignoreCase = true) == true ||
+                    e.message?.contains("network", ignoreCase = true) == true) {
+                    // Still update UI optimistically - Firestore will queue the request
+                    _suggestions.value = _suggestions.value.filterNot { it.userId == toUserId }
+                    callback(true, "You're offline. Request to $toUserName will be sent when you're back online.")
+                } else {
+                    callback(false, "Failed to send friend request: ${e.message}")
+                }
+            }
+        }
+    }
+    
+    fun cancelFriendRequest(
+        toUserId: String,
+        callback: (Boolean, String) -> Unit
+    ) {
+        val fromUserId = getCurrentUserId() ?: run {
+            callback(false, "User not logged in")
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.cancelFriendRequest(fromUserId, toUserId)
+                // Reload suggestions or update local state if needed
+                callback(true, "Friend request cancelled")
+            } catch (e: Exception) {
+                callback(false, "Failed to cancel request: ${e.message}")
             }
         }
     }
@@ -96,7 +165,7 @@ class FriendViewModel : ViewModel() {
         callback: (Boolean, String) -> Unit,
         notificationRepository: com.bisu.chickcare.backend.repository.NotificationRepository? = null
     ) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -122,13 +191,22 @@ class FriendViewModel : ViewModel() {
                 callback(true, "Friend request accepted")
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error accepting friend request: ${e.message}", e)
-                callback(false, "Failed to accept friend request: ${e.message}")
+                // Handle CancellationException gracefully - Firestore operations typically complete
+                // even when the coroutine is cancelled, so don't show error to user
+                if (e is kotlinx.coroutines.CancellationException || 
+                    e.message?.contains("cancelled", ignoreCase = true) == true ||
+                    e.message?.contains("Job was cancelled", ignoreCase = true) == true) {
+                    // Firestore likely completed the operation, show success message
+                    callback(true, "Friend request accepted")
+                } else {
+                    callback(false, "Failed to accept friend request: ${e.message}")
+                }
             }
         }
     }
     
     fun declineFriendRequest(requestId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -143,7 +221,13 @@ class FriendViewModel : ViewModel() {
                 callback(true, "Friend request declined")
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error declining friend request: ${e.message}", e)
-                callback(false, "Failed to decline friend request: ${e.message}")
+                // Handle CancellationException gracefully - Firestore operations typically complete
+                if (e is kotlinx.coroutines.CancellationException || 
+                    e.message?.contains("cancelled", ignoreCase = true) == true) {
+                    callback(true, "Friend request declined")
+                } else {
+                    callback(false, "Failed to decline friend request: ${e.message}")
+                }
             }
         }
     }
@@ -152,7 +236,7 @@ class FriendViewModel : ViewModel() {
      * Check request status for a specific user
      */
     fun checkRequestStatus(targetUserId: String, callback: (String?) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(null)
             return
         }
@@ -172,7 +256,7 @@ class FriendViewModel : ViewModel() {
      * Load pending friend requests into StateFlow for reactive UI updates
      */
     fun loadPendingFriendRequests() {
-        val currentUserId = auth.currentUser?.uid ?: return
+        val currentUserId = getCurrentUserId() ?: return
         
         viewModelScope.launch {
             try {
@@ -190,7 +274,7 @@ class FriendViewModel : ViewModel() {
      * Also updates the StateFlow for reactive UI updates
      */
     fun getPendingFriendRequests(callback: (Boolean, List<FriendRequest>, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, emptyList(), "User not logged in")
             return
         }
@@ -212,7 +296,7 @@ class FriendViewModel : ViewModel() {
      * Unfriend a user
      */
     fun unfriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -233,7 +317,7 @@ class FriendViewModel : ViewModel() {
      * Block a user
      */
     fun blockUser(blockedUserId: String, blockedUserName: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -254,7 +338,7 @@ class FriendViewModel : ViewModel() {
      * Pin a friend
      */
     fun pinFriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -275,7 +359,7 @@ class FriendViewModel : ViewModel() {
      * Unpin a friend
      */
     fun unpinFriend(friendUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -296,7 +380,7 @@ class FriendViewModel : ViewModel() {
      * Mute notifications from a friend
      */
     fun muteFriendNotifications(friendUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -317,7 +401,7 @@ class FriendViewModel : ViewModel() {
      * Unmute notifications from a friend
      */
     fun unmuteFriendNotifications(friendUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -344,7 +428,7 @@ class FriendViewModel : ViewModel() {
         description: String? = null,
         callback: (Boolean, String) -> Unit
     ) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -370,7 +454,7 @@ class FriendViewModel : ViewModel() {
      * Get mutual friends
      */
     fun getMutualFriends(friendUserId: String, callback: (Boolean, List<FriendSuggestion>, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, emptyList(), "User not logged in")
             return
         }
@@ -390,7 +474,7 @@ class FriendViewModel : ViewModel() {
      * Unblock a user
      */
     fun unblockUser(blockedUserId: String, callback: (Boolean, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, "User not logged in")
             return
         }
@@ -410,7 +494,7 @@ class FriendViewModel : ViewModel() {
      * Check if a user is blocked
      */
     fun checkIfBlocked(targetUserId: String, callback: (Boolean) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false)
             return
         }
@@ -425,12 +509,32 @@ class FriendViewModel : ViewModel() {
             }
         }
     }
+
+    /**
+     * Check if a user is a friend
+     */
+    fun checkIsFriend(targetUserId: String, callback: (Boolean) -> Unit) {
+        val currentUserId = getCurrentUserId() ?: run {
+            callback(false)
+            return
+        }
+        
+        viewModelScope.launch {
+            try {
+                val isFriend = friendRepository.isFriend(currentUserId, targetUserId)
+                callback(isFriend)
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error checking if friend: ${e.message}", e)
+                callback(false)
+            }
+        }
+    }
     
     /**
      * Get blocked users list
      */
     fun loadBlockedUsers(callback: (Boolean, List<Pair<String, String>>, String) -> Unit) {
-        val currentUserId = auth.currentUser?.uid ?: run {
+        val currentUserId = getCurrentUserId() ?: run {
             callback(false, emptyList(), "User not logged in")
             return
         }
@@ -442,6 +546,54 @@ class FriendViewModel : ViewModel() {
             } catch (e: Exception) {
                 android.util.Log.e("FriendViewModel", "Error loading blocked users: ${e.message}", e)
                 callback(false, emptyList(), "Failed to load blocked users: ${e.message}")
+            }
+        }
+    }
+    /**
+     * Repair friendship if needed
+     */
+    fun repairFriendship(otherUserId: String) {
+        val currentUserId = getCurrentUserId() ?: return
+        
+        viewModelScope.launch {
+            try {
+                friendRepository.repairFriendship(currentUserId, otherUserId)
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error fixing friendship: ${e.message}")
+            }
+        }
+    }
+    private val messageRepository = com.bisu.chickcare.backend.repository.MessageRepository()
+
+    /**
+     * Delete a conversation
+     */
+    fun deleteConversation(otherUserId: String, callback: (Boolean) -> Unit) {
+        val currentUserId = getCurrentUserId() ?: return
+        
+        viewModelScope.launch {
+            val success = messageRepository.deleteConversation(currentUserId, otherUserId)
+            if (success) {
+                // Refresh the list if needed, or rely on UI to remove the item locally
+                loadFriends() 
+            }
+            callback(success)
+        }
+    }
+
+    /**
+     * Mark conversation as read
+     */
+    fun markConversationAsRead(otherUserId: String) {
+        val currentUserId = getCurrentUserId() ?: return
+        
+        viewModelScope.launch {
+            try {
+                messageRepository.markMessagesAsRead(currentUserId, otherUserId)
+                // Trigger a refresh of friends/messages list if it depends on read status
+                // Note: Real-time listeners might handle this automatically if set up
+            } catch (e: Exception) {
+                android.util.Log.e("FriendViewModel", "Error marking conversation as read: ${e.message}")
             }
         }
     }

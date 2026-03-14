@@ -3,6 +3,7 @@ package com.bisu.chickcare.frontend.screen
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.media.MediaPlayer
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,13 +21,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -61,6 +61,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
+import com.bisu.chickcare.frontend.components.PlayAudioButton
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
 import com.bisu.chickcare.frontend.utils.sanitizeUriString
@@ -75,6 +76,102 @@ fun HistoryResultScreen(
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(false) }
     val mediaPlayer = remember { MediaPlayer() }
+
+    val onPlayClick: () -> Unit = {
+        if (isPlaying) {
+            try {
+                mediaPlayer.stop()
+                mediaPlayer.reset()
+                isPlaying = false
+            } catch (e: Exception) {
+                android.util.Log.e("HistoryResultScreen", "Error stopping audio: ${e.message}")
+                isPlaying = false
+            }
+        } else {
+            try {
+                // Determine URI type and set data source accordingly
+                val audioUri: Uri? = if (entry.audioUri?.startsWith("content://") == true) {
+                     Uri.parse(entry.audioUri)
+                } else {
+                    entry.audioUri?.toUri()
+                }
+                
+                if (audioUri != null) {
+                    mediaPlayer.reset()
+                    mediaPlayer.setDataSource(context, audioUri)
+                    mediaPlayer.prepareAsync()
+                    mediaPlayer.setOnPreparedListener {
+                        mediaPlayer.start()
+                        isPlaying = true
+                    }
+                    mediaPlayer.setOnCompletionListener {
+                        isPlaying = false
+                    }
+                    mediaPlayer.setOnErrorListener { _, what, extra ->
+                        android.util.Log.e("HistoryResultScreen", "MediaPlayer error: what=$what, extra=$extra")
+                        isPlaying = false
+                        false
+                    }
+                } else {
+                    // Try Cloud Audio URL if local URI is null/invalid
+                    if (!entry.cloudAudioUrl.isNullOrEmpty()) {
+                        android.util.Log.d("HistoryResultScreen", "Audio URI null/local failed, trying Cloud URL: ${entry.cloudAudioUrl}")
+                        mediaPlayer.reset()
+                        mediaPlayer.setDataSource(entry.cloudAudioUrl)
+                        mediaPlayer.prepareAsync()
+                        mediaPlayer.setOnPreparedListener {
+                            mediaPlayer.start()
+                            isPlaying = true
+                        }
+                        mediaPlayer.setOnCompletionListener {
+                            isPlaying = false
+                        }
+                        mediaPlayer.setOnErrorListener { _, what, extra ->
+                             android.util.Log.e("HistoryResultScreen", "MediaPlayer cloud error: what=$what, extra=$extra")
+                             isPlaying = false
+                             false
+                        }
+                    } else {
+                         android.util.Log.e("HistoryResultScreen", "Audio URI is null and no Cloud URL available")
+                         isPlaying = false
+                    }
+                }
+            } catch (e: Exception) {
+                // If the first attempt (Local) failed, try Cloud URL as fallback inside the catch block
+                if (!entry.cloudAudioUrl.isNullOrEmpty()) {
+                     try {
+                        android.util.Log.d("HistoryResultScreen", "Local audio failed ($e), trying Cloud URL: ${entry.cloudAudioUrl}")
+                        mediaPlayer.reset()
+                        mediaPlayer.setDataSource(entry.cloudAudioUrl)
+                        mediaPlayer.prepareAsync()
+                        mediaPlayer.setOnPreparedListener {
+                            mediaPlayer.start()
+                             isPlaying = true
+                        }
+                        mediaPlayer.setOnCompletionListener {
+                            isPlaying = false
+                        }
+                         mediaPlayer.setOnErrorListener { _, what, extra ->
+                            android.util.Log.e("HistoryResultScreen", "MediaPlayer cloud fallback error: what=$what, extra=$extra")
+                            isPlaying = false
+                            false
+                        }
+                     } catch (cloudError: Exception) {
+                         android.util.Log.e("HistoryResultScreen", "Error playing cloud audio: ${cloudError.message}")
+                         isPlaying = false
+                     }
+                } else {
+                    android.util.Log.e("HistoryResultScreen", "Error playing audio: ${e.message}")
+                    android.widget.Toast.makeText(
+                        context,
+                        "Error playing audio: ${e.message}",
+                         android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    isPlaying = false
+                }
+            }
+        }
+    }
     
     // Grant URI permissions for content URIs before loading images
     LaunchedEffect(entry.imageUri, entry.audioUri) {
@@ -162,7 +259,10 @@ fun HistoryResultScreen(
                 .fillMaxSize()
                 .padding(paddingValues)
                 .background(
-                    if (ThemeViewModel.isDarkMode) ThemeColorUtils.beige(Color(0xFFFFF7E6)) else Color(0xFFE8B88C)
+                    if (ThemeViewModel.isDarkMode) ThemeColorUtils.beige(Color(0xFFDEC6A3)) else ThemeColorUtils.beige(Color(
+                        0xFFEAD1AC
+                    )
+                    )
                 )
         ) {
             LazyColumn(
@@ -204,11 +304,12 @@ fun HistoryResultScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             // Captured Image (only show if image URI exists)
-                            val sanitizedImageString = sanitizeUriString(entry.imageUri, "HistoryResultScreen")
-                            val imageUri = sanitizeToUri(entry.imageUri, "HistoryResultScreen")
-                            if (sanitizedImageString != null && imageUri != null) {
+                            // Use getAccessibleUri for Cloud Fallback
+                            val imageModel = com.bisu.chickcare.frontend.utils.getAccessibleUri(context, entry.imageUri, entry.cloudUrl)
+                            
+                            if (imageModel != null) {
                                 val imageRequest = ImageRequest.Builder(context)
-                                    .data(imageUri)
+                                    .data(imageModel)
                                     .crossfade(true)
                                     .build()
 
@@ -221,107 +322,67 @@ fun HistoryResultScreen(
                                         .clip(RoundedCornerShape(12.dp)),
                                     contentScale = ContentScale.Crop,
                                     onError = {
-                                        android.util.Log.e("HistoryResultScreen", "Failed to load image: $sanitizedImageString - ${it.result.throwable.message}")
-                                    },
-                                    onSuccess = {
-                                        android.util.Log.d("HistoryResultScreen", "Successfully loaded detection image: $sanitizedImageString")
+                                        android.util.Log.e("HistoryResultScreen", "Failed to load image: $imageModel - ${it.result.throwable.message}")
                                     }
                                 )
                                 Spacer(modifier = Modifier.height(16.dp))
                             }
 
-                            // Clean result string - remove question marks and other unwanted characters
-                            val cleanResult = entry.result
-                                .replace("+", "")
-                                .replace("?", "")
-                                .replace("❓", "")
-                                .replace(Regex("[❓?]+"), "") // Remove all question marks (emoji and regular)
-                                .replace(Regex("\\([^)]*\\)"), "") // Remove parentheses and everything inside
-                                .trim()
-                            
-                            // Extract just the status (Healthy/Infected/Unhealthy) without confidence
-                            val statusText = when {
-                                cleanResult.contains("Healthy", ignoreCase = true) && !cleanResult.contains("Unhealthy", ignoreCase = true) -> "Healthy"
-                                cleanResult.contains("Infected", ignoreCase = true) || cleanResult.contains("Unhealthy", ignoreCase = true) -> "Infected"
-                                entry.isHealthy -> "Healthy"
-                                else -> "Infected"
-                            }
-                            
-                            Text(
-                                text = "Result: $statusText",
-                                style = MaterialTheme.typography.headlineLarge.copy(
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
-                                ),
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            // Confidence line
-                            Text(
-                                text = "Confidence: ${String.format("%.1f", entry.confidence * 100)}%",
-                                style = MaterialTheme.typography.titleMedium.copy(
-                                    fontWeight = FontWeight.Medium,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF666666)) else ThemeColorUtils.lightGray(Color(0xFF666666))
-                                ),
-                                textAlign = TextAlign.Center
-                            )
+                            HorizontalDivider(thickness = 1.dp, color = Color.LightGray)
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                            // Play Audio Button (if available)
-                            if (!entry.audioUri.isNullOrEmpty()) {
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Button(
-                                    onClick = {
-                                        if (isPlaying) {
-                                            try {
-                                                mediaPlayer.stop()
-                                                mediaPlayer.reset()
-                                                isPlaying = false
-                                            } catch (e: Exception) {
-                                                android.util.Log.e("HistoryResultScreen", "Error stopping audio: ${e.message}")
-                                                isPlaying = false
-                                            }
-                                        } else {
-                                            try {
-                                                val audioUri = entry.audioUri.toUri()
-                                                mediaPlayer.reset()
-                                                mediaPlayer.setDataSource(context, audioUri)
-                                                mediaPlayer.prepareAsync()
-                                                mediaPlayer.setOnPreparedListener {
-                                                    mediaPlayer.start()
-                                                    isPlaying = true
-                                                }
-                                                mediaPlayer.setOnCompletionListener {
-                                                    isPlaying = false
-                                                }
-                                                mediaPlayer.setOnErrorListener { _, what, extra ->
-                                                    android.util.Log.e("HistoryResultScreen", "MediaPlayer error: what=$what, extra=$extra")
-                                                    isPlaying = false
-                                                    false
-                                                }
-                                            } catch (e: Exception) {
-                                                android.util.Log.e("HistoryResultScreen", "Error playing audio: ${e.message}")
-                                                android.widget.Toast.makeText(
-                                                    context,
-                                                    "Error playing audio: ${e.message}",
-                                                    android.widget.Toast.LENGTH_SHORT
-                                                ).show()
-                                                isPlaying = false
-                                            }
-                                        }
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = if (isPlaying) ThemeColorUtils.darkGray(Color.DarkGray) else Color(0xFF7BC0F6)
-                                    ),
-                                    shape = RoundedCornerShape(50)
+                            // Result Row with Text and Audio Button
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    horizontalAlignment = Alignment.Start
                                 ) {
-                                    Icon(
-                                        imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
-                                        contentDescription = if (isPlaying) "Stop Audio" else "Play Audio"
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    // Clean result string
+                                    val cleanResult = entry.result
+                                        .replace("+", "")
+                                        .replace("?", "")
+                                        .replace("❓", "")
+                                        .replace(Regex("[❓?]+"), "")
+                                        .replace(Regex("\\([^)]*\\)"), "")
+                                        .trim()
+                                    
+                                    val statusText = when {
+                                        cleanResult.contains("Healthy", ignoreCase = true) && !cleanResult.contains("Unhealthy", ignoreCase = true) -> "Healthy"
+                                        cleanResult.contains("Infected", ignoreCase = true) || cleanResult.contains("Unhealthy", ignoreCase = true) -> "Infected"
+                                        entry.isHealthy -> "Healthy"
+                                        else -> "Infected"
+                                    }
+                                    
                                     Text(
-                                        if (isPlaying) "Stop Audio" else "Play Audio",
-                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color.Unspecified
+                                        text = "Result: $statusText",
+                                        style = MaterialTheme.typography.headlineMedium.copy(
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontSize = 20.sp,
+                                            color = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336)
+                                        ),
+                                        textAlign = TextAlign.Start
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Confidence: ${String.format("%.1f", entry.confidence * 100)}%",
+                                        style = MaterialTheme.typography.titleMedium.copy(
+                                            fontWeight = FontWeight.Normal,
+                                            fontSize = 16.sp,
+                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF666666)) else ThemeColorUtils.lightGray(Color(0xFF666666))
+                                        ),
+                                        textAlign = TextAlign.Start
+                                    )
+                                }
+
+                                // Play Audio Button (if available)
+                                if (!entry.audioUri.isNullOrEmpty()) {
+                                    PlayAudioButton(
+                                        isPlaying = isPlaying,
+                                        onPlayClick = onPlayClick
                                     )
                                 }
                             }
@@ -347,7 +408,7 @@ fun HistoryResultScreen(
                                     }
                                 ),
                             colors = CardDefaults.cardColors(
-                                containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.beige(Color(0xFFFFF3E0))
+                                containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
                             ),
                             elevation = if (ThemeViewModel.isDarkMode) {
                                 CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -367,7 +428,8 @@ fun HistoryResultScreen(
                                         fontWeight = FontWeight.ExtraBold,
                                         color = Color(0xFFE65100)
                                     ),
-                                    textAlign = TextAlign.Center
+                                    modifier = Modifier.fillMaxWidth(),
+                                    textAlign = TextAlign.Start
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
@@ -454,7 +516,7 @@ fun HistoryResultScreen(
                                 }
                             ),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White.copy(alpha = 0.9f))
+                            containerColor = if (ThemeViewModel.isDarkMode) ThemeColorUtils.surface(Color(0xFFE5E2DE)) else ThemeColorUtils.surface(Color.White)
                         ),
                         elevation = if (ThemeViewModel.isDarkMode) {
                             CardDefaults.cardElevation(defaultElevation = 0.dp)
@@ -507,12 +569,13 @@ fun HistoryResultScreen(
                                 )
                             } else {
                                 listOf(
-                                    "IMPORTANT: Go to the veterinarian immediately for proper diagnosis and treatment.",
-                                    "Isolate infected chicken immediately to prevent disease spread.",
-                                    "Administer antibiotics only as prescribed by a veterinarian.",
-                                    "Improve ventilation in the coop to reduce infection risk.",
-                                    "Ensure clean water and high-quality feed to support recovery.",
-                                    "Monitor affected chickens closely and report symptoms to the vet."
+                                    "⚠️ CRITICAL: Consult a licensed veterinarian IMMEDIATELY for proper diagnosis and treatment.",
+                                    "⚠️ DO NOT self-medicate or use antibiotics without veterinary prescription - this can worsen the condition.",
+                                    "Isolate infected chicken immediately from the flock to prevent disease spread.",
+                                    "Disinfect the coop and equipment thoroughly to prevent further spread.",
+                                    "Monitor other chickens closely for similar symptoms and report to your veterinarian.",
+                                    "Follow ONLY the treatment plan prescribed by your licensed veterinarian.",
+                                    "Provide clean water and high-quality feed to support recovery."
                                 )
                             }
 

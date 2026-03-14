@@ -1,0 +1,94 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() { return request.auth != null; }
+    // Helper function to check if user is the owner
+    function isOwner(userId) { return isAuthenticated() && request.auth.uid == userId; }
+
+    // =========================================================================
+    // USERS COLLECTION
+    // =========================================================================
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      // Allow updating followers (for Follow feature)
+      allow update: if isOwner(userId) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followers']));
+      allow create: if isOwner(userId);
+      
+      // Notifications
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated();
+        // Allow owner to delete/mark as read. Others can create (send notification)
+        allow update, delete: if isOwner(userId);
+        allow create: if isAuthenticated();
+      }
+      
+      // Detections
+      match /detections/{detectionId} {
+        allow read: if isAuthenticated();
+        allow write: if isOwner(userId);
+      }
+      
+      // Timeline Posts (User Context)
+      match /timelinePosts/{postId} {
+        allow read: if isAuthenticated();
+        // Allow updating reactions (for Like feature)
+        allow update: if isOwner(userId) || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'reactionCounts', 'commentCount']));
+        allow create, delete: if isOwner(userId);
+        
+        match /comments/{commentId} {
+          allow read, create: if isAuthenticated();
+          allow delete: if isAuthenticated() && (request.auth.uid == resource.data.userId || isOwner(userId));
+        }
+      }
+      
+      // Feature Collections
+      match /friendRequests/{requestId} { 
+          allow read, create: if isAuthenticated(); 
+          allow update: if isOwner(userId); // Only recipient accepts
+          allow delete: if isOwner(userId) || resource.data.fromUserId == request.auth.uid; // Sender cancels or recipient declines
+      }
+      match /friends/{friendId} { 
+          allow read: if isAuthenticated();
+          allow create, update, delete: if isOwner(userId) || request.auth.uid == friendId; 
+      }
+      match /blockedUsers/{id} { allow read, write: if isOwner(userId); }
+      
+      // Private Data
+      match /savedPosts/{id} { allow read, write: if isOwner(userId); }
+      match /vaccinations/{id} { allow read, write: if isOwner(userId); }
+      match /feedingSchedules/{id} { allow read, write: if isOwner(userId); }
+      match /eggProduction/{id} { allow read, write: if isOwner(userId); }
+      match /medications/{id} { allow read, write: if isOwner(userId); }
+      match /reports/{id} { allow read, write: if isOwner(userId); } // Private reports
+      match /healthRecords/{id} { allow read, write: if isOwner(userId); }
+      
+      // Chat Collections
+      match /chats/{partnerId} { 
+         allow read: if isOwner(userId);
+         allow create, update: if isOwner(userId) || request.auth.uid == partnerId;
+         match /messages/{msgId} { 
+             allow read: if isOwner(userId);
+             allow create, delete: if isOwner(userId) || request.auth.uid == partnerId; 
+         }
+      }
+    }
+    
+    // =========================================================================
+    // GLOBAL COLLECTIONS
+    // =========================================================================
+    match /alerts/{alertId} { allow read, create: if isAuthenticated(); }
+    
+    // Admin Reports
+    match /reports/{reportId} {
+      allow create: if isAuthenticated();
+      allow read, write: if false; 
+    }
+    
+    // Global Timeline Posts (Legacy/Global Feed)
+    match /timelinePosts/{postId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+    }
+  }
+}

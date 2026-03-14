@@ -33,6 +33,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Help
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.filled.Book
@@ -74,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -83,12 +85,14 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -115,15 +119,18 @@ data class HelpTopic(
     val icon: ImageVector,
     val isPopular: Boolean = false,
     val isEmergency: Boolean = false,
-    val links: List<HelpLink> = emptyList()
+    val links: List<HelpLink> = emptyList(),
+    val textAlign: TextAlign = TextAlign.Justify
 )
 
 data class SearchSuggestion(val text: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HelpCenterScreen(paddingValues: PaddingValues) {
-    val authViewModel: AuthViewModel = viewModel()
+fun HelpCenterScreen(
+    paddingValues: PaddingValues,
+    authViewModel: AuthViewModel = viewModel()
+) {
     val userProfile by authViewModel.userProfile.collectAsState()
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
@@ -181,6 +188,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                             }
                         }
 
+                        @Deprecated("Deprecated in Java")
                         override fun onError(utteranceId: String?) {
                             // Speech error - update state on main thread
                             android.os.Handler(android.os.Looper.getMainLooper()).post {
@@ -213,7 +221,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
     val topics = listOf(
         HelpTopic(
             "Disease Information",
-            "Learn about Infectious Bronchitis (IB), a highly contagious respiratory disease caused by the avian gammacoronavirus. It affects chickens of all ages, leading to reduced egg production, growth issues, and potential mortality. Variants can also impact kidneys (nephropathogenic strains).",
+            "      Learn about Infectious Bronchitis or IB, a highly contagious respiratory disease caused by the avian gammacoronavirus. It affects chickens of all ages, leading to reduced egg production, growth issues, and potential mortality. Variants can also impact kidneys such as nephropathogenic strains.",
             HelpCategory.DISEASE,
             Icons.Default.LocalHospital,
             isPopular = true,
@@ -226,7 +234,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         ),
         HelpTopic(
             "Symptoms",
-            "Common signs include coughing, sneezing, nasal discharge, tracheal rales, gasping, and dyspnea. In chicks: conjunctivitis and facial swelling. In layers: drop in egg production (up to 70%), misshapen/soft/wrinkled eggs with watery albumen. Nephropathogenic strains cause lethargy, wet droppings, excessive thirst, and higher mortality (up to 60% with complications). Early infection in chicks may lead to false layer syndrome due to oviduct damage.",
+            "      Common signs include coughing, sneezing, nasal discharge, tracheal rales, gasping, and dyspnea. In chicks: conjunctivitis and facial swelling. In layers: drop in egg production (up to 70%), misshapen or wrinkled eggs with watery albumen. Nephropathogenic strains cause lethargy, wet droppings, excessive thirst, and higher mortality (up to 60% with complications). Early infection in chicks may lead to false layer syndrome due to oviduct damage.",
             HelpCategory.DISEASE,
             Icons.Default.Warning,
             isPopular = true,
@@ -248,20 +256,20 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         ),
         HelpTopic(
             "Causes",
-            "Caused by Infectious Bronchitis Virus (IBV), with many antigenic types. Severity depends on virus strain, bird age/breed/immune status/diet, environmental factors (ventilation, ammonia, temperature), and concurrent infections (e.g., E. coli, Mycoplasma). Virus mutates rapidly via genetic drift or recombination.",
+            "      Caused by Infectious Bronchitis Virus or IBV, with many antigenic types. Severity depends on virus strain, bird age, or immune diet, environmental factors (such as ventilation, ammonia, temperature), and concurrent infections (example like coli, and Mycoplasma). Virus mutates rapidly via genetic drift or recombination.",
             HelpCategory.DISEASE,
             Icons.Default.Info
         ),
         HelpTopic(
             "Transmission",
-            "Spreads via aerosols from respiratory discharges, feces ingestion, or contact with contaminated equipment/clothing/personnel/feed/water. Incubation: 24-48 hours. Peak shedding: 3-5 days post-infection. Birds shed virus up to 20 weeks. Prevent with strict biosecurity: isolate new birds, disinfect regularly.",
+            "      Spreads via aerosols from respiratory discharges, feces ingestion, or contact with contaminated equipment, clothing, personnel, feed, or water. Incubation: 24-48 hours. Peak shedding: 3-5 days post-infection. Birds shed virus up to 20 weeks. Prevent with strict biosecurity: isolate new birds, disinfect regularly.",
             HelpCategory.DISEASE,
             Icons.Default.Warning,
             isEmergency = true
         ),
         HelpTopic(
             "Preventive Measures",
-            "Vaccination is key: Use live attenuated (e.g., Massachusetts strains like H120) for chicks (1-14 days via spray/water/eye drops), revaccinate layers. Killed vaccines for breeders. Match vaccines to local strains via surveillance. Biosecurity: Clean environments, good ventilation, balanced diets, avoid overcrowding. Monitor and quarantine.",
+            "      Vaccination is key: Use live attenuated such as: Massachusetts strains like H120, for chicks: (1 to 14 days via spray water or eye drops) revaccinate layers. Killed vaccines for breeders. Biosecurity like clean environments, good ventilation, balanced diets, avoid overcrowding and monitor quarantine.",
             HelpCategory.PREVENTION,
             Icons.Default.Shield,
             isPopular = true,
@@ -278,20 +286,34 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         ),
         HelpTopic(
             "Treatment",
-            "No specific antiviral; focus on supportive care. Antimicrobials for secondary bacterial infections. Increase temperature in cold weather, reduce protein for kidney strains, add electrolytes to water. Isolate sick birds, improve ventilation, reduce stress. Consult vet for prescriptions; early action minimizes mortality to ~5%.",
+            "      ⚠️ CRITICAL: This app does NOT provide medical advice or prescribe medications. ALWAYS consult a licensed veterinarian for proper diagnosis and treatment. General supportive care: Isolate sick birds, improve ventilation, reduce stress, provide clean water with electrolytes, maintain proper temperature. Antimicrobials and antibiotics MUST be prescribed by a licensed veterinarian only. DO NOT self-medicate - this can worsen conditions and cause antibiotic resistance. Early veterinary intervention minimizes mortality.",
             HelpCategory.TREATMENT,
             Icons.Default.MedicalServices,
-            isEmergency = true
+            isEmergency = true,
+            links = listOf(
+                HelpLink(
+                    url = "https://www.avma.org/resources-tools/avma-policies/aaap-guidelines-judicious-therapeutic-use-antimicrobials-poultry",
+                    text = "AVM  A Guidelines: Proper Use of Antimicrobials in Poultry"
+                )
+            )
+        ),
+        HelpTopic(
+            "Medical Disclaimer",
+            "      ⚠️ IMPORTANT LEGAL NOTICE: ChickCare is a detection and monitoring tool only. This app does NOT provide medical advice, diagnosis, or treatment recommendations. The AI detection results are for informational purposes only and are NOT a substitute for professional veterinary care. DO NOT use medications, antibiotics, or treatments without a prescription from a licensed veterinarian. Self-medication can cause serious harm, antibiotic resistance, and legal consequences. Always consult a licensed veterinarian for proper diagnosis and treatment. The app developers are not responsible for any harm resulting from misuse of information or self-medication.",
+            HelpCategory.FAQ,
+            Icons.Default.Warning,
+            isEmergency = true,
+            isPopular = true
         ),
         HelpTopic(
             "Vaccines",
-            "Live attenuated for initial protection; killed/adjuvanted for layers/breeders to pass maternal antibodies. Common: M41, H120, H52. Use different serotypes for boosters. Autogenous for local variants. Store refrigerated, vaccinate uniformly. Efficacy depends on strain match; revaccinate as needed.",
+            "      Live attenuated for initial protection; killed or adjuvanted for layers or breeders to pass maternal antibodies. Common: M41, H120, H52. Use different serotypes for boosters. Autogenous for local variants. Store refrigerated, vaccinate uniformly. Efficacy depends on strain match; revaccinate as needed.",
             HelpCategory.PREVENTION,
             Icons.Default.Vaccines
         ),
         HelpTopic(
             "Farm Tips",
-            "Monitor daily for signs; separate sick birds. Ensure proper ventilation/ammonia control. Provide clean water/feed. Vaccinate based on local threats. Reduce stress (e.g., avoid overcrowding). Use app for early detection to act fast and prevent outbreaks.",
+            "      Live attenuated for initial protection; killed or adjuvanted for layers or breeders to pass maternal antibodies. Common: M41, H120, H52. Use different serotypes for boosters. Autogenous for local variants. Store refrigerated, vaccinate uniformly. Efficacy depends on strain match; revaccinate as needed.",
             HelpCategory.PREVENTION,
             Icons.Default.CheckCircle,
             isPopular = true,
@@ -304,33 +326,34 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
         ),
         HelpTopic(
             "How to Use Detection Feature",
-            "1. Open the Detection screen from the bottom navigation\n2. Take a photo of your chicken using the camera button\n3. Then record audio of chicken sounds (coughing, sneezing)\n4. Wait for AI analysis (usually 10-30 seconds)\n5. Review the results and recommendations\n6. Save important detections to your history",
+            "1. Open the Detection screen from the bottom navigation\n2. Take a photo of your chicken using the camera button\n3. Then record audio of chicken sounds such as coughing or sneezing\n4. Wait for AI analysis (usually 10 to 30 seconds)\n5. Review the results and recommendations\n6. Save important detections to your history",
             HelpCategory.APP_GUIDE,
             Icons.Default.CameraAlt,
-            isPopular = false
+            isPopular = false,
+            textAlign = TextAlign.Start
         ),
         HelpTopic(
             "Understanding Results",
-            "The app analyzes your chicken's image and audio to detect signs of Infectious Bronchitis. Results show: Confidence level, Detected symptoms, Risk assessment (Low/Medium/High), Recommended actions, Treatment suggestions. Green = Healthy, Yellow = Monitor, Red = Urgent care needed.",
+            "      The app analyzes your chicken's image and audio to detect signs of Infectious Bronchitis. Results show: Confidence level, Detected symptoms, and Risk assessment, Recommended actions, Treatment suggestions. Green = Healthy, and Red = Urgent care needed.",
             HelpCategory.APP_GUIDE,
             Icons.Default.Book
         ),
         HelpTopic(
             "Saving & Managing Records",
-            "All detections are automatically saved to your history. You can: View past detections, Filter by date/results, Export records, Share with veterinarian, Set reminders for follow-ups, Mark as favorites for quick access.",
+            "      All detections are automatically saved to your history. You can view past detections, filter by date or results, export records, share with veterinarian, set reminders for follow-ups, and mark as favorites for quick access.",
             HelpCategory.APP_GUIDE,
             Icons.Default.Book
         ),
         HelpTopic(
             "When to Contact a Veterinarian",
-            "Immediately contact a vet if: Multiple birds show symptoms, High mortality rate (>5%), Severe respiratory distress, Drop in egg production >50%, Birds not eating/drinking, Symptoms worsen after 3 days. Early intervention saves lives and prevents spread.",
+            "      Immediately contact a veterinarian if: Multiple birds show symptoms, High mortality rate >5%, Severe respiratory distress, Drop in egg production >50%, Birds not eating or drinking, and symptoms worsen after 3 days. Early intervention saves lives and prevents spread.",
             HelpCategory.FAQ,
             Icons.Default.LocalHospital,
             isEmergency = true
         ),
         HelpTopic(
             "App Accuracy & Limitations",
-            "Our AI has 85-92% accuracy in detecting IB symptoms. However: Results are not a substitute for veterinary diagnosis, Environmental factors may affect detection, Early-stage infections may be missed, Always consult a vet for confirmation, Regular health monitoring is essential.",
+            "      Our AI has 95% to 98% accuracy in detecting IB symptoms. However: Results are not a substitute for veterinary diagnosis, environmental factors may affect detection, early-stage infections may be missed. Always consult a veterinarian for confirmation, and regular health monitoring is essential.",
             HelpCategory.FAQ,
             Icons.Default.Info
         )
@@ -369,12 +392,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                         text = "Help Center",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.black()
+                        color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                     )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = ThemeColorUtils.white(),
-                    titleContentColor = ThemeColorUtils.black()
+                    containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.white(),
+                    titleContentColor = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                 )
             )
         }
@@ -383,8 +406,8 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
             modifier = Modifier
                 .fillMaxSize()
                 .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
-                .padding(paddingValues)
-                .padding(innerPadding)
+                .padding(bottom = paddingValues.calculateBottomPadding())
+                .padding(top = innerPadding.calculateTopPadding())
                 .clickable(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() }
@@ -397,9 +420,9 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                 state = listState,
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(12.dp),
+                    .padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                contentPadding = PaddingValues(top = 0.dp)
+                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)
             ) {
                 // Personalized Greeting
                 item {
@@ -414,13 +437,13 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 22.sp
                                 ),
-                                color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.darkGray(Color(0xFF231C16))
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 text = "How can we help you today?",
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = ThemeColorUtils.lightGray(Color.Gray)
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.lightGray(Color.Gray)
                             )
                         }
                     }
@@ -447,18 +470,20 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 }
                             },
-                            label = { Text("How can we help you?", color = ThemeColorUtils.black()) },
-                            placeholder = { Text("Search for help...") },
-                            modifier = Modifier.fillMaxWidth(),
+                            label = { Text("How can we help you?", color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()) },
+                            placeholder = { Text("Search for help...", color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else Color.Gray) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(54.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = ThemeColorUtils.white(),
-                                unfocusedContainerColor = ThemeColorUtils.white(),
-                                focusedTextColor = ThemeColorUtils.black(),
-                                unfocusedTextColor = ThemeColorUtils.black(),
-                                focusedBorderColor = ThemeColorUtils.black(),
-                                unfocusedBorderColor = ThemeColorUtils.lightGray(Color.Gray),
-                                focusedLabelColor = ThemeColorUtils.black(),
-                                unfocusedLabelColor = ThemeColorUtils.lightGray(Color.Gray)
+                                focusedContainerColor = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.white(),
+                                unfocusedContainerColor = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.white(),
+                                focusedTextColor = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                unfocusedTextColor = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                focusedBorderColor = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                unfocusedBorderColor = if (ThemeViewModel.isDarkMode) Color(0xFF7E7C7C) else ThemeColorUtils.lightGray(Color.Gray),
+                                focusedLabelColor = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
+                                unfocusedLabelColor = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.lightGray(Color.Gray)
                             )
                         )
 
@@ -470,7 +495,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                         ) {
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
+                                colors = CardDefaults.cardColors(containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF1E2122) else ThemeColorUtils.surface(Color.White)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
                             ) {
                                 Column(modifier = Modifier.padding(8.dp)) {
@@ -489,13 +514,14 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                             Icon(
                                                 Icons.Default.Search,
                                                 contentDescription = null,
-                                                tint = ThemeColorUtils.lightGray(Color.Gray),
+                                                tint = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.lightGray(Color.Gray),
                                                 modifier = Modifier.size(18.dp)
                                             )
                                             Spacer(modifier = Modifier.width(12.dp))
                                             Text(
                                                 suggestion.text,
-                                                style = MaterialTheme.typography.bodyMedium
+                                                style = MaterialTheme.typography.bodyMedium,
+                                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else Color.Unspecified
                                             )
                                         }
                                     }
@@ -524,7 +550,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 },
                             colors = CardDefaults.cardColors(
-                                containerColor = ThemeColorUtils.surface(Color.White)
+                                containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF1E2122) else ThemeColorUtils.surface(Color.White)
                             ),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -539,12 +565,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         ),
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                                     )
                                     Text(
                                         text = "Get instant help from our support team",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.black()
                                     )
                                 }
                             }
@@ -578,7 +604,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     }
                                 },
                             colors = CardDefaults.cardColors(
-                                containerColor = ThemeColorUtils.surface(Color.White)
+                                containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF1E2122) else ThemeColorUtils.surface(Color.White)
                             ),
                             shape = RoundedCornerShape(12.dp),
                             elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -593,12 +619,12 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                         style = MaterialTheme.typography.titleMedium.copy(
                                             fontWeight = FontWeight.Bold
                                         ),
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                                     )
                                     Text(
                                         text = "Critical information you need to know",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = ThemeColorUtils.black()
+                                        color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.black()
                                     )
                                 }
                             }
@@ -620,7 +646,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = ThemeColorUtils.black()
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                         }
@@ -671,7 +697,7 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                 style = MaterialTheme.typography.titleMedium.copy(
                                     fontWeight = FontWeight.Bold
                                 ),
-                                color = ThemeColorUtils.black(),
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black(),
                                 modifier = Modifier.padding(bottom = 8.dp)
                             )
                             LazyRow(
@@ -764,10 +790,11 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                             Text(
                                 text = "Need more assistance?",
                                 style = MaterialTheme.typography.headlineMedium.copy(
+                                    fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
                                     fontWeight = FontWeight.ExtraBold,
-                                    fontSize = 24.sp
+                                    fontSize = 26.sp
                                 ),
-                                color = ThemeColorUtils.black()
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(2.dp))
                             Text(
@@ -776,22 +803,22 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                                     fontStyle = FontStyle.Italic,
                                     fontWeight = FontWeight.Normal
                                 ),
-                                color = ThemeColorUtils.black()
+                                color = if (ThemeViewModel.isDarkMode) Color.Black else ThemeColorUtils.black()
                             )
                             Spacer(modifier = Modifier.height(5.dp))
-                            HorizontalDivider(color = ThemeColorUtils.black(alpha = 0.3f))
+                            HorizontalDivider(color = if (ThemeViewModel.isDarkMode) Color.Black.copy(alpha=0.3f) else ThemeColorUtils.black(alpha = 0.3f))
                             Spacer(modifier = Modifier.height(8.dp))
                             // Facebook Contact
                             ContactInfoRowWithLogo(
                                 label = "ChickCare Support Team",
                                 value = "Facebook",
-                                labelColor = Color(0xFF064575),
-                                valueColor = ThemeColorUtils.black(),
+                                labelColor = if (ThemeViewModel.isDarkMode) Color(0xFF2196F3) else Color(0xFF064575),
+                                valueColor = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.black(),
                                 logoResId = R.drawable.facebook_logo,
                                 onClick = {
                                     val intent = Intent(
                                         Intent.ACTION_VIEW,
-                                        "https://www.facebook.com/profile.php?id=61582950316747".toUri()
+                                        "https://www.facebook.com/profile.php?id=61587115223683".toUri()
                                     )
                                     context.startActivity(intent)
                                 }
@@ -801,8 +828,8 @@ fun HelpCenterScreen(paddingValues: PaddingValues) {
                             ContactInfoRowWithLogo(
                                 label = "chickcaresupp0rt@gmail.com",
                                 value = "Gmail",
-                                labelColor = Color(0xFFAB2626),
-                                valueColor = ThemeColorUtils.black(),
+                                labelColor = if (ThemeViewModel.isDarkMode) Color(0xFFEF5350) else Color(0xFFAB2626),
+                                valueColor = if (ThemeViewModel.isDarkMode) Color(0xFF141617) else ThemeColorUtils.black(),
                                 logoResId = R.drawable.gmail_log,
                                 onClick = {
                                     val intent = Intent(
@@ -890,7 +917,7 @@ fun HelpTopicCard(
     // Update local speaking state based on current speaking topic
     LaunchedEffect(isThisTopicSpeaking) {
         isSpeaking = isThisTopicSpeaking
-        if (!isThisTopicSpeaking) {
+        if (isThisTopicSpeaking) {
             isPaused = false
         }
     }
@@ -922,7 +949,7 @@ fun HelpTopicCard(
             .fillMaxWidth()
             .clickable(onClick = onExpandToggle),
         colors = CardDefaults.cardColors(
-            containerColor = ThemeColorUtils.surface(Color(0xFFF5F5F5))
+            containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF1E2122) else ThemeColorUtils.surface(Color(0xFFF5F5F5))
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -938,7 +965,8 @@ fun HelpTopicCard(
                             text = topic.title,
                             style = MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.Bold
-                            )
+                            ),
+                            color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.black()
                         )
                         if (topic.isPopular) {
                             Spacer(modifier = Modifier.width(6.dp))
@@ -956,9 +984,19 @@ fun HelpTopicCard(
                     Text(
                         text = topic.category.title,
                         style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
+                        color = if (ThemeViewModel.isDarkMode) Color(0xFFB0B0B0) else ThemeColorUtils.lightGray(Color.Gray)
                     )
                 }
+                
+                // Chevron Icon
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    modifier = Modifier
+                        .size(24.dp)
+                        .rotate(if (isExpanded) 90f else 0f),
+                    tint = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else ThemeColorUtils.lightGray(Color.Gray)
+                )
             }
             AnimatedVisibility(
                 visible = isExpanded,
@@ -978,9 +1016,10 @@ fun HelpTopicCard(
                             Text(
                                 text = topic.content,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else MaterialTheme.colorScheme.onSurfaceVariant,
                                 lineHeight = 20.sp,
-                                modifier = Modifier.weight(1f)
+                                modifier = Modifier.weight(1f),
+                                textAlign = topic.textAlign
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             IconButton(
@@ -1020,8 +1059,9 @@ fun HelpTopicCard(
                         Text(
                             text = topic.content,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            lineHeight = 20.sp
+                            color = if (ThemeViewModel.isDarkMode) Color(0xFFE3E5E8) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 20.sp,
+                            textAlign = topic.textAlign
                         )
                     }
                     // Add clickable links if provided
@@ -1059,7 +1099,6 @@ fun ContactInfoRowWithLogo(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -1081,7 +1120,8 @@ fun ContactInfoRowWithLogo(
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.Medium
                 ),
-                color = labelColor
+                color = labelColor,
+                modifier = Modifier.clickable(onClick = onClick)
             )
             Text(
                 text = value,

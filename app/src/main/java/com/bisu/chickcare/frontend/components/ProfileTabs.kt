@@ -14,9 +14,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
@@ -45,11 +51,13 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
+import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.bisu.chickcare.backend.data.UserProfile
 import com.bisu.chickcare.backend.repository.FriendSuggestion
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.sanitizeToUri
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -62,7 +70,8 @@ fun TimelineTabContent(
     onFriendSuggestions: () -> Unit,
     onNavigateToPost: () -> Unit,
     isViewingOwnProfile: Boolean,
-    timelineUserId: String
+    timelineUserId: String,
+    navController: NavController? = null
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -93,7 +102,8 @@ fun TimelineTabContent(
             userProfile = userProfile,
             onNavigateToPost = onNavigateToPost,
             isViewingOwnProfile = isViewingOwnProfile,
-            timelineUserId = timelineUserId  // ensures correct timeline source
+            timelineUserId = timelineUserId,
+            navController = navController
         )
     }
 }
@@ -157,7 +167,7 @@ fun AboutTabContent(
         
         MutualFriendsSection(
             mutualFriends = mutualFriends,
-            onViewMore = if (isViewingOwnProfile && mutualFriends.size > 6) onViewFriends else null
+            onViewMore = if (mutualFriends.size > 3) onViewFriends else null
         )
     }
 }
@@ -333,6 +343,21 @@ fun PhotosTabContent(
         }
     }
     
+    // State for fullscreen image viewer
+    var selectedImageIndex by remember { mutableStateOf<Int?>(null) }
+    val imageUrls = remember(photoPosts) {
+        photoPosts.mapNotNull { it.imageUri }
+    }
+    
+    // Show fullscreen image viewer when an image is selected
+    selectedImageIndex?.let { index ->
+        FullscreenImageViewer(
+            images = imageUrls,
+            initialIndex = index,
+            onDismiss = { selectedImageIndex = null }
+        )
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -355,6 +380,7 @@ fun PhotosTabContent(
             // Grid layout for photos - ONLY images, NO captions
             // Use manual grid with Rows to avoid nested scrollable (LazyVerticalGrid inside LazyColumn)
             val rows = photoPosts.chunked(3) // Split into rows of 3
+            var imageIndex = 0 // Track overall image index for fullscreen viewer
             
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -367,14 +393,16 @@ fun PhotosTabContent(
                     ) {
                         rowPosts.forEach { post ->
                             val imageUri = post.imageUri
+                            val currentIndex = imageIndex // Capture current index for click
                             if (!imageUri.isNullOrEmpty()) {
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
                                         .aspectRatio(1f)
+                                        .clickable { selectedImageIndex = currentIndex }
                                 ) {
                                     AsyncImage(
-                                        model = imageUri,
+                                        model = if (!imageUri.isNullOrEmpty()) imageUri else post.cloudImageUri,
                                         contentDescription = "Photo",
                                         modifier = Modifier
                                             .fillMaxSize()
@@ -382,6 +410,7 @@ fun PhotosTabContent(
                                         contentScale = ContentScale.Crop
                                     )
                                 }
+                                imageIndex++
                             }
                         }
                         // Fill remaining space if row has less than 3 items
@@ -394,6 +423,7 @@ fun PhotosTabContent(
         }
     }
 }
+
 
 @Composable
 fun AudiosTabContent(
@@ -409,7 +439,7 @@ fun AudiosTabContent(
     // Filter posts to only those with audio, and respect privacy
     val audioPosts = remember(posts, isViewingOwnProfile) {
         posts.filter { post ->
-            !post.audioUri.isNullOrEmpty() && 
+            (!post.audioUri.isNullOrEmpty() || !post.cloudAudioUri.isNullOrEmpty()) && 
             (isViewingOwnProfile || post.visibility == "public")
         }
     }
@@ -454,50 +484,107 @@ fun AudiosTabContent(
             ) {
                 audioPosts.forEachIndexed { index, post ->
                     val audioUri = post.audioUri
-                    if (!audioUri.isNullOrEmpty()) {
-                        // Add caption above each audio player
-                        Text(
-                            text = "Audio ${index + 1}",
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.Medium,
-                            color = ThemeColorUtils.black(),
-                            modifier = Modifier.padding(bottom = 4.dp)
-                        )
-                        AudioPlayerItem(
-                            isPlaying = currentPlayingIndex == index,
-                            onPlayClick = {
-                                // Stop currently playing audio if any
-                                if (currentPlayingIndex != null && currentPlayingIndex != index) {
-                                    stopCurrentAudio()
-                                }
-                                
-                                if (currentPlayingIndex == index) {
-                                    // Stop if clicking the same audio
-                                    stopCurrentAudio()
-                                } else {
-                                    // Play new audio
-                                    try {
-                                        val sanitizedUri = sanitizeToUri(audioUri, "AudiosTabContent")
-                                        val player = android.media.MediaPlayer()
-                                        val uri = sanitizedUri ?: audioUri.toUri()
-                                        player.setDataSource(context, uri)
-                                        player.prepare()
-                                        player.start()
+                    val cloudAudioUri = post.cloudAudioUri
+                    
+                    // Add caption above each audio player
+                    Text(
+                        text = "Audio ${index + 1}",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.Medium,
+                        color = ThemeColorUtils.black(),
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+                    AudioPlayerItem(
+                        isPlaying = currentPlayingIndex == index,
+                        onPlayClick = {
+                            // Stop currently playing audio if any
+                            if (currentPlayingIndex != null && currentPlayingIndex != index) {
+                                stopCurrentAudio()
+                            }
+                            
+                            if (currentPlayingIndex == index) {
+                                // Stop if clicking the same audio
+                                stopCurrentAudio()
+                            } else {
+                                // Play new audio
+                                try {
+                                    val player = android.media.MediaPlayer()
+                                    // Try local first, then cloud
+                                    val uriToUse = if (!audioUri.isNullOrEmpty()) {
+                                        sanitizeToUri(audioUri, "AudiosTabContent") ?: audioUri.toUri()
+                                    } else if (!cloudAudioUri.isNullOrEmpty()) {
+                                        cloudAudioUri.toUri()
+                                    } else {
+                                        null
+                                    }
+                                    
+                                    if (uriToUse != null) {
+                                        // Handle different URI schemes
+                                        if (uriToUse.scheme == "file" || uriToUse.scheme == "content") {
+                                             player.setDataSource(context, uriToUse)
+                                        } else {
+                                             // Network URL
+                                             player.setDataSource(uriToUse.toString())
+                                        }
+                                        
+                                        player.prepareAsync() // Use prepareAsync for network/content possibilities
+                                        player.setOnPreparedListener { mp ->
+                                            mp.start()
+                                            mediaPlayer = mp
+                                            currentPlayingIndex = index
+                                        }
                                         player.setOnCompletionListener {
                                             it.release()
                                             currentPlayingIndex = null
                                             mediaPlayer = null
                                         }
-                                        mediaPlayer = player
-                                        currentPlayingIndex = index
-                                    } catch (e: Exception) {
-                                        android.util.Log.e("AudiosTabContent", "Error playing audio: ${e.message}")
-                                        stopCurrentAudio()
+                                        player.setOnErrorListener { mp, what, extra ->
+                                            android.util.Log.e("AudiosTabContent", "MSP Error: $what, $extra")
+                                             // If local failed and we have cloud, try cloud fallback (if we didn't already try it)
+                                            if (!audioUri.isNullOrEmpty() && !cloudAudioUri.isNullOrEmpty() && uriToUse.toString() != cloudAudioUri) {
+                                                android.util.Log.d("AudiosTabContent", "Local failed, trying cloud fallback...")
+                                                try {
+                                                    mp?.reset()
+                                                    mp?.setDataSource(cloudAudioUri)
+                                                    mp?.prepareAsync()
+                                                    // Don't return true yet, let listeners handle it
+                                                } catch (e: Exception) {
+                                                    android.util.Log.e("AudiosTabContent", "Cloud fallback failed: ${e.message}")
+                                                }
+                                            }
+                                            false // Allow completion listener to run if needed, or default error handling
+                                        }
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Audio file not found", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+
+                                } catch (e: Exception) {
+                                    android.util.Log.e("AudiosTabContent", "Error playing audio: ${e.message}")
+                                    stopCurrentAudio()
+                                    // Try cloud fallback immediately if caught exception on setup
+                                    if (!cloudAudioUri.isNullOrEmpty()) {
+                                         try {
+                                            val player = android.media.MediaPlayer()
+                                            player.setDataSource(cloudAudioUri)
+                                            player.prepareAsync()
+                                            player.setOnPreparedListener { mp ->
+                                                mp.start()
+                                                mediaPlayer = mp
+                                                currentPlayingIndex = index
+                                            }
+                                             player.setOnCompletionListener {
+                                                it.release()
+                                                currentPlayingIndex = null
+                                                mediaPlayer = null
+                                            }
+                                        } catch (e2: Exception) {
+                                            android.util.Log.e("AudiosTabContent", "Cloud fallback completely failed: ${e2.message}")
+                                        }
                                     }
                                 }
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
             
@@ -553,18 +640,268 @@ private fun AudioPlayerItem(
 }
 
 @Composable
-fun MoreTabContent() {
+fun MoreTabContent(userId: String) {
+    var selectedSection by remember { mutableStateOf<String?>(null) } // "favorites" or "guides"
+    var showComingSoonDialog by remember { mutableStateOf(false) }
+    
+    // Coming Soon Dialog
+    if (showComingSoonDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { showComingSoonDialog = false },
+            title = {
+                Text(
+                    "Login Session",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text("This will be implement soon, stay tuned!")
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { showComingSoonDialog = false }
+                ) {
+                    Text("OK", color = ThemeColorUtils.primary())
+                }
+            },
+            containerColor = ThemeColorUtils.white(),
+            titleContentColor = ThemeColorUtils.black(),
+            textContentColor = ThemeColorUtils.black()
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(16.dp)
     ) {
-        Text(
-            text = "More",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text("More options coming soon.", color = ThemeColorUtils.lightGray(Color.Gray))
+        if (selectedSection == null) {
+            Text(
+                text = "More",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 16.dp)
+            )
+            
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                MoreMenuItem(
+                    icon = Icons.Default.Favorite,
+                    title = "Favorites / Saved",
+                    subtitle = "View your saved posts and detections",
+                    onClick = { selectedSection = "favorites" }
+                )
+                
+                MoreMenuItem(
+                    icon = Icons.AutoMirrored.Filled.MenuBook,
+                    title = "Guides & Resources",
+                    subtitle = "How-to guides for poultry farming",
+                    onClick = { selectedSection = "guides" }
+                )
+                
+                MoreMenuItem(
+                    icon = Icons.Default.LocationOn,
+                    title = "Login Session",
+                    subtitle = "View the location of where you logged in",
+                    onClick = { showComingSoonDialog = true }
+                )
+            }
+        } else {
+            // Header with Back Arrow
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            ) {
+                IconButton(
+                    onClick = { selectedSection = null },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = ThemeColorUtils.black()
+                    )
+                }
+                Spacer(modifier = Modifier.padding(start = 8.dp))
+                Text(
+                    text = if (selectedSection == "favorites") "Favorites / Saved" else "Guides & Resources",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            
+            if (selectedSection == "favorites") {
+                FavoritesSection(userId = userId)
+            } else {
+                GuidesSection()
+            }
+        }
     }
 }
+
+@Composable
+fun MoreMenuItem(
+    icon:  androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = ThemeColorUtils.white()
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(ThemeColorUtils.primary().copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = ThemeColorUtils.primary(),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Spacer(modifier = Modifier.padding(start = 16.dp))
+            Column {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = ThemeColorUtils.black()
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = ThemeColorUtils.lightGray(Color.Gray)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun FavoritesSection(userId: String) {
+    val postRepository = remember { com.bisu.chickcare.backend.repository.PostRepository() }
+    val savedPostsFlow = remember(userId) { postRepository.getSavedPosts(userId) }
+    val savedPosts by savedPostsFlow.collectAsState(initial = emptyList())
+    val context = LocalContext.current
+    val coroutineScope = androidx.compose.runtime.rememberCoroutineScope()
+
+    if (savedPosts.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(32.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No saved items yet.",
+                color = ThemeColorUtils.lightGray(Color.Gray)
+            )
+        }
+    } else {
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            savedPosts.forEach { post ->
+                TimelinePostItem(
+                    post = post,
+                    userId = userId,
+                    onDelete = { },
+                    onChangeAudience = { _, _ -> },
+                    onSavePost = { postId ->
+                        coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+
+                           if (post.isSaved) {
+                               postRepository.unsavePost(userId, post.userId, postId)
+                           } else {
+                               postRepository.savePost(userId, post.userId, postId, post)
+                           }
+                        }
+                    },
+                    onReaction = { postId, postOwnerId, reactionType ->
+                         coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                            postRepository.toggleReaction(postOwnerId, postId, userId, reactionType)
+                         }
+                    },
+                    onCommentClick = { _, _ ->
+                         android.widget.Toast.makeText(context, "Comments coming soon", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun GuidesSection() {
+    val guides = listOf(
+        GuideItem("Poultry Disease Prevention", "Learn how to keep your flock healthy and prevent common outbreaks.", "10 min read"),
+        GuideItem("Best Feed Mixes", "Optimal nutrition guides for different stages of chicken growth.", "8 min read"),
+        GuideItem("Housing & Hygiene", "Building the perfect coop and maintaining sanitation.", "12 min read"),
+        GuideItem("Vaccination Schedule", "Essential timeline for vaccinating your chickens.", "5 min read")
+    )
+    
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        guides.forEach { guide ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = ThemeColorUtils.white()
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                 Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = guide.title,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = ThemeColorUtils.black()
+                    )
+                    Spacer(modifier = Modifier.padding(top = 4.dp))
+                    Text(
+                        text = guide.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = ThemeColorUtils.black().copy(alpha = 0.8f)
+                    )
+                    Spacer(modifier = Modifier.padding(top = 8.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                             imageVector = Icons.Default.AccessTime,
+                             contentDescription = null,
+                             modifier = Modifier.size(14.dp),
+                             tint = ThemeColorUtils.lightGray(Color.Gray)
+                        )
+                        Spacer(modifier = Modifier.padding(start = 4.dp))
+                        Text(
+                            text = guide.readTime,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.lightGray(Color.Gray)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+data class GuideItem(val title: String, val description: String, val readTime: String)

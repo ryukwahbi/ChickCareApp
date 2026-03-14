@@ -12,14 +12,15 @@ import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,22 +30,22 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.UploadFile
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -70,14 +71,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.navigation.NavController
+import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.service.AudioSpectrogramConverter
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
@@ -111,16 +121,23 @@ fun AudioInputScreen(
     }
     var isRecording by remember { mutableStateOf(false) }
     var recordingTime by remember { mutableLongStateOf(0L) }
+    var recordingDisplayTime by remember { mutableStateOf("00:00") }
     var audioFile by remember { mutableStateOf<File?>(null) }
+    val amplitudes = remember { androidx.compose.runtime.mutableStateListOf<Float>() }
     var recordingFinished by remember { mutableStateOf(false) }
     var uploadedAudioUri by remember { mutableStateOf<String?>(null) }
     var audioDurationWarning by remember { mutableStateOf<String?>(null) }
     val mediaRecorder = remember { mutableStateOf<MediaRecorder?>(null) }
     var currentRecordingFile by remember { mutableStateOf<File?>(null) }
-    
-    // Audio playback states
     val mediaPlayer = remember { MediaPlayer() }
     var isPlayingAudio by remember { mutableStateOf(false) }
+    var playbackPosition by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(audioDurationWarning) {
+        if (audioDurationWarning != null) {
+            delay(4000)
+            audioDurationWarning = null
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -168,31 +185,29 @@ fun AudioInputScreen(
                         audioFile = possibleFile
                     }
                 }
-                
+
                 // Validate audio duration
                 val audioConverter = AudioSpectrogramConverter(context)
                 val durationMs = withContext(Dispatchers.IO) {
                     audioConverter.getAudioDuration(finalUriString)
                 }
-                
+
                 if (durationMs != null) {
                     val durationSeconds = durationMs / 1000f
                     audioDurationWarning = when {
                         durationSeconds < AudioSpectrogramConverter.MIN_DURATION_SECONDS -> {
                             "⚠️ Audio is too short (${String.format("%.1f", durationSeconds)}s). " +
-                            "Please record at least ${AudioSpectrogramConverter.MIN_DURATION_SECONDS} seconds."
+                                    "Please record at least ${AudioSpectrogramConverter.MIN_DURATION_SECONDS} seconds."
                         }
                         durationSeconds > AudioSpectrogramConverter.MAX_DURATION_SECONDS -> {
-                            "ℹ️ Audio is ${String.format("%.1f", durationSeconds)}s (longer than ${AudioSpectrogramConverter.MAX_DURATION_SECONDS}s). " +
-                            "The app will automatically extract the most active ${AudioSpectrogramConverter.MAX_DURATION_SECONDS}-second segment for analysis. " +
-                            "You can proceed with processing."
+                            "ℹ️ Audio > ${AudioSpectrogramConverter.MAX_DURATION_SECONDS}s. Auto-trimming active segment."
                         }
                         else -> null
                     }
                 } else {
                     audioDurationWarning = null
                 }
-                
+
                 Log.d("AudioInputScreen", "Audio uploaded - URI: $finalUriString, Duration: ${durationMs}ms, Warning: $audioDurationWarning")
             }
         }
@@ -286,29 +301,59 @@ fun AudioInputScreen(
                     }
                 }
             }
-            currentRecordingFile = null
         }
     }
 
     LaunchedEffect(isRecording) {
         if (isRecording) {
             recordingTime = 0L // Reset timer when starting
-            Log.d("AudioInputScreen", "Timer started, recordingTime: ${0}")
+            amplitudes.clear()
+            val startTime = System.currentTimeMillis()
+            Log.d("AudioInputScreen", "Timer started")
+
             while (true) {
-                delay(1000)
-                if (isRecording) {
-                    recordingTime++
-                    Log.d("AudioInputScreen", "Timer updated, recordingTime: $recordingTime")
-                    
-                    // Auto-stop recording at 10 seconds (matches maxDuration)
-                    if (recordingTime >= 10L) {
-                        Log.d("AudioInputScreen", "Recording reached 10 seconds, auto-stopping...")
-                        stopRecordingFunction()
-                        break
+                val currentTime = System.currentTimeMillis()
+                val elapsedTime = currentTime - startTime
+
+                // Update display time with tenths of a second
+                val seconds = (elapsedTime / 1000) % 60
+                val minutes = (elapsedTime / 60000)
+                recordingDisplayTime = String.format(Locale.getDefault(), "%02d:%02d", minutes, seconds)
+
+                // Update the main recordingTime state (seconds) for the final result screen
+                recordingTime = elapsedTime / 1000
+
+                // Poll amplitude
+                val recorder = mediaRecorder.value
+                if (recorder != null) {
+                    try {
+                        val maxAmp = recorder.maxAmplitude
+                        // Logarithmic scaling for better visuals or just linear?
+                        // Max amplitude is approx 32767.
+                        var norm = maxAmp / 32767f
+                        if (norm > 1f) norm = 1f
+
+                        // Add to list
+                        amplitudes.add(norm)
+                        // Keep a fixed history size (e.g. 100 samples)
+                        if (amplitudes.size > 100) {
+                            amplitudes.removeAt(0)
+                        }
+                    } catch (_: Exception) {
+                        // Ignore
                     }
-                } else {
+                }
+
+                delay(50) // Update every 50ms (20fps)
+
+                // Check 10s limit
+                if (elapsedTime >= 10000L) {
+                    Log.d("AudioInputScreen", "Recording reached 10 seconds, auto-stopping...")
+                    stopRecordingFunction()
                     break
                 }
+
+                if (!isRecording) break
             }
         } else {
             if (!recordingFinished) {
@@ -439,7 +484,7 @@ fun AudioInputScreen(
                 }
             }
             cleanupRecorder()
-            
+
             try {
                 if (mediaPlayer.isPlaying) {
                     mediaPlayer.stop()
@@ -451,7 +496,7 @@ fun AudioInputScreen(
             }
         }
     }
-    
+
     DisposableEffect(audioFile, uploadedAudioUri) {
         onDispose {
             try {
@@ -472,8 +517,20 @@ fun AudioInputScreen(
 
     val hasAudio = (audioFile != null || uploadedAudioUri != null) && !isRecording
 
-    LaunchedEffect(hasAudio, audioFile, uploadedAudioUri, isRecording, recordingFinished) {
-        Log.d("AudioInputScreen", "State update - hasAudio: $hasAudio, audioFile: ${audioFile?.absolutePath}, uploadedAudioUri: $uploadedAudioUri, isRecording: $isRecording, recordingFinished: $recordingFinished")
+    LaunchedEffect(isPlayingAudio) {
+        if (isPlayingAudio) {
+            while (isPlayingAudio) {
+                try {
+                    if (mediaPlayer.isPlaying) {
+                        playbackPosition = (mediaPlayer.currentPosition / 1000).toLong()
+                    }
+                } catch (_: Exception) {
+                }
+                delay(100)
+            }
+        } else {
+
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -483,7 +540,7 @@ fun AudioInputScreen(
                     .fillMaxWidth()
                     .background(ThemeColorUtils.beige(Color(0xFFE3B386)))
                     .statusBarsPadding()
-                    .padding(top = 1.dp, bottom = 21.dp)
+                    .padding(top = 3.dp, bottom = 12.dp)
             ) {
                 IconButton(
                     onClick = { navController.popBackStack() },
@@ -529,7 +586,7 @@ fun AudioInputScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(24.dp),
+                        .padding(vertical = 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Column(
@@ -542,7 +599,8 @@ fun AudioInputScreen(
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
                             color = ThemeColorUtils.black(),
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         )
 
                         Spacer(modifier = Modifier.height(6.dp))
@@ -550,15 +608,118 @@ fun AudioInputScreen(
                         Text(
                             text = "Record audio or upload from your files",
                             fontSize = 16.sp,
-                            color = Color(0xFFFD8F4C),
-                            textAlign = TextAlign.Center
+                            color = Color(0xFF806F60),
+                            textAlign = TextAlign.Center,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            modifier = Modifier.padding(horizontal = 24.dp)
                         )
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        if (!hasAudio) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(16.dp),
+                                modifier = Modifier.padding(horizontal = 24.dp)
+                            ) {
+                                // Record Button
+                                Button(
+                                    onClick = {
+                                        // Play Record Start Sound
+                                        try {
+                                            val mp = MediaPlayer.create(context, R.raw.record_start)
+                                            mp?.start()
+                                            mp?.setOnCompletionListener { it.release() }
+                                        } catch (e: Exception) {
+                                            Log.e("AudioInputScreen", "Error playing record sound: ${e.message}")
+                                        }
+
+                                        if (hasAudioPermission) {
+                                            startRecording()
+                                        } else {
+                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                                        }
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(60.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ThemeColorUtils.white(alpha = 0.5f)
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, ThemeColorUtils.black()),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = 0.dp,
+                                        pressedElevation = 0.dp
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Mic,
+                                            contentDescription = null,
+                                            tint = ThemeColorUtils.black(),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = "Record Audio",
+                                            fontSize = 18.sp,
+                                            color = ThemeColorUtils.black(),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+
+                                // Upload Button
+                                Button(
+                                    onClick = {
+                                        audioPickerLauncher.launch(arrayOf("audio/*"))
+                                    },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(60.dp),
+                                    shape = RoundedCornerShape(20.dp),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = ThemeColorUtils.white(alpha = 0.5f)
+                                    ),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, ThemeColorUtils.black()),
+                                    elevation = ButtonDefaults.buttonElevation(
+                                        defaultElevation = 0.dp,
+                                        pressedElevation = 0.dp
+                                    )
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.UploadFile,
+                                            contentDescription = null,
+                                            tint = ThemeColorUtils.black(),
+                                            modifier = Modifier.size(24.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Text(
+                                            text = "Upload an Audio",
+                                            fontSize = 18.sp,
+                                            color = ThemeColorUtils.black(),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(30.dp))
+                        HorizontalDivider(thickness = 1.dp, color = Color(0xFFAD9983))
+                        Spacer(modifier = Modifier.height(30.dp))
 
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .padding(horizontal = 24.dp)
                                 .then(
                                     if (ThemeViewModel.isDarkMode) {
                                         Modifier.shadow(
@@ -586,14 +747,118 @@ fun AudioInputScreen(
                             }
                         ) {
                             Column(
-                                modifier = Modifier.padding(18.dp),
+                                modifier = Modifier.padding(vertical = 18.dp),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
                                     text = "NOTE: Audio Recording Guidelines",
                                     fontSize = 18.5.sp,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.darkGray(Color(0xFF575450))
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.darkGray(Color(0xFF575450)),
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+
+                                HorizontalDivider(
+                                    thickness = 1.5.dp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
+                                )
+
+                                // Guidelines lines
+                                val highlightStyle = SpanStyle(
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF3EA818)
+                                )
+                                
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  Record audio of the chicken ")
+                                        withStyle(highlightStyle) {
+                                            append("MAKING SOUNDS")
+                                        }
+                                        append(" (coughing, sneezing, or breathing).")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  ")
+                                        withStyle(highlightStyle) {
+                                            append("GET CLOSE")
+                                        }
+                                        append(" to the chicken (within 1-2 meters) for clear audio capture.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  Record ")
+                                        withStyle(highlightStyle) {
+                                            append("5-10 SECONDS")
+                                        }
+                                        append(" of chicken sounds for best accuracy.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  ")
+                                        withStyle(highlightStyle) {
+                                            append("MINIMIZE BACKGROUND NOISE")
+                                        }
+                                        append(" for better analysis accuracy.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  Focus on capturing ")
+                                        withStyle(highlightStyle) {
+                                            append("RESPIRATORY SOUNDS")
+                                        }
+                                        append(" or abnormal vocalizations.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  Ensure ")
+                                        withStyle(highlightStyle) {
+                                            append("ONLY ONE CHICKEN")
+                                        }
+                                        append(" is being recorded at a time for accurate analysis.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
+                                )
+                                Text(
+                                    text = buildAnnotatedString {
+                                        append("—  ")
+                                        withStyle(highlightStyle) {
+                                            append("HOLD DEVICE STEADY")
+                                        }
+                                        append(" and keep the microphone unobstructed during recording.")
+                                    },
+                                    fontSize = 15.5.sp,
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
+                                    lineHeight = 22.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
                                 )
 
                                 HorizontalDivider(
@@ -602,717 +867,632 @@ fun AudioInputScreen(
                                 )
 
                                 Text(
-                                    text = "—  Record audio of the chicken making sounds (coughing, sneezing, or breathing).",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Get close to the chicken (within 1-2 meters) for clear audio capture.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Record 5-10 seconds of chicken sounds for best accuracy.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Minimize background noise for better analysis accuracy.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Focus on capturing respiratory sounds or abnormal vocalizations.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Ensure only one chicken is being recorded at a time for accurate analysis.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-                                Text(
-                                    text = "—  Hold your device steady and keep the microphone unobstructed during recording.",
-                                    fontSize = 15.5.sp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.black() else ThemeColorUtils.black(),
-                                    lineHeight = 22.sp
-                                )
-
-                                HorizontalDivider(
-                                    thickness = 1.5.dp,
-                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.darkGray(Color(0xFF7E7C7C)) else ThemeColorUtils.darkGray(Color(0xFF6C6242)).copy(alpha = 0.5f)
-                                )
-
-                                Text(
-                                    text = "Poor quality or noisy audio may result in inaccurate detection results!",
+                                    text = "Poor quality or noisy audio may result in inaccurate or NO detection results!",
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFFCC6565),
-                                    lineHeight = 20.sp
+                                    color = Color(0xFFD74D4D),
+                                    lineHeight = 20.sp,
+                                    modifier = Modifier.padding(horizontal = 18.dp)
                                 )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-                    if (!hasAudio) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.Center
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Record Card
-                                Card(
-                                    onClick = {
-                                        if (hasAudioPermission) {
-                                            if (isRecording) {
-                                                stopRecording()
-                                            } else {
-                                                startRecording()
-                                            }
-                                        } else {
-                                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .then(
-                                            if (ThemeViewModel.isDarkMode) {
-                                                Modifier.shadow(
-                                                    elevation = 6.dp,
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    spotColor = Color.White,
-                                                    ambientColor = Color.White.copy(alpha = 0.5f)
-                                                )
-                                            } else {
-                                                Modifier.shadow(
-                                                    elevation = 6.dp,
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
-                                                )
-                                            }
-                                        ),
-                                    shape = RoundedCornerShape(20.dp),
-                                    elevation = if (ThemeViewModel.isDarkMode) {
-                                        CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                    } else {
-                                        CardDefaults.cardElevation(defaultElevation = 6.dp)
-                                    },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
-                                    )
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(vertical = 12.dp, horizontal = 16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        if (isRecording) {
-                                            val pulseAlpha by animateFloatAsState(
-                                                targetValue = 0.3f,
-                                                animationSpec = infiniteRepeatable(
-                                                    animation = tween(1000, easing = LinearEasing),
-                                                    repeatMode = RepeatMode.Reverse
-                                                ),
-                                                label = "pulse"
-                                            )
-
-                                            Column(
-                                                modifier = Modifier.fillMaxSize(),
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.Center
-                                            ) {
-                                                Box(
-                                                    modifier = Modifier.size(100.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .fillMaxSize()
-                                                            .background(
-                                                                Color.Red.copy(alpha = pulseAlpha),
-                                                                CircleShape
-                                                            )
-                                                    )
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(80.dp)
-                                                            .background(
-                                                                Color(0xFFDC2626),
-                                                                CircleShape
-                                                            )
-                                                            .shadow(
-                                                                elevation = 8.dp,
-                                                                shape = CircleShape,
-                                                                spotColor = Color.Red.copy(alpha = 0.5f)
-                                                            ),
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Icon(
-                                                            Icons.Default.Mic,
-                                                            contentDescription = "Recording...",
-                                                            tint = ThemeColorUtils.white(),
-                                                            modifier = Modifier.size(40.dp)
-                                                        )
-                                                    }
-                                                }
-
-                                                Spacer(modifier = Modifier.height(16.dp))
-
-                                                val minutes = (recordingTime / 60).toInt()
-                                                val seconds = (recordingTime % 60).toInt()
-                                                Text(
-                                                    text = String.format(
-                                                        Locale.getDefault(),
-                                                        "%02d:%02d",
-                                                        minutes,
-                                                        seconds
-                                                    ),
-                                                    fontSize = 32.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = Color(0xFFDC2626),
-                                                    textAlign = TextAlign.Center
-                                                )
-
-                                                Spacer(modifier = Modifier.height(8.dp))
-
-                                                Text(
-                                                    text = "Recording...",
-                                                    fontSize = 16.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    color = Color(0xFF64748B),
-                                                    textAlign = TextAlign.Center
-                                                )
-
-                                                Spacer(modifier = Modifier.height(4.dp))
-
-                                                Text(
-                                                    text = "Tap to stop",
-                                                    fontSize = 12.sp,
-                                                    color = Color(0xFF94A3B8),
-                                                    textAlign = TextAlign.Center
-                                                )
-                                            }
-                                        } else {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(80.dp)
-                                                    .shadow(
-                                                        elevation = 4.dp,
-                                                        shape = RoundedCornerShape(40.dp),
-                                                        spotColor = ThemeColorUtils.black(alpha = 0.2f)
-                                                    )
-                                                    .background(
-                                                        Brush.radialGradient(
-                                                            colors = listOf(
-                                                                Color(0xFF606060),
-                                                                Color(0xFF404040)
-                                                            )
-                                                        ),
-                                                        RoundedCornerShape(40.dp)
-                                                    ),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                Icon(
-                                                    Icons.Default.Mic,
-                                                    contentDescription = "Record",
-                                                    tint = ThemeColorUtils.white(),
-                                                    modifier = Modifier.size(40.dp)
-                                                )
-                                            }
-                                            Spacer(modifier = Modifier.height(16.dp))
-                                            Text(
-                                                text = "Record",
-                                                fontSize = 18.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF000000)
-                                            )
-                                        }
-                                    }
-                                }
-
-                                Card(
-                                    onClick = {
-                                        audioPickerLauncher.launch(arrayOf("audio/*"))
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .aspectRatio(1f)
-                                        .then(
-                                            if (ThemeViewModel.isDarkMode) {
-                                                Modifier.shadow(
-                                                    elevation = 6.dp,
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    spotColor = Color.White,
-                                                    ambientColor = Color.White.copy(alpha = 0.5f)
-                                                )
-                                            } else {
-                                                Modifier.shadow(
-                                                    elevation = 6.dp,
-                                                    shape = RoundedCornerShape(20.dp),
-                                                    spotColor = ThemeColorUtils.black(alpha = 0.15f)
-                                                )
-                                            }
-                                        ),
-                                    shape = RoundedCornerShape(20.dp),
-                                    elevation = if (ThemeViewModel.isDarkMode) {
-                                        CardDefaults.cardElevation(defaultElevation = 0.dp)
-                                    } else {
-                                        CardDefaults.cardElevation(defaultElevation = 6.dp)
-                                    },
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2C2C2C) else ThemeColorUtils.white()
-                                    )
-                                ) {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(24.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .size(80.dp)
-                                                .shadow(
-                                                    elevation = 4.dp,
-                                                    shape = RoundedCornerShape(40.dp),
-                                                    spotColor = ThemeColorUtils.black(alpha = 0.2f)
-                                                )
-                                                .background(
-                                                    Brush.radialGradient(
-                                                        colors = listOf(
-                                                            Color(0xFFFFD54F),
-                                                            Color(0xFFF9A825)
-                                                        )
-                                                    ),
-                                                    RoundedCornerShape(40.dp)
-                                                ),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Icon(
-                                                Icons.Default.UploadFile,
-                                                contentDescription = "Upload",
-                                                tint = ThemeColorUtils.white(),
-                                                modifier = Modifier.size(40.dp)
-                                            )
-                                        }
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text(
-                                            text = "Upload",
-                                            fontSize = 18.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF000000)
-                                        )
-                                    }
-                                }
                             }
                         }
                     }
                 }
             }
         }
-        
-        AnimatedVisibility(
-            visible = hasAudio,
-            enter = fadeIn(animationSpec = tween(300)),
-            exit = fadeOut(animationSpec = tween(200))
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(ThemeColorUtils.black(alpha = 0.7f))
-            ) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .aspectRatio(3f / 4f)
-                        .align(Alignment.Center)
-                        .shadow(
-                            elevation = 24.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = ThemeColorUtils.black(alpha = 0.5f)
-                        ),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = ThemeColorUtils.white()
-                    ),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+    }
+
+    AnimatedVisibility(
+        visible = isRecording,
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(200))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ThemeColorUtils.black(alpha = 0.5f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null
                 ) {
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        Column(
+                    // Optional: Tap outside to stop? User said "Tap to stop" but usually that means the button.
+                    // For now, let's allow tapping the scrim to do nothing (modal),
+                    // or maybe stop recording if they tap outside card?
+                    // The design has "Tap to stop" text inside the card.
+                    // I'll make the scrim consume clicks but do nothing.
+                    // Actually, I'll add a clickable to the CARD to call stopRecording?
+                    // "Tap to stop" usually implies the whole area or the button.
+                    // I'll keep the Card clickable to stop, matching the previous behavior?
+                    // Reviewing previous code: The Card onClick called stopRecording().
+                    // I will make the Card clickable.
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+                    .aspectRatio(1f)
+                    .shadow(
+                        elevation = 8.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        spotColor = ThemeColorUtils.black(alpha = 0.5f)
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = ThemeColorUtils.white()
+                )
+            ) {
+                Box(modifier = Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center
+                ) {
+                    // Timer
+                    Text(
+                        text = recordingDisplayTime,
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFDC2626), // Red text color
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 24.dp)
+                    )
+
+                    // Red dot for recording indicator next to timer?
+                    // The reference image had a red dot to the left of the timer.
+                    // I'll skip the dot for now or make it part of the text row if needed,
+                    // but strictly following the "Timer" text first.
+                    // Actually, let's add the dot above or near it if we want to be exact,
+                    // but simplest is just the text first.
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                        Box(
                             modifier = Modifier
-                                .fillMaxSize()
-                                .padding(20.dp)
-                                .verticalScroll(rememberScrollState()),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                                .fillMaxWidth()
+                                .background(Color(0xFFFAFAFA))
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            // Audio Ready Icon and Info
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
+                        androidx.compose.foundation.Canvas(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .padding(horizontal = 24.dp)
+                        ) {
+                            val centerY = size.height / 2
+                            val barWidth = 4.dp.toPx()
+                            val gap = 2.dp.toPx()
+                            val maxBarHeight = size.height * 0.8f
+
+                            // Draw Red Cursor Line
+                            val cursorX = size.width / 2
+                            drawLine(
+                                color = Color(0xFFEF4444), // Red
+                                start = androidx.compose.ui.geometry.Offset(cursorX, 0f),
+                                end = androidx.compose.ui.geometry.Offset(cursorX, size.height),
+                                strokeWidth = 2.dp.toPx()
+                            )
+
+                            // Draw Bars to the left of cursor
+                            // We iterate backwards from the end of the amplitudes list
+                            val iterator = amplitudes.listIterator(amplitudes.size)
+                            var currentX = cursorX - gap
+
+                            while (iterator.hasPrevious() && currentX > 0) {
+                                val amp = iterator.previous()
+                                // Min height so we always see a bar
+                                val barHeight = maxOf(4f, amp * maxBarHeight)
+
+                                drawRoundRect(
+                                    color = Color(0xFF1E40AF), // Blue color
+                                    topLeft = androidx.compose.ui.geometry.Offset(currentX - barWidth, centerY - barHeight / 2),
+                                    size = androidx.compose.ui.geometry.Size(barWidth, barHeight),
+                                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f, 4f)
+                                )
+                                currentX -= (barWidth + gap)
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Stop Button
+                    Box(
+                        modifier = Modifier
+                            .padding(bottom = 24.dp)
+                            .size(60.dp)
+                            .shadow(
+                                elevation = 4.dp,
+                                shape = CircleShape,
+                                spotColor = Color(0xFFDC2626).copy(alpha = 0.4f)
+                            )
+                            .background(Color(0xFFDC2626), CircleShape)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = androidx.compose.material3.ripple(color = Color.White)
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(100.dp)
-                                        .background(
-                                            Brush.radialGradient(
-                                                colors = listOf(
-                                                    Color(0xFF10B981),
-                                                    Color(0xFF059669)
-                                                )
-                                            ),
-                                            CircleShape
-                                        )
-                                        .shadow(
-                                            elevation = 16.dp,
-                                            shape = CircleShape,
-                                            spotColor = Color(0xFF10B981).copy(alpha = 0.5f)
+                                if (hasAudioPermission) {
+                                    stopRecording()
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        // Stop Icon (White Square)
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .background(Color.White, RoundedCornerShape(4.dp))
+                        )
+                    }
+                    }
+
+                    // Close/Cancel Button
+                    IconButton(
+                        onClick = {
+                            isRecording = false
+                            cleanupRecorder()
+                            recordingFinished = false
+                            recordingTime = 0L
+                            amplitudes.clear()
+                            try { currentRecordingFile?.delete() } catch (_: Exception) {}
+                            currentRecordingFile = null
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(8.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Cancel Recording",
+                            tint = ThemeColorUtils.black()
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    AnimatedVisibility(
+        visible = hasAudio,
+        enter = fadeIn(animationSpec = tween(300)),
+        exit = fadeOut(animationSpec = tween(200))
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ThemeColorUtils.black(alpha = 0.7f))
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.85f)
+
+                    .wrapContentHeight()
+                    .align(Alignment.Center)
+                    .offset(y = (-40).dp)
+                    .shadow(
+                        elevation = 24.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        spotColor = ThemeColorUtils.black(alpha = 0.5f)
+                    ),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = ThemeColorUtils.white()
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Audio Ready Icon and Info
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Animated Check Mark
+                            val checkProgress = remember { Animatable(0f) }
+                            LaunchedEffect(Unit) {
+                                // Play Custom Success Sound
+                                try {
+                                    val mp = MediaPlayer.create(context, R.raw.success_sound)
+                                    mp?.start()
+                                    mp?.setOnCompletionListener { it.release() }
+                                } catch (e: Exception) {
+                                    Log.e("AudioInputScreen", "Error playing custom sound: ${e.message}")
+                                }
+
+                                checkProgress.animateTo(
+                                    targetValue = 1f,
+                                    animationSpec = tween(600)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(24.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .background(
+                                        Brush.radialGradient(
+                                            colors = listOf(
+                                                Color(0xFF3C8632),
+                                                Color(0xFF53A448)
+                                            )
                                         ),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        Icons.Default.CheckCircle,
-                                        contentDescription = "Audio ready",
-                                        tint = ThemeColorUtils.white(),
-                                        modifier = Modifier.size(60.dp)
+                                        CircleShape
+                                    )
+                                    .shadow(
+                                        elevation = 16.dp,
+                                        shape = CircleShape,
+                                        spotColor = Color(0xFF3C8632).copy(alpha = 0.5f)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                androidx.compose.foundation.Canvas(modifier = Modifier.size(60.dp)) {
+                                    val path = Path().apply {
+                                        moveTo(size.width * 0.1f, size.height * 0.5f)
+                                        lineTo(size.width * 0.4f, size.height * 0.8f)
+                                        lineTo(size.width * 0.9f, size.height * 0.2f)
+                                    }
+
+                                    val pathMeasure = PathMeasure()
+                                    pathMeasure.setPath(path, false)
+                                    val length = pathMeasure.length
+
+                                    val partialPath = Path()
+                                    pathMeasure.getSegment(
+                                        startDistance = 0f,
+                                        stopDistance = length * checkProgress.value,
+                                        destination = partialPath,
+                                        startWithMoveTo = true
+                                    )
+
+                                    drawPath(
+                                        path = partialPath,
+                                        color = Color.White,
+                                        style = Stroke(
+                                            width = 8.dp.toPx(),
+                                            cap = StrokeCap.Round,
+                                            join = StrokeJoin.Round
+                                        )
                                     )
                                 }
+                            }
 
-                                Spacer(modifier = Modifier.height(10.dp))
+                            Spacer(modifier = Modifier.height(1.dp))
 
-                                Text(
-                                    text = "Audio Ready!",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B)
-                                )
-                                
-                                // Show duration warning if present
-                                audioDurationWarning?.let { warning ->
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (warning.contains("⚠️")) {
-                                                Color(0xFFFFF3CD)
-                                            } else {
-                                                Color(0xFFE3F2FD)
-                                            }
-                                        ),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Text(
-                                            text = warning,
-                                            modifier = Modifier.padding(8.dp),
-                                            fontSize = 13.sp,
-                                            color = if (warning.contains("⚠️")) {
-                                                Color(0xFF856404)
-                                            } else {
-                                                Color(0xFF0D47A1)
-                                            },
-                                            textAlign = TextAlign.Center,
-                                            lineHeight = 18.sp
-                                        )
-                                    }
+                            if (recordingFinished) {
+                                val displayTime = if (isPlayingAudio) {
+                                    playbackPosition
+                                } else {
+                                    recordingTime
                                 }
+                                val displayMinutes = displayTime / 60
+                                val displaySeconds = displayTime % 60
 
-                                if (recordingFinished) {
-                                    val minutes = recordingTime / 60
-                                    val seconds = recordingTime % 60
-                                    Spacer(modifier = Modifier.height(8.dp))
+                                // Duration Text aligned to start, flush with container (same as buttons)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(start = 0.dp),
+                                    contentAlignment = Alignment.CenterStart
+                                ) {
                                     Text(
                                         text = "Duration: ${
                                             String.format(
                                                 Locale.getDefault(),
                                                 "%02d:%02d",
-                                                minutes,
-                                                seconds
+                                                displayMinutes,
+                                                displaySeconds
                                             )
                                         }",
                                         fontSize = 16.sp,
                                         fontWeight = FontWeight.SemiBold,
                                         color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF64748B)
                                     )
-                                } else {
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Audio file selected",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Normal,
-                                        color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF64748B)
-                                    )
                                 }
-                                
-                                Spacer(modifier = Modifier.height(8.dp))
-                                
-                                Card(
+                            } else {
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = "Audio file selected",
+                                    fontSize = 18.sp,
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF64748B)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(2.dp))
+
+                            Card(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 0.dp), // Removed horizontal padding to align with buttons
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF2B2D30) else Color(0xFFF5F5F5)
+                                ),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                            ) {
+                                Row(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 8.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    colors = CardDefaults.cardColors(
-                                        containerColor = Color(0xFFF5F5F5)
-                                    ),
-                                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                        .padding(12.dp),
+                                    horizontalArrangement = Arrangement.Start,
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(12.dp),
-                                        horizontalArrangement = Arrangement.Center,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        IconButton(
-                                            onClick = {
-                                                try {
-                                                    if (isPlayingAudio) {
-                                                        mediaPlayer.stop()
-                                                        mediaPlayer.reset()
-                                                        isPlayingAudio = false
-                                                        Log.d("AudioInputScreen", "Audio playback stopped")
-                                                    } else {
-                                                        val audioUriString = uploadedAudioUri ?: audioFile?.let {
-                                                            Uri.fromFile(it).toString()
-                                                        }
-                                                        
-                                                        if (audioUriString != null) {
-                                                            val decodedUri = Uri.decode(audioUriString).toUri()
-                                                            Log.d("AudioInputScreen", "Starting audio playback: $decodedUri")
-                                                            
-                                                            if (decodedUri.scheme == "content") {
-                                                                try {
-                                                                    context.contentResolver.takePersistableUriPermission(
-                                                                        decodedUri,
-                                                                        Intent.FLAG_GRANT_READ_URI_PERMISSION
-                                                                    )
-                                                                } catch (e: SecurityException) {
-                                                                    Log.w("AudioInputScreen", "Could not take persistent URI permission: ${e.message}")
-                                                                }
+                                    IconButton(
+                                        onClick = {
+                                            try {
+                                                if (isPlayingAudio) {
+                                                    mediaPlayer.stop()
+                                                    mediaPlayer.reset()
+                                                    isPlayingAudio = false
+                                                    Log.d("AudioInputScreen", "Audio playback stopped")
+                                                } else {
+                                                    val audioUriString = uploadedAudioUri ?: audioFile?.let {
+                                                        Uri.fromFile(it).toString()
+                                                    }
+
+                                                    if (audioUriString != null) {
+                                                        val decodedUri = Uri.decode(audioUriString).toUri()
+                                                        Log.d("AudioInputScreen", "Starting audio playback: $decodedUri")
+
+                                                        if (decodedUri.scheme == "content") {
+                                                            try {
+                                                                context.contentResolver.takePersistableUriPermission(
+                                                                    decodedUri,
+                                                                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                                                                )
+                                                            } catch (e: SecurityException) {
+                                                                Log.w("AudioInputScreen", "Could not take persistent URI permission: ${e.message}")
                                                             }
-                                                            
-                                                            mediaPlayer.apply {
-                                                                reset()
-                                                                setOnErrorListener { _, what, extra ->
-                                                                    Log.e("AudioInputScreen", "MediaPlayer error: what=$what, extra=$extra")
-                                                                    isPlayingAudio = false
+                                                        }
+
+                                                        mediaPlayer.apply {
+                                                            reset()
+                                                            setOnErrorListener { _, what, extra ->
+                                                                Log.e("AudioInputScreen", "MediaPlayer error: what=$what, extra=$extra")
+                                                                isPlayingAudio = false
+                                                                android.widget.Toast.makeText(
+                                                                    context,
+                                                                    "Error playing audio",
+                                                                    android.widget.Toast.LENGTH_SHORT
+                                                                ).show()
+                                                                false
+                                                            }
+
+                                                            when (decodedUri.scheme) {
+                                                                "content" -> setDataSource(context, decodedUri)
+                                                                "file" -> setDataSource(decodedUri.path ?: return@IconButton)
+                                                                else -> {
                                                                     android.widget.Toast.makeText(
                                                                         context,
-                                                                        "Error playing audio",
+                                                                        "Unsupported audio format",
                                                                         android.widget.Toast.LENGTH_SHORT
                                                                     ).show()
-                                                                    false
+                                                                    return@IconButton
                                                                 }
-                                                                
-                                                                when (decodedUri.scheme) {
-                                                                    "content" -> setDataSource(context, decodedUri)
-                                                                    "file" -> setDataSource(decodedUri.path ?: return@IconButton)
-                                                                    else -> {
-                                                                        android.widget.Toast.makeText(
-                                                                            context,
-                                                                            "Unsupported audio format",
-                                                                            android.widget.Toast.LENGTH_SHORT
-                                                                        ).show()
-                                                                        return@IconButton
-                                                                    }
-                                                                }
-                                                                
-                                                                prepareAsync()
-                                                                setOnPreparedListener {
-                                                                    start()
-                                                                    isPlayingAudio = true
-                                                                    Log.d("AudioInputScreen", "Audio playback started")
-                                                                }
-                                                                setOnCompletionListener {
-                                                                    isPlayingAudio = false
-                                                                    Log.d("AudioInputScreen", "Audio playback completed")
-                                                                }
+                                                            }
+
+                                                            prepareAsync()
+                                                            setOnPreparedListener {
+                                                                start()
+                                                                isPlayingAudio = true
+                                                                Log.d("AudioInputScreen", "Audio playback started")
+                                                            }
+                                                            setOnCompletionListener {
+                                                                isPlayingAudio = false
+                                                                Log.d("AudioInputScreen", "Audio playback completed")
                                                             }
                                                         }
                                                     }
-                                                } catch (e: Exception) {
-                                                    Log.e("AudioInputScreen", "Error toggling audio playback: ${e.message}", e)
-                                                    android.widget.Toast.makeText(
-                                                        context,
-                                                        "Error: ${e.message}",
-                                                        android.widget.Toast.LENGTH_SHORT
-                                                    ).show()
-                                                    isPlayingAudio = false
                                                 }
-                                            },
-                                            modifier = Modifier
-                                                .size(48.dp)
-                                                .background(
-                                                    Brush.radialGradient(
-                                                        colors = listOf(
-                                                            Color(0xFF4CAF50),
-                                                            Color(0xFF388E3C)
-                                                        )
-                                                    ),
-                                                    CircleShape
-                                                )
-                                                .shadow(
-                                                    elevation = 4.dp,
-                                                    shape = CircleShape
-                                                )
-                                        ) {
-                                            Icon(
-                                                imageVector = if (isPlayingAudio) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                                contentDescription = if (isPlayingAudio) "Pause" else "Play",
-                                                tint = ThemeColorUtils.white(),
-                                                modifier = Modifier.size(28.dp)
-                                            )
-                                        }
-                                        
-                                        Spacer(modifier = Modifier.width(12.dp))
-                                        
-                                        Column {
-                                            Text(
-                                                text = if (isPlayingAudio) "Playing..." else "Preview Audio",
-                                                fontSize = 14.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B)
-                                            )
-                                            if (isPlayingAudio) {
-                                                Text(
-                                                    text = "Tap to pause",
-                                                    fontSize = 11.sp,
-                                                    color = if (ThemeViewModel.isDarkMode) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B)
-                                                )
+                                            } catch (e: Exception) {
+                                                Log.e("AudioInputScreen", "Error toggling audio playback: ${e.message}", e)
+                                                android.widget.Toast.makeText(
+                                                    context,
+                                                    "Error: ${e.message}",
+                                                    android.widget.Toast.LENGTH_SHORT
+                                                ).show()
+                                                isPlayingAudio = false
                                             }
+                                        },
+                                        modifier = Modifier
+                                            .size(48.dp)
+                                            .shadow(
+                                                elevation = 4.dp,
+                                                shape = CircleShape
+                                            )
+                                            .background(
+                                                color = Color(0xFF4CAF50),
+                                                shape = CircleShape
+                                            )
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPlayingAudio) Icons.Default.Pause else Icons.Default.PlayArrow,
+                                            contentDescription = if (isPlayingAudio) "Pause" else "Play",
+                                            tint = ThemeColorUtils.white(),
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                    }
+
+                                    Spacer(modifier = Modifier.width(12.dp))
+
+                                    Column {
+                                        Text(
+                                            text = if (isPlayingAudio) "Playing..." else "Preview Audio",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF1E293B)
+                                        )
+                                        if (isPlayingAudio) {
+                                            Text(
+                                                text = "Tap to pause",
+                                                fontSize = 11.sp,
+                                                color = if (ThemeViewModel.isDarkMode) Color.White.copy(alpha = 0.7f) else Color(0xFF64748B)
+                                            )
                                         }
                                     }
                                 }
                             }
+                        }
 
-                            Spacer(modifier = Modifier.height(12.dp))
 
-                            // Buttons Row - Always visible at bottom
-                            Row(
+
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Buttons Row - Always visible at bottom
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 18.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    audioFile = null
+                                    uploadedAudioUri = null
+                                    recordingFinished = false
+                                    recordingTime = 0L
+                                    currentRecordingFile = null
+                                },
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(bottom = 18.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                    .weight(1f)
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF9E9E9E)
+                                )
                             ) {
-                                Button(
-                                    onClick = {
-                                        audioFile = null
-                                        uploadedAudioUri = null
-                                        recordingFinished = false
-                                        recordingTime = 0L
-                                        currentRecordingFile = null
-                                    },
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .height(50.dp),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF9E9E9E)
-                                    )
-                                ) {
-                                    Icon(
-                                        Icons.Default.Refresh,
-                                        contentDescription = "Retake",
-                                        tint = ThemeColorUtils.white(),
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = "Retake",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ThemeColorUtils.white()
-                                    )
-                                }
 
-                                Button(
-                                    onClick = {
-                                        val audioUri = uploadedAudioUri ?: audioFile?.let {
-                                            Uri.fromFile(it).toString()
-                                        }
-                                        val imgUri = decodedImageUri ?: ""
-                                        
-                                        Log.d("AudioInputScreen", "Process & Analyze clicked - audioUri: $audioUri, imageUri: $imgUri")
-                                        
-                                        if (audioUri != null) {
-                                            val encodedAudio = Uri.encode(audioUri)
-                                            val routeBuilder = StringBuilder("processing?audioUri=$encodedAudio")
-                                            
-                                            if (imgUri.isNotEmpty()) {
-                                                val encodedImage = Uri.encode(imgUri)
-                                                routeBuilder.append("&imageUri=").append(encodedImage)
-                                                Log.d("AudioInputScreen", "Navigating to processing with imageUri=$encodedImage&audioUri=$encodedAudio")
-                                            } else {
-                                                Log.d("AudioInputScreen", "Navigating to processing without imageUri, audioUri=$encodedAudio")
-                                            }
-                                            
-                                            navController.navigate(routeBuilder.toString())
+                                Text(
+                                    text = "Retake",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ThemeColorUtils.white()
+                                )
+                            }
+
+                            Button(
+                                onClick = {
+                                    val audioUri = uploadedAudioUri ?: audioFile?.let {
+                                        Uri.fromFile(it).toString()
+                                    }
+                                    val imgUri = decodedImageUri ?: ""
+
+                                    Log.d("AudioInputScreen", "Process & Analyze clicked - audioUri: $audioUri, imageUri: $imgUri")
+
+                                    if (audioUri != null) {
+                                        val encodedAudio = Uri.encode(audioUri)
+                                        val routeBuilder = StringBuilder("processing?audioUri=$encodedAudio")
+
+                                        if (imgUri.isNotEmpty()) {
+                                            val encodedImage = Uri.encode(imgUri)
+                                            routeBuilder.append("&imageUri=").append(encodedImage)
+                                            Log.d("AudioInputScreen", "Navigating to processing with imageUri=$encodedImage&audioUri=$encodedAudio")
                                         } else {
-                                            Log.e("AudioInputScreen", "Cannot navigate: audioUri is null")
+                                            Log.d("AudioInputScreen", "Navigating to processing without imageUri, audioUri=$encodedAudio")
                                         }
-                                    },
-                                    enabled = true,
-                                    modifier = Modifier
-                                        .weight(1.5f)
-                                        .height(50.dp)
-                                        .shadow(
-                                            elevation = 8.dp,
-                                            shape = RoundedCornerShape(16.dp),
-                                            spotColor = ThemeColorUtils.black(alpha = 0.3f)
-                                        ),
-                                    shape = RoundedCornerShape(16.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = Color(0xFF4CAF50)
-                                    )
-                                ) {
-                                    Text(
-                                        text = "Process & Analyze",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = ThemeColorUtils.white()
-                                    )
-                                }
+
+                                        navController.navigate(routeBuilder.toString())
+                                    } else {
+                                        Log.e("AudioInputScreen", "Cannot navigate: audioUri is null")
+                                    }
+                                },
+                                enabled = true,
+                                modifier = Modifier
+                                    .weight(1.5f)
+                                    .height(50.dp)
+                                    .shadow(
+                                        elevation = 8.dp,
+                                        shape = RoundedCornerShape(16.dp),
+                                        spotColor = ThemeColorUtils.black(alpha = 0.3f)
+                                    ),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF4CAF50)
+                                )
+                            ) {
+                                Text(
+                                    text = "Analyze",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ThemeColorUtils.white()
+                                )
                             }
                         }
-                        
-                        IconButton(
-                            onClick = {
-                                audioFile = null
-                                uploadedAudioUri = null
-                                recordingFinished = false
-                                recordingTime = 0L
-                                currentRecordingFile = null
-                            },
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(12.dp)
-                                .background(
-                                    ThemeColorUtils.white(alpha = 0.9f),
-                                    CircleShape
-                                )
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = ThemeColorUtils.black(),
-                                modifier = Modifier.size(24.dp)
+                    }
+
+                    IconButton(
+                        onClick = {
+                            audioFile = null
+                            uploadedAudioUri = null
+                            recordingFinished = false
+                            recordingTime = 0L
+                            currentRecordingFile = null
+                        },
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp)
+                            .background(
+                                ThemeColorUtils.white(alpha = 0.9f),
+                                CircleShape
                             )
-                        }
+                    ) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeColorUtils.black(),
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+
+            // Warning Overlay at Bottom
+            AnimatedVisibility(
+                visible = audioDurationWarning != null,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 32.dp, start = 16.dp, end = 16.dp)
+            ) {
+                audioDurationWarning?.let { warning ->
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (warning.contains("⚠️")) {
+                                Color(0xFFFFF3CD)
+                            } else {
+                                Color(0xFFE3F2FD)
+                            }
+                        ),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text(
+                            text = warning,
+                            modifier = Modifier.padding(16.dp),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (warning.contains("⚠️")) {
+                                Color(0xFF856404)
+                            } else {
+                                Color(0xFF0D47A1)
+                            },
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
                     }
                 }
             }

@@ -1,0 +1,24 @@
+## This file must *NOT* be checked into Version Control Systems,
+# as it contains information specific to your local configuration.
+#
+# Location of the SDK. This is only used by Gradle.
+# For customization when using a Version Control System, please read the
+# header note.
+
+# Android SDK Location
+sdk.dir=C\:\\Users\\YOUR_USERNAME\\AppData\\Local\\Android\\Sdk
+
+# ============================================
+# Cloudinary API Credentials (SECURITY)
+# ============================================
+# Get these from: https://console.cloudinary.com/settings/api-keys
+# 
+# IMPORTANT: 
+# - Never commit this file to Git (it's in .gitignore)
+# - Each developer needs their own credentials
+# - For production, consider using Firebase Remote Config instead
+#
+CLOUDINARY_CLOUD_NAME=your_cloud_name_here
+CLOUDINARY_API_KEY=your_api_key_here
+CLOUDINARY_API_SECRET=your_api_secret_here
+

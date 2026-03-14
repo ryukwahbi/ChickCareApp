@@ -23,9 +23,53 @@ fun sanitizeUriString(raw: String?, logTag: String? = null): String? {
 fun sanitizeToUri(raw: String?, logTag: String? = null): Uri? {
     val sanitized = sanitizeUriString(raw, logTag) ?: return null
     return try {
-        sanitized.toUri()
+        val uri = Uri.parse(sanitized)
+        if (uri.scheme == null) return null
+        uri
     } catch (e: Exception) {
         logTag?.let { Log.w(it, "Failed to parse URI: ${e.message}") }
+        null
+    }
+}
+
+/**
+ * Checks if a URI is accessible (file exists/can be opened).
+ * Returns the local URI if accessible, otherwise fallbackUrl (cloud URL).
+ */
+fun getAccessibleUri(context: Context, localUriString: String?, fallbackUrl: String?): Any? {
+    if (!localUriString.isNullOrEmpty()) {
+        val uri = sanitizeToUri(localUriString, "UriUtils")
+        if (uri != null) {
+            try {
+                // For file:// URIs, check file existence directly
+                if (uri.scheme == "file") {
+                    val file = File(uri.path ?: "")
+                    if (file.exists() && file.canRead()) {
+                        Log.v("UriUtils", "Local file accessible: ${file.absolutePath}")
+                        return uri
+                    } else {
+                        Log.v("UriUtils", "Local file NOT found or NOT readable: ${file.absolutePath}")
+                    }
+                } else {
+                    // For content:// or others, try to open stream
+                    context.contentResolver.openInputStream(uri)?.use { 
+                        Log.v("UriUtils", "Local content accessible: $uri")
+                        return uri // Accessible!
+                    } ?: Log.v("UriUtils", "Local content stream NULL: $uri")
+                }
+            } catch (e: Exception) {
+                 Log.v("UriUtils", "Failed to access local URI $uri: ${e.message}")
+                 // Failed to open -> Local file missing or no permission
+                 // Fall through to fallback
+            }
+        }
+    }
+    
+    // Local failed or null, try fallback
+    return if (!fallbackUrl.isNullOrEmpty()) {
+        Log.v("UriUtils", "Falling back to cloud URL: $fallbackUrl")
+        fallbackUrl 
+    } else {
         null
     }
 }
@@ -83,4 +127,14 @@ suspend fun persistUriToAppStorage(
         Log.e(logTag, "persistUriToAppStorage error: ${e.message}", e)
         null
     }
+}
+
+fun getTempUri(context: Context): Uri {
+    val tempFile = File.createTempFile(
+        "temp_image_${System.currentTimeMillis()}",
+        ".jpg",
+        context.cacheDir
+    )
+    val authority = "${context.packageName}.provider"
+    return androidx.core.content.FileProvider.getUriForFile(context, authority, tempFile)
 }

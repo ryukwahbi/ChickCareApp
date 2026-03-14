@@ -75,7 +75,7 @@ import kotlinx.coroutines.withContext
 fun SecurityPrivacyScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val context = LocalContext.current
-    val currentUser = authViewModel.auth.currentUser
+    val currentUserId = authViewModel.getCurrentUserId(context)
     
     var twoFactorEnabled by remember { mutableStateOf(false) }
     var biometricEnabled by remember { mutableStateOf(false) }
@@ -94,12 +94,12 @@ fun SecurityPrivacyScreen(navController: NavController) {
     LaunchedEffect(Unit) {
         withContext(Dispatchers.IO) {
             // Load 2FA status
-            if (currentUser != null) {
+            if (currentUserId != null) {
                 // Check local preferences first
                 val local2FAEnabled = TwoFactorAuthHelper.isTwoFactorEnabled(context)
                 
                 // Sync with Firestore to ensure consistency
-                val firestoreSecret = TwoFactorAuthHelper.getTwoFactorSecret(currentUser.uid)
+                val firestoreSecret = TwoFactorAuthHelper.getTwoFactorSecret(currentUserId)
                 val firestore2FAEnabled = firestoreSecret != null
                 
                 // Use Firestore status if available, otherwise use local
@@ -129,7 +129,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
             TopAppBar(
                 title = { 
                     Text(
-                        "Security & Privacy",
+                        androidx.compose.ui.res.stringResource(R.string.security_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.black()
@@ -139,7 +139,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = androidx.compose.ui.res.stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -173,7 +173,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
             // Security Section
             item {
                     Text(
-                        text = "Security",
+                        text = androidx.compose.ui.res.stringResource(R.string.security_section_security),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -185,32 +185,32 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecuritySettingCard(
                     icon = R.drawable.ic_two_factor_flaticon,
-                    title = "Two-Factor Authentication",
-                    description = "Add an extra layer of security to your account",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_2fa_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_2fa_desc),
                     isEnabled = twoFactorEnabled,
                     onToggle = { enabled ->
                         if (enabled) {
-                            if (currentUser != null) {
+                            if (currentUserId != null) {
                                 // Generate secret first
                                 twoFactorSecret = TwoFactorAuthHelper.generateSecret()
                                 showTwoFactorSetupDialog = true
                             } else {
-                                dialogMessage = "Please log in to enable two-factor authentication"
+                                dialogMessage = context.getString(R.string.security_login_required)
                                 showErrorDialog = true
                             }
                         } else {
                             // Disable 2FA
-                            if (currentUser != null) {
+                            if (currentUserId != null) {
                                 authViewModel.viewModelScope.launch {
                                     try {
                                         withContext(Dispatchers.IO) {
-                                            TwoFactorAuthHelper.disableTwoFactor(currentUser.uid, context)
+                                            TwoFactorAuthHelper.disableTwoFactor(currentUserId, context)
                                         }
                                         twoFactorEnabled = false
-                                        dialogMessage = "Two-factor authentication disabled"
+                                        dialogMessage = context.getString(R.string.security_2fa_disabled)
                                         showSuccessDialog = true
                                     } catch (e: Exception) {
-                                        dialogMessage = "Failed to disable two-factor authentication: ${e.message}"
+                                        dialogMessage = "${context.getString(R.string.common_error)}: ${e.message}"
                                         showErrorDialog = true
                                     }
                                 }
@@ -224,9 +224,9 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecuritySettingCard(
                     icon = R.drawable.ic_biometric_flaticon,
-                    title = "Biometric Authentication",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_biometric_title),
                     description = if (isBiometricAvailable) {
-                        "Use fingerprint or face recognition to unlock"
+                        androidx.compose.ui.res.stringResource(R.string.security_biometric_desc_enabled)
                     } else {
                         BiometricAuthHelper.getBiometricStatus(context)
                     },
@@ -242,7 +242,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
                         } else {
                             BiometricAuthHelper.disableBiometric(context)
                             biometricEnabled = false
-                            dialogMessage = "Biometric authentication disabled"
+                            dialogMessage = context.getString(R.string.security_biometric_disabled)
                             showSuccessDialog = true
                         }
                     }
@@ -253,8 +253,8 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecurityActionCard(
                     icon = R.drawable.ic_lock_flaticon,
-                    title = "Change Password",
-                    description = "Update your account password",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_change_password_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_change_password_desc),
                     onClick = { showChangePasswordDialog = true }
                 )
             }
@@ -263,7 +263,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Privacy",
+                        text = androidx.compose.ui.res.stringResource(R.string.security_section_privacy),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -275,8 +275,8 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecuritySettingCard(
                     icon = R.drawable.ic_shield_encrypt_flaticon,
-                    title = "Data Encryption",
-                    description = "Encrypt your data for enhanced security",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_encryption_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_encryption_desc),
                     isEnabled = dataEncryptionEnabled,
                     onToggle = { },
                     isToggleable = false
@@ -287,8 +287,8 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecuritySettingCard(
                     icon = R.drawable.ic_privacy_mode_flaticon,
-                    title = "Privacy Mode",
-                    description = "Hide your activity from others",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_privacy_mode_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_privacy_mode_desc),
                     isEnabled = privacyModeEnabled,
                     onToggle = { privacyModeEnabled = it }
                 )
@@ -298,7 +298,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Legal",
+                        text = androidx.compose.ui.res.stringResource(R.string.security_section_legal),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -309,8 +309,8 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecurityActionCard(
                     icon = R.drawable.ic_privacy_policy_flaticon,
-                    title = "Privacy Policy",
-                    description = "Read our privacy policy",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_policy_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_policy_desc),
                     onClick = { navController.navigate("privacy_policy") }
                 )
             }
@@ -318,8 +318,8 @@ fun SecurityPrivacyScreen(navController: NavController) {
             item {
                 SecurityActionCard(
                     icon = R.drawable.ic_terms_flaticon,
-                    title = "Terms of Service",
-                    description = "Read our terms of service",
+                    title = androidx.compose.ui.res.stringResource(R.string.security_terms_title),
+                    description = androidx.compose.ui.res.stringResource(R.string.security_terms_desc),
                     onClick = { navController.navigate("terms_of_service") }
                 )
             }
@@ -328,7 +328,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
     }
     
     // Dialogs
-    if (showTwoFactorSetupDialog && currentUser != null && twoFactorSecret != null) {
+    if (showTwoFactorSetupDialog && currentUserId != null && twoFactorSecret != null) {
         TwoFactorAuthSetupDialog(
             secretKey = twoFactorSecret,
             onDismiss = { 
@@ -341,7 +341,7 @@ fun SecurityPrivacyScreen(navController: NavController) {
                     try {
                         val success = withContext(Dispatchers.IO) {
                             TwoFactorAuthHelper.verifyAndEnableTwoFactor(
-                                currentUser.uid,
+                                currentUserId,
                                 twoFactorSecret!!,
                                 code,
                                 context
@@ -350,16 +350,16 @@ fun SecurityPrivacyScreen(navController: NavController) {
                         
                         if (success) {
                             twoFactorEnabled = true
-                            dialogMessage = "Two-factor authentication enabled successfully"
+                            dialogMessage = context.getString(R.string.common_success)
                             showSuccessDialog = true
                             showTwoFactorSetupDialog = false
                             twoFactorSecret = null
                         } else {
-                            dialogMessage = "Invalid verification code. Please try again."
+                            dialogMessage = "Invalid verification code. Please try again." // This might come from Helper, kept hardcoded or move to resource if needed
                             showErrorDialog = true
                         }
                     } catch (e: Exception) {
-                        dialogMessage = "Failed to enable two-factor authentication: ${e.message}"
+                        dialogMessage = "${context.getString(R.string.common_error)}: ${e.message}"
                         showErrorDialog = true
                     }
                 }
@@ -368,6 +368,10 @@ fun SecurityPrivacyScreen(navController: NavController) {
     }
     
     if (showBiometricSetupDialog) {
+        val title = context.getString(R.string.security_biometric_prompt_title)
+        val subtitle = context.getString(R.string.security_biometric_prompt_subtitle)
+        val successMsg = context.getString(R.string.security_biometric_success)
+        
         BiometricAuthSetupDialog(
             onDismiss = { showBiometricSetupDialog = false },
             onEnable = {
@@ -376,12 +380,12 @@ fun SecurityPrivacyScreen(navController: NavController) {
                 if (activity != null) {
                     BiometricAuthHelper.authenticate(
                         activity = activity,
-                        title = "Enable Biometric Authentication",
-                        subtitle = "Authenticate to enable biometric login",
+                        title = title,
+                        subtitle = subtitle,
                         onSuccess = {
                             BiometricAuthHelper.enableBiometric(context)
                             biometricEnabled = true
-                            dialogMessage = "Biometric authentication enabled successfully"
+                            dialogMessage = successMsg
                             showSuccessDialog = true
                             showBiometricSetupDialog = false
                         },
@@ -423,11 +427,11 @@ fun SecurityPrivacyScreen(navController: NavController) {
     if (showSuccessDialog) {
         AlertDialog(
             onDismissRequest = { showSuccessDialog = false },
-            title = { Text("Success", fontWeight = FontWeight.Bold) },
+            title = { Text(androidx.compose.ui.res.stringResource(R.string.common_success), fontWeight = FontWeight.Bold) },
             text = { Text(dialogMessage) },
             confirmButton = {
                 TextButton(onClick = { showSuccessDialog = false }) {
-                    Text("OK")
+                    Text(androidx.compose.ui.res.stringResource(R.string.common_ok))
                 }
             },
             containerColor = ThemeColorUtils.white(),
@@ -439,11 +443,11 @@ fun SecurityPrivacyScreen(navController: NavController) {
     if (showErrorDialog) {
         AlertDialog(
             onDismissRequest = { showErrorDialog = false },
-            title = { Text("Error", fontWeight = FontWeight.Bold, color = Color.Red) },
+            title = { Text(androidx.compose.ui.res.stringResource(R.string.common_error), fontWeight = FontWeight.Bold, color = Color.Red) },
             text = { Text(dialogMessage) },
             confirmButton = {
                 TextButton(onClick = { showErrorDialog = false }) {
-                    Text("OK")
+                    Text(androidx.compose.ui.res.stringResource(R.string.common_ok))
                 }
             },
             containerColor = ThemeColorUtils.white(),

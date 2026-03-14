@@ -60,6 +60,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -69,12 +70,14 @@ import coil.compose.AsyncImage
 import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.service.ImageCropHelper
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
+import androidx.compose.ui.window.Dialog
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.components.ChangePasswordDialog
 import com.bisu.chickcare.frontend.components.DeleteAccountVerificationDialog
 import com.bisu.chickcare.frontend.components.EditEmailDialog
 import com.bisu.chickcare.frontend.components.EditFullNameDialog
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.frontend.utils.getTempUri
 import com.yalantis.ucrop.UCrop
 import com.bisu.chickcare.frontend.components.ProfilePicturePickerDialog as ProfilePictureDialog
 
@@ -83,8 +86,8 @@ import com.bisu.chickcare.frontend.components.ProfilePicturePickerDialog as Prof
 fun AccountSettingsScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
     val userProfile by authViewModel.userProfile.collectAsState()
-    val currentUser = authViewModel.auth.currentUser
     val context = LocalContext.current
+    val currentUserId = authViewModel.getCurrentUserId(context)
     var showEditNameDialog by remember { mutableStateOf(false) }
     var showEditEmailDialog by remember { mutableStateOf(false) }
     var showChangePasswordDialog by remember { mutableStateOf(false) }
@@ -97,6 +100,11 @@ fun AccountSettingsScreen(navController: NavController) {
     var showVerificationDialog by remember { mutableStateOf(false) }
     var isDeletingAccount by remember { mutableStateOf(false) }
     val tempUri = remember { getTempUri(context) }
+    
+    // Resources needed inside callback/logic
+    val cropErrorFormat = stringResource(R.string.account_crop_error)
+    val emailEditError = stringResource(R.string.account_email_edit_error)
+    
     val cropLauncherProfile = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result: androidx.activity.result.ActivityResult ->
@@ -120,7 +128,7 @@ fun AccountSettingsScreen(navController: NavController) {
             }
         } else if (resultCode == UCrop.RESULT_ERROR && data != null) {
             val cropError = UCrop.getError(data)
-            dialogMessage = "Image crop error: ${cropError?.message}"
+            dialogMessage = String.format(cropErrorFormat, cropError?.message)
             showErrorDialog = true
         }
     }
@@ -148,7 +156,7 @@ fun AccountSettingsScreen(navController: NavController) {
             TopAppBar(
                 title = {
                     Text(
-                        "Account",
+                        stringResource(R.string.account_title),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = ThemeColorUtils.black()
@@ -158,7 +166,7 @@ fun AccountSettingsScreen(navController: NavController) {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
+                            contentDescription = stringResource(R.string.back),
                             tint = ThemeColorUtils.black()
                         )
                     }
@@ -193,28 +201,12 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     Card(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .then(
-                                if (ThemeViewModel.isDarkMode) {
-                                    Modifier.shadow(
-                                        elevation = 5.dp,
-                                        shape = RoundedCornerShape(20.dp),
-                                        spotColor = Color.White,
-                                        ambientColor = Color.White.copy(alpha = 0.5f)
-                                    )
-                                } else {
-                                    Modifier
-                                }
-                            ),
+                            .fillMaxWidth(),
                         colors = CardDefaults.cardColors(
                             containerColor = ThemeColorUtils.white()
                         ),
                         shape = RoundedCornerShape(20.dp),
-                        elevation = if (ThemeViewModel.isDarkMode) {
-                            CardDefaults.cardElevation(defaultElevation = 0.dp)
-                        } else {
-                            CardDefaults.cardElevation(defaultElevation = 5.dp)
-                        }
+                        elevation = CardDefaults.cardElevation(defaultElevation = 5.dp)
                     ) {
                         Row(
                             modifier = Modifier
@@ -240,7 +232,7 @@ fun AccountSettingsScreen(navController: NavController) {
                                 } else if (userProfile?.photoUrl != null && userProfile!!.photoUrl!!.isNotEmpty()) {
                                     AsyncImage(
                                         model = userProfile!!.photoUrl,
-                                        contentDescription = "Profile Picture",
+                                        contentDescription = stringResource(R.string.account_photo_desc),
                                         modifier = Modifier
                                             .fillMaxSize()
                                             .clip(CircleShape),
@@ -256,7 +248,7 @@ fun AccountSettingsScreen(navController: NavController) {
                                     ) {
                                         Icon(
                                             Icons.Default.Person,
-                                            contentDescription = "Profile Picture",
+                                            contentDescription = stringResource(R.string.account_photo_desc),
                                             tint = Color(0xFF464343),
                                             modifier = Modifier.size(40.dp)
                                         )
@@ -270,13 +262,13 @@ fun AccountSettingsScreen(navController: NavController) {
                                 verticalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
                                 Text(
-                                    text = userProfile?.fullName ?: "User",
+                                    text = userProfile?.fullName ?: "User", // Keep as is, User name is dynamic
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.Bold,
                                     color = ThemeColorUtils.black()
                                 )
                                 Text(
-                                    text = currentUser?.email ?: "No email",
+                                    text = userProfile?.email ?: stringResource(R.string.account_no_email),
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = ThemeColorUtils.darkGray(Color(0xFF666666))
                                 )
@@ -297,7 +289,7 @@ fun AccountSettingsScreen(navController: NavController) {
                 // Account Information Section
                 item {
                     Text(
-                        text = "Account Information",
+                        text = stringResource(R.string.account_basic_info_section),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -309,8 +301,8 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     AccountInfoCard(
                         icon = R.drawable.ic_person_flaticon,
-                        title = "Full Name",
-                        value = userProfile?.fullName ?: "Not set",
+                        title = stringResource(R.string.account_full_name),
+                        value = userProfile?.fullName ?: stringResource(R.string.account_not_set),
                         onClick = { showEditNameDialog = true }
                     )
                 }
@@ -319,8 +311,8 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     AccountInfoCard(
                         icon = R.drawable.ic_email_flaticon,
-                        title = "Email",
-                        value = currentUser?.email ?: "Not set",
+                        title = stringResource(R.string.account_email),
+                        value = userProfile?.email ?: stringResource(R.string.account_not_set),
                         onClick = { showEditEmailDialog = true }
                     )
                 }
@@ -337,7 +329,7 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "Account Actions",
+                        text = stringResource(R.string.account_actions_section),
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold,
                         color = ThemeColorUtils.black(),
@@ -349,8 +341,8 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     AccountActionCard(
                         icon = R.drawable.ic_edit_flaticon,
-                        title = "Edit Profile",
-                        description = "Update your personal information",
+                        title = stringResource(R.string.account_edit_profile_title),
+                        description = stringResource(R.string.account_edit_profile_desc),
                         onClick = { navController.navigate("profile?initialTab=1") }
                     )
                 }
@@ -359,8 +351,8 @@ fun AccountSettingsScreen(navController: NavController) {
                 item {
                     AccountActionCardWithIcon(
                         iconVector = Icons.Default.Delete,
-                        title = "Delete Account",
-                        description = "Permanently delete your account and all data",
+                        title = stringResource(R.string.account_delete_title),
+                        description = stringResource(R.string.account_delete_desc),
                         onClick = { showDeleteAccountDialog = true },
                         isDestructive = true
                     )
@@ -389,11 +381,10 @@ fun AccountSettingsScreen(navController: NavController) {
 
         if (showEditEmailDialog) {
             EditEmailDialog(
-                currentEmail = currentUser?.email ?: "",
+                currentEmail = userProfile?.email ?: "",
                 onDismiss = { showEditEmailDialog = false },
-                onSave = { newEmail ->
-                    dialogMessage =
-                        "Email change requires verification. Please use password reset feature."
+                onSave = { _ ->
+                    dialogMessage = emailEditError
                     showErrorDialog = true
                     showEditEmailDialog = false
                 }
@@ -445,11 +436,11 @@ fun AccountSettingsScreen(navController: NavController) {
         if (showSuccessDialog) {
             AlertDialog(
                 onDismissRequest = { showSuccessDialog = false },
-                title = { Text("Success", fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.common_success), fontWeight = FontWeight.Bold) },
                 text = { Text(dialogMessage) },
                 confirmButton = {
                     TextButton(onClick = { showSuccessDialog = false }) {
-                        Text("OK")
+                        Text(stringResource(R.string.common_ok))
                     }
                 },
                 containerColor = ThemeColorUtils.white(),
@@ -460,11 +451,11 @@ fun AccountSettingsScreen(navController: NavController) {
         if (showErrorDialog) {
             AlertDialog(
                 onDismissRequest = { showErrorDialog = false },
-                title = { Text("Error", fontWeight = FontWeight.Bold, color = Color.Red) },
+                title = { Text(stringResource(R.string.common_error), fontWeight = FontWeight.Bold, color = Color.Red) },
                 text = { Text(dialogMessage) },
                 confirmButton = {
                     TextButton(onClick = { showErrorDialog = false }) {
-                        Text("OK")
+                        Text(stringResource(R.string.common_ok))
                     }
                 },
                 containerColor = ThemeColorUtils.white(),
@@ -474,53 +465,109 @@ fun AccountSettingsScreen(navController: NavController) {
 
         // Delete Account Confirmation Dialog
         if (showDeleteAccountDialog) {
-            AlertDialog(
+            Dialog(
                 onDismissRequest = { if (!isDeletingAccount) showDeleteAccountDialog = false },
-                title = { 
-                    Text(
-                        "Delete Account", 
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFD32F2F)
-                    ) 
-                },
-                text = { 
-                    Text(
-                        "Are you sure you want to permanently delete your account? " +
-                        "This action cannot be undone. All your data including detections, posts, " +
-                        "and profile information will be permanently deleted."
-                    ) 
-                },
-                confirmButton = {
-                    Button(
-                        onClick = {
-                            showDeleteAccountDialog = false
-                            showVerificationDialog = true
-                        },
-                        enabled = !isDeletingAccount,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFFD32F2F)
-                        )
+                properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter
+                ) {
+                    // Background scrim
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f))
+                            .clickable(onClick = { if (!isDeletingAccount) showDeleteAccountDialog = false })
+                    )
+                    
+                    // Bottom sheet content
+                    androidx.compose.material3.Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+                        color = Color.White,
+                        tonalElevation = 8.dp
                     ) {
-                        Text("Continue", color = Color.White)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 24.dp, vertical = 28.dp)
+                        ) {
+                            // Title
+                            Text(
+                                text = stringResource(R.string.account_delete_dialog_title),
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 28.sp
+                                ),
+                                color = Color(0xFF1A1A1A)
+                            )
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Message
+                            Text(
+                                text = stringResource(R.string.account_delete_dialog_message),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color(0xFF545454),
+                                lineHeight = 22.sp
+                            )
+                            
+                            Spacer(modifier = Modifier.height(24.dp))
+                            
+                            // Confirm Button (Red, full width)
+                            Button(
+                                onClick = {
+                                    showDeleteAccountDialog = false
+                                    showVerificationDialog = true
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = !isDeletingAccount
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.account_delete_continue),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Cancel Button (White with border, full width)
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = { showDeleteAccountDialog = false },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp),
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                                enabled = !isDeletingAccount
+                            ) {
+                                Text(
+                                    text = stringResource(R.string.account_delete_cancel),
+                                    color = Color(0xFF1A1A1A),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
-                },
-                dismissButton = {
-                    TextButton(
-                        onClick = { showDeleteAccountDialog = false },
-                        enabled = !isDeletingAccount
-                    ) {
-                        Text("Cancel")
-                    }
-                },
-                containerColor = ThemeColorUtils.white(),
-                shape = RoundedCornerShape(16.dp)
-            )
+                }
+            }
         }
 
         // Verification Code Dialog
         if (showVerificationDialog) {
             DeleteAccountVerificationDialog(
-                userEmail = currentUser?.email ?: "",
+                userEmail = userProfile?.email ?: "",
                 userPhone = userProfile?.contact ?: "",
                 onDismiss = { 
                     if (!isDeletingAccount) {
@@ -573,18 +620,6 @@ fun AccountInfoCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .then(
-                if (ThemeViewModel.isDarkMode) {
-                    Modifier.shadow(
-                        elevation = elevation,
-                        shape = shape,
-                        spotColor = Color.White,
-                        ambientColor = Color.White.copy(alpha = 0.5f)
-                    )
-                } else {
-                    Modifier
-                }
-            )
             .indication(interactionSource, ripple(bounded = true))
             .clickable(
                 onClick = onClick,
@@ -599,16 +634,12 @@ fun AccountInfoCard(
             contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
-        elevation = if (ThemeViewModel.isDarkMode) {
-            CardDefaults.cardElevation(defaultElevation = 0.dp)
-        } else {
-            CardDefaults.cardElevation(
-                defaultElevation = elevation,
-                pressedElevation = 8.dp,
-                hoveredElevation = 6.dp,
-                focusedElevation = 6.dp
-            )
-        }
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = elevation,
+            pressedElevation = 8.dp,
+            hoveredElevation = 6.dp,
+            focusedElevation = 6.dp
+        )
     ) {
         Row(
             modifier = Modifier
@@ -657,18 +688,6 @@ fun AccountActionCard(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .then(
-                if (ThemeViewModel.isDarkMode) {
-                    Modifier.shadow(
-                        elevation = elevation,
-                        shape = shape,
-                        spotColor = Color.White,
-                        ambientColor = Color.White.copy(alpha = 0.5f)
-                    )
-                } else {
-                    Modifier
-                }
-            )
             .indication(interactionSource, ripple(bounded = true))
             .clickable(
                 onClick = onClick,
@@ -683,16 +702,12 @@ fun AccountActionCard(
             contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
-        elevation = if (ThemeViewModel.isDarkMode) {
-            CardDefaults.cardElevation(defaultElevation = 0.dp)
-        } else {
-            CardDefaults.cardElevation(
-                defaultElevation = elevation,
-                pressedElevation = 8.dp,
-                hoveredElevation = 6.dp,
-                focusedElevation = 6.dp
-            )
-        }
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = elevation,
+            pressedElevation = 8.dp,
+            hoveredElevation = 6.dp,
+            focusedElevation = 6.dp
+        )
     ) {
         Row(
             modifier = Modifier
@@ -741,18 +756,6 @@ fun AccountActionCardWithIcon(
         modifier = Modifier
             .fillMaxWidth()
             .clip(shape)
-            .then(
-                if (ThemeViewModel.isDarkMode) {
-                    Modifier.shadow(
-                        elevation = elevation,
-                        shape = shape,
-                        spotColor = Color.White,
-                        ambientColor = Color.White.copy(alpha = 0.5f)
-                    )
-                } else {
-                    Modifier
-                }
-            )
             .indication(interactionSource, ripple(bounded = true))
             .clickable(
                 onClick = onClick,
@@ -767,16 +770,12 @@ fun AccountActionCardWithIcon(
             contentColor = ThemeColorUtils.black()
         ),
         shape = shape,
-        elevation = if (ThemeViewModel.isDarkMode) {
-            CardDefaults.cardElevation(defaultElevation = 0.dp)
-        } else {
-            CardDefaults.cardElevation(
-                defaultElevation = elevation,
-                pressedElevation = 8.dp,
-                hoveredElevation = 6.dp,
-                focusedElevation = 6.dp
-            )
-        }
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = elevation,
+            pressedElevation = 8.dp,
+            hoveredElevation = 6.dp,
+            focusedElevation = 6.dp
+        )
     ) {
         Row(
             modifier = Modifier

@@ -3,6 +3,7 @@ package com.bisu.chickcare.frontend.screen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -13,11 +14,16 @@ import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -67,6 +73,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -76,6 +83,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.bisu.chickcare.R
 import com.bisu.chickcare.backend.viewmodels.DashboardViewModel
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
@@ -102,6 +110,15 @@ fun CameraScreen(navController: NavController) {
     var showGrid by remember { mutableStateOf(false) }
     var flashMode by remember { mutableIntStateOf(ImageCapture.FLASH_MODE_OFF) }
     var isBackCamera by remember { mutableStateOf(true) }
+    
+    // Aspect ratio options: 3:4, 1:1
+    val aspectRatioOptions = listOf("3:4", "1:1")
+    var selectedAspectRatioIndex by remember { mutableIntStateOf(0) }
+    val currentAspectRatio = when (aspectRatioOptions[selectedAspectRatioIndex]) {
+        "3:4" -> 3f / 4f
+        "1:1" -> 1f
+        else -> 3f / 4f
+    }
     
     var hasCameraPermission by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED)
@@ -240,159 +257,175 @@ fun CameraScreen(navController: NavController) {
         }
         
         if (hasCameraPermission) {
-            val previewView = remember { PreviewView(context) }
+            val previewView = remember { 
+                PreviewView(context).apply {
+                    implementationMode = PreviewView.ImplementationMode.COMPATIBLE
+                }
+            }
             
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .background(ThemeColorUtils.beige(Color(0xFFE3B386))),
+                    .background(ThemeColorUtils.beige(Color(0xFFF1E0C9))),
                 contentAlignment = Alignment.TopCenter
             ) {
-                // Camera preview container with 3:4 aspect ratio
+                // Camera preview container with dynamic aspect ratio
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(3f / 4f)
+                        .aspectRatio(currentAspectRatio)
                         .padding(top = 32.dp, start = 16.dp, end = 16.dp, bottom = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    AndroidView(
-                        { previewView },
+                    Card(
                         modifier = Modifier
                             .fillMaxSize()
                             .shadow(
                                 elevation = 8.dp,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(24.dp),
                                 spotColor = ThemeColorUtils.black(alpha = 0.2f)
-                            )
-                            .background(ThemeColorUtils.black(), RoundedCornerShape(12.dp))
-                    )
-                    
-                    // White border - using Box with border to ensure visibility
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .border(
-                                width = 6.dp,
-                                color = ThemeColorUtils.white(),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                    )
-                    
-                    // Grid Overlay - positioned relative to preview
-                    if (showGrid && !isCapturing) {
-                        GridOverlay(modifier = Modifier.fillMaxSize())
-                    }
-                    
-                    // Top Controls - positioned relative to preview
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .align(Alignment.TopCenter)
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.Top
+                            ),
+                        shape = RoundedCornerShape(24.dp),
+                        border = androidx.compose.foundation.BorderStroke(3.dp, Color.White),
+                        colors = CardDefaults.cardColors(containerColor = Color.Black)
                     ) {
-                        // Grid Toggle
-                        IconButton(
-                            onClick = { showGrid = !showGrid },
-                            modifier = Modifier
-                                .background(
-                                    ThemeColorUtils.black(alpha = 0.5f),
-                                    CircleShape
-                                )
-                                .size(48.dp)
-                        ) {
-                            Canvas(modifier = Modifier.size(24.dp)) {
-                                val strokeWidth = 2.dp.toPx()
-                                val thirdWidth = size.width / 3
-                                val thirdHeight = size.height / 3
-                                
-                                // Vertical lines
-                                drawLine(
-                                    ThemeColorUtils.white(alpha = 0.7f),
-                                    androidx.compose.ui.geometry.Offset(thirdWidth, 0f),
-                                    androidx.compose.ui.geometry.Offset(thirdWidth, size.height),
-                                    strokeWidth = strokeWidth
-                                )
-                                drawLine(
-                                    ThemeColorUtils.white(alpha = 0.7f),
-                                    androidx.compose.ui.geometry.Offset(thirdWidth * 2, 0f),
-                                    androidx.compose.ui.geometry.Offset(thirdWidth * 2, size.height),
-                                    strokeWidth = strokeWidth
-                                )
-                                
-                                // Horizontal lines
-                                drawLine(
-                                    ThemeColorUtils.white(alpha = 0.7f),
-                                    androidx.compose.ui.geometry.Offset(0f, thirdHeight),
-                                    androidx.compose.ui.geometry.Offset(size.width, thirdHeight),
-                                    strokeWidth = strokeWidth
-                                )
-                                drawLine(
-                                    ThemeColorUtils.white(alpha = 0.7f),
-                                    androidx.compose.ui.geometry.Offset(0f, thirdHeight * 2),
-                                    androidx.compose.ui.geometry.Offset(size.width, thirdHeight * 2),
-                                    strokeWidth = strokeWidth
-                                )
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            @Suppress("COMPOSE_APPLIER_CALL_MISMATCH")
+                            AndroidView(
+                                { previewView },
+                                modifier = Modifier.fillMaxSize()
+                            )
+
+                            // Grid Overlay
+                            if (showGrid && !isCapturing) {
+                                GridOverlay(modifier = Modifier.fillMaxSize())
+                            }
+                            
+                            // Top Gradient Overlay
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(80.dp)
+                                    .align(Alignment.TopCenter)
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                Color.Black.copy(alpha = 0.4f),
+                                                Color.Transparent
+                                            )
+                                        )
+                                    )
+                            )
+                            
+                            // Top Controls Row
+                             Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .align(Alignment.TopCenter)
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.Top
+                            ) {
+                                // Grid Toggle
+                                IconButton(
+                                    onClick = { showGrid = !showGrid },
+                                    modifier = Modifier.size(45.dp)
+                                ) {
+                                    Canvas(modifier = Modifier.size(20.dp)) {
+                                        val strokeWidth = 2.dp.toPx()
+                                        val thirdWidth = size.width / 3
+                                        val thirdHeight = size.height / 3
+                                        
+                                        // Vertical lines
+                                        drawLine(
+                                            Color.White.copy(alpha = 0.7f),
+                                            androidx.compose.ui.geometry.Offset(thirdWidth, 0f),
+                                            androidx.compose.ui.geometry.Offset(thirdWidth, size.height),
+                                            strokeWidth = strokeWidth
+                                        )
+                                        drawLine(
+                                            Color.White.copy(alpha = 0.7f),
+                                            androidx.compose.ui.geometry.Offset(thirdWidth * 2, 0f),
+                                            androidx.compose.ui.geometry.Offset(thirdWidth * 2, size.height),
+                                            strokeWidth = strokeWidth
+                                        )
+                                        
+                                        // Horizontal lines
+                                        drawLine(
+                                            Color.White.copy(alpha = 0.7f),
+                                            androidx.compose.ui.geometry.Offset(0f, thirdHeight),
+                                            androidx.compose.ui.geometry.Offset(size.width, thirdHeight),
+                                            strokeWidth = strokeWidth
+                                        )
+                                        drawLine(
+                                            Color.White.copy(alpha = 0.7f),
+                                            androidx.compose.ui.geometry.Offset(0f, thirdHeight * 2),
+                                            androidx.compose.ui.geometry.Offset(size.width, thirdHeight * 2),
+                                            strokeWidth = strokeWidth
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.weight(1f))
+
+                                IconButton(
+                                    onClick = {
+                                        flashMode = when (flashMode) {
+                                            ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
+                                            ImageCapture.FLASH_MODE_ON -> ImageCapture.FLASH_MODE_AUTO
+                                            else -> ImageCapture.FLASH_MODE_OFF
+                                        }
+                                    },
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        when (flashMode) {
+                                            ImageCapture.FLASH_MODE_OFF -> Icons.Default.FlashOff
+                                            ImageCapture.FLASH_MODE_ON -> Icons.Default.FlashOn
+                                            else -> Icons.Default.FlashOn
+                                        },
+                                        contentDescription = "Flash",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.size(4.dp))
+
+                                // Aspect Ratio Selector
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clickable {
+                                            selectedAspectRatioIndex = (selectedAspectRatioIndex + 1) % aspectRatioOptions.size
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = aspectRatioOptions[selectedAspectRatioIndex],
+                                        color = Color.White,
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.size(4.dp))
+
+                                // Camera Flip
+                                IconButton(
+                                    onClick = { isBackCamera = !isBackCamera },
+                                    modifier = Modifier.size(48.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Default.Refresh,
+                                        contentDescription = "Flip Camera",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
                             }
                         }
-
-                        Spacer(modifier = Modifier.weight(1f))
-
-                        // Flash Toggle
-                        IconButton(
-                            onClick = {
-                                flashMode = when (flashMode) {
-                                    ImageCapture.FLASH_MODE_OFF -> ImageCapture.FLASH_MODE_ON
-                                    ImageCapture.FLASH_MODE_ON -> ImageCapture.FLASH_MODE_AUTO
-                                    else -> ImageCapture.FLASH_MODE_OFF
-                                }
-                            },
-                            modifier = Modifier
-                                .background(
-                                    ThemeColorUtils.black(alpha = 0.5f),
-                                    CircleShape
-                                )
-                                .size(48.dp)
-                        ) {
-                            Icon(
-                                when (flashMode) {
-                                    ImageCapture.FLASH_MODE_OFF -> Icons.Default.FlashOff
-                                    ImageCapture.FLASH_MODE_ON -> Icons.Default.FlashOn
-                                    else -> Icons.Default.FlashOn
-                                },
-                                contentDescription = "Flash",
-                                tint = ThemeColorUtils.white(),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.size(8.dp))
-
-                        // Camera Flip
-                        IconButton(
-                            onClick = { isBackCamera = !isBackCamera },
-                            modifier = Modifier
-                                .background(
-                                    ThemeColorUtils.black(alpha = 0.5f),
-                                    CircleShape
-                                )
-                                .size(48.dp)
-                        ) {
-                            Icon(
-                                Icons.Default.Refresh,
-                                contentDescription = "Flip Camera",
-                                tint = ThemeColorUtils.white(),
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                    
-                    // Center Focus Indicator
-                    if (!isCapturing) {
-                        FocusIndicator(modifier = Modifier.fillMaxSize())
                     }
                 }
 
@@ -400,8 +433,56 @@ fun CameraScreen(navController: NavController) {
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(bottom = 48.dp)
+                        .padding(bottom = 48.dp),
+                    contentAlignment = Alignment.Center
                 ) {
+                    val infiniteTransition = rememberInfiniteTransition(label = "capture_glow")
+                    val pulseScale by infiniteTransition.animateFloat(
+                        initialValue = 1.0f,
+                        targetValue = 1.8f, // Widely glow
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600), // Faster
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "scale"
+                    )
+                    val pulseAlpha by infiniteTransition.animateFloat(
+                        initialValue = 0.0f,
+                        targetValue = 0.5f,
+                        animationSpec = infiniteRepeatable(
+                            animation = tween(600), // Faster
+                            repeatMode = RepeatMode.Reverse
+                        ),
+                        label = "alpha"
+                    )
+
+                    // Heartbeat Glow
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .scale(pulseScale)
+                            .alpha(pulseAlpha)
+                            .background(
+                                brush = Brush.radialGradient(
+                                    colors = if (ThemeViewModel.isDarkMode) {
+                                        // White glow for dark theme
+                                        listOf(
+                                            Color.White.copy(alpha = 0.6f),
+                                            Color.White.copy(alpha = 0.3f),
+                                            Color.Transparent
+                                        )
+                                    } else {
+                                        // Brown glow for light theme
+                                        listOf(
+                                            ThemeColorUtils.white(alpha = 0.6f),
+                                            Color(0xFF7A450C).copy(alpha = 0.3f),
+                                            Color.Transparent
+                                        )
+                                    }
+                                ),
+                                shape = CircleShape
+                            )
+                    )
                     val buttonScale by animateFloatAsState(
                         targetValue = if (isCapturing) 0.9f else 1f,
                         animationSpec = tween(200),
@@ -416,6 +497,15 @@ fun CameraScreen(navController: NavController) {
                         } else {
                             Button(
                                 onClick = {
+                                    // Play Shutter Sound
+                                    try {
+                                        val mp = MediaPlayer.create(context, R.raw.shutter_sound)
+                                        mp?.start()
+                                        mp?.setOnCompletionListener { it.release() }
+                                    } catch (e: Exception) {
+                                        // Ignore
+                                    }
+
                                     val photoFile = File(
                                         context.externalCacheDir,
                                         SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date()) + ".jpg"
@@ -429,8 +519,9 @@ fun CameraScreen(navController: NavController) {
                                                 val savedUri = output.savedUri ?: Uri.fromFile(photoFile)
                                                 scope.launch(Dispatchers.Main) {
                                                     isCapturing = false
-                                                    // Navigate back directly with captured image
+                                                    // Navigate back directly with captured image and aspect ratio
                                                     navController.previousBackStackEntry?.savedStateHandle?.set("capturedImageUri", savedUri.toString())
+                                                    navController.previousBackStackEntry?.savedStateHandle?.set("capturedAspectRatio", aspectRatioOptions[selectedAspectRatioIndex])
                                                     navController.popBackStack()
                                                 }
                                             }
@@ -447,17 +538,10 @@ fun CameraScreen(navController: NavController) {
                                     .size(80.dp)
                                     .scale(buttonScale)
                                     .then(
-                                        if (ThemeViewModel.isDarkMode) {
-                                            Modifier.shadow(
-                                                elevation = 5.dp,
-                                                shape = CircleShape,
-                                                spotColor = Color.White,
-                                                ambientColor = Color.White.copy(alpha = 0.2f)
-                                            )
-                                        } else {
-                                            Modifier.shadow(12.dp, CircleShape)
-                                        }
-                                    ),
+                                        // Removed shadow as requested
+                                        Modifier
+                                    )
+                                    .border(4.dp, Color.White, CircleShape),
                                 shape = CircleShape,
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (ThemeViewModel.isDarkMode) Color(0xFF737373) else ThemeColorUtils.white()
@@ -467,8 +551,8 @@ fun CameraScreen(navController: NavController) {
                                 Icon(
                                     Icons.Default.Camera,
                                     contentDescription = "Capture",
-                                    tint = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else Color(0xFF8B4513),
-                                    modifier = Modifier.size(40.dp)
+                                    tint = if (ThemeViewModel.isDarkMode) Color.White else Color(0xFF8B4513),
+                                    modifier = Modifier.size(36.dp)
                                 )
                             }
                         }
@@ -575,17 +659,3 @@ fun GridOverlay(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun FocusIndicator(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(100.dp)
-                .border(2.dp, ThemeColorUtils.white(alpha = 0.6f), RoundedCornerShape(8.dp))
-                .alpha(0f)
-        )
-    }
-}

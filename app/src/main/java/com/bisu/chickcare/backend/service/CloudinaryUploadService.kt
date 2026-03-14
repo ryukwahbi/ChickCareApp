@@ -24,7 +24,7 @@ class CloudinaryUploadService(private val context: android.content.Context) {
         private val CLOUD_NAME = BuildConfig.CLOUDINARY_CLOUD_NAME
         private val API_KEY = BuildConfig.CLOUDINARY_API_KEY
         private val API_SECRET = BuildConfig.CLOUDINARY_API_SECRET
-        private const val UPLOAD_URL = "https://api.cloudinary.com/v1_1/%s/image/upload"
+        private const val UPLOAD_URL = "https://api.cloudinary.com/v1_1/%s/%s/upload"
         private const val TAG = "CloudinaryUploadService"
         
         init {
@@ -42,50 +42,56 @@ class CloudinaryUploadService(private val context: android.content.Context) {
     private val client = OkHttpClient()
     
     /**
-     * Upload image to Cloudinary and return the direct URL
-     * @param imageUri The URI of the image to upload
+     * Upload image to Cloudinary
+     */
+    suspend fun uploadImage(imageUri: Uri): String? = uploadMedia(imageUri, "image")
+
+    /**
+     * Upload audio to Cloudinary
+     */
+    suspend fun uploadAudio(audioUri: Uri): String? = uploadMedia(audioUri, "video")
+
+    /**
+     * Generic upload to Cloudinary
+     * @param uri The URI of the file to upload
+     * @param resourceType "image", "video" (for audio as well), or "raw"
      * @return The direct URL of the uploaded image, or null if upload failed
      */
-    suspend fun uploadImage(imageUri: Uri): String? = withContext(Dispatchers.IO) {
+    private suspend fun uploadMedia(uri: Uri, resourceType: String): String? = withContext(Dispatchers.IO) {
         try {
-            Log.d(TAG, "Starting Cloudinary upload for URI: $imageUri")
-            Log.d(TAG, "Cloudinary credentials check - CLOUD_NAME: ${if (CLOUD_NAME.isNotEmpty()) "***" else "EMPTY"}, API_KEY: ${if (API_KEY.isNotEmpty()) "***" else "EMPTY"}, API_SECRET: ${if (API_SECRET.isNotEmpty()) "***" else "EMPTY"}")
+            Log.d(TAG, "Starting Cloudinary upload ($resourceType) for URI: $uri")
             
             // Validate credentials
             if (CLOUD_NAME.isEmpty() || API_KEY.isEmpty() || API_SECRET.isEmpty()) {
-                Log.e(TAG, "Cloudinary credentials not configured! CLOUD_NAME: '${CLOUD_NAME}', API_KEY: '${API_KEY}', API_SECRET: '${if (API_SECRET.isEmpty()) "EMPTY" else "***"}'")
-                Log.e(TAG, "Please check that local.properties contains CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET")
-                Log.e(TAG, "Then rebuild the project: Build -> Rebuild Project")
+                Log.e(TAG, "Cloudinary credentials not configured!")
                 return@withContext null
             }
 
             // Convert URI to File
-            val imageFile = uriToFile(imageUri) ?: run {
+            val file = uriToFile(uri) ?: run {
                 Log.e(TAG, "Failed to convert URI to File")
                 return@withContext null
             }
             
-            if (!imageFile.exists()) {
-                Log.e(TAG, "Image file does not exist: ${imageFile.absolutePath}")
+            if (!file.exists()) {
+                Log.e(TAG, "File does not exist: ${file.absolutePath}")
                 return@withContext null
             }
             
-            Log.d(TAG, "Image file size: ${imageFile.length()} bytes")
-            
-            // Create timestamp for signature
             val timestamp = (System.currentTimeMillis() / 1000).toString()
-            
-            // Generate signature (required for authenticated uploads)
-            // Signature format: SHA1(timestamp + API_SECRET)
             val signature = generateSignature(timestamp)
+            val uploadUrl = String.format(UPLOAD_URL, CLOUD_NAME, resourceType)
             
-            // Build upload URL
-            val uploadUrl = String.format(UPLOAD_URL, CLOUD_NAME)
-            
+            val mediaType = when(resourceType) {
+                "image" -> "image/*".toMediaType()
+                "video" -> "audio/*".toMediaType() // For audio we use video resource type in Cloudinary
+                else -> "application/octet-stream".toMediaType()
+            }
+
             // Create multipart request body
             val requestBody = MultipartBody.Builder()
                 .setType(MultipartBody.FORM)
-                .addFormDataPart("file", imageFile.name, imageFile.asRequestBody("image/*".toMediaType()))
+                .addFormDataPart("file", file.name, file.asRequestBody(mediaType))
                 .addFormDataPart("api_key", API_KEY)
                 .addFormDataPart("timestamp", timestamp)
                 .addFormDataPart("signature", signature)
@@ -106,35 +112,29 @@ class CloudinaryUploadService(private val context: android.content.Context) {
                 return@withContext null
             }
             
-            // Parse response
             val json = JSONObject(responseBody)
-            
-            // Check for errors
             if (json.has("error")) {
                 val error = json.optJSONObject("error")?.optString("message") ?: json.optString("error")
                 Log.e(TAG, "Upload failed: $error")
                 return@withContext null
             }
             
-            // Extract secure URL (HTTPS) or regular URL
             val secureUrl = json.optString("secure_url")
-            val regularUrl = json.optString("url")
-            val imageUrl = secureUrl.ifEmpty { regularUrl }
+            val imageUrl = secureUrl.ifEmpty { json.optString("url") }
             
             if (imageUrl.isEmpty()) {
-                Log.e(TAG, "No image URL in response")
+                Log.e(TAG, "No URL in response")
                 return@withContext null
             }
             
-            Log.d(TAG, "Upload successful! Image URL: $imageUrl")
+            Log.d(TAG, "Upload successful! URL: $imageUrl")
             
             // Clean up temp file
-            imageFile.delete()
-            
+            file.delete()
             return@withContext imageUrl
             
         } catch (e: Exception) {
-            Log.e(TAG, "Error uploading image to Cloudinary", e)
+            Log.e(TAG, "Error uploading to Cloudinary", e)
             return@withContext null
         }
     }

@@ -26,9 +26,8 @@ import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.ArrowDropUp
-import androidx.compose.material.icons.filled.AttachMoney
+
 import androidx.compose.material.icons.filled.BarChart
-import androidx.compose.material.icons.filled.Book
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Delete
@@ -44,7 +43,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Vaccines
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -65,6 +63,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -94,7 +93,8 @@ fun DashboardTopAppBar(
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Start
+                horizontalArrangement = Arrangement.Start,
+                modifier = Modifier
             ) {
                 Text(
                     text = "For you",
@@ -102,9 +102,12 @@ fun DashboardTopAppBar(
                     fontWeight = FontWeight.ExtraBold,
                     color = ThemeColorUtils.black()
                 )
-                IconButton(
-                    onClick = { onExpandedChange(!expanded) },
-                    modifier = Modifier.offset(x = (-8).dp)
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .clickable { onExpandedChange(!expanded) },
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         if (expanded) Icons.Filled.ArrowDropUp else Icons.Filled.ArrowDropDown,
@@ -140,18 +143,7 @@ fun DashboardTopAppBar(
                         color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
                     )
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text("Recent Activity") },
-                        onClick = {
-                            onExpandedChange(false)
-                            navController.navigate("recent_activity")
-                        }
-                    )
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
-                    )
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text("My Favorites") },
+                        text = { Text("Favorites") },
                         onClick = {
                             onExpandedChange(false)
                             navController.navigate("favorites")
@@ -166,6 +158,17 @@ fun DashboardTopAppBar(
                         onClick = {
                             onExpandedChange(false)
                             navController.navigate("farm_insights")
+                        }
+                    )
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.3f)
+                    )
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text("Recent Activity") },
+                        onClick = {
+                            onExpandedChange(false)
+                            navController.navigate("recent_activity")
                         }
                     )
                 }
@@ -185,7 +188,7 @@ fun DashboardTopAppBar(
                         ) { 
                             Text(
                                 if (notificationCount > 10) "10+" else "$notificationCount",
-                                color = ThemeColorUtils.white(),
+                                color = Color.White,
                                 style = MaterialTheme.typography.labelSmall
                             )
                         }
@@ -233,70 +236,66 @@ fun CustomTabBar(navController: NavController, bottomBarHeight: Dp) {
 
     val iconAndTextColor = ThemeColorUtils.black()
 
-    Box(
+    Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(bottomBarHeight)
             .background(ThemeColorUtils.beige(Color(0xFFD2B48C)))
+            .padding(vertical = Dimens.PaddingMedium),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(vertical = Dimens.PaddingMedium),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            tabs.forEach { tab ->
-                val isSelected = currentRoute == tab.route
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable {
-                            if (currentRoute != tab.route) {
-                                navController.navigate(tab.route) {
-                                    popUpTo(navController.graph.startDestinationId) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
+        tabs.forEach { tab ->
+            val isSelected = currentRoute == tab.route
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable {
+                        if (currentRoute != tab.route) {
+                            navController.navigate(tab.route) {
+                                popUpTo(navController.graph.startDestinationId) {
+                                    saveState = true
                                 }
+                                launchSingleTop = true
+                                restoreState = true
                             }
                         }
+                    }
+            ) {
+                BadgedBox(
+                    badge = {
+                        if (tab.route == "detection_history" && newHistoryCount > 0) {
+                            Badge(containerColor = Color.Red) {
+                                Text("$newHistoryCount", color = Color.White)
+                            }
+                        }
+                    }
                 ) {
-                    BadgedBox(
-                        badge = {
-                            if (tab.route == "detection_history" && newHistoryCount > 0) {
-                                Badge(containerColor = Color.Red) { 
-                                    Text("$newHistoryCount", color = ThemeColorUtils.white()) 
-                                }
-                            }
-                        }
-                    ) {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = tab.label,
-                            tint = iconAndTextColor,
-                            modifier = Modifier.size(24.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(Dimens.PaddingSmall))
-                    Text(
-                        text = tab.label,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = iconAndTextColor
+                    Icon(
+                        imageVector = tab.icon,
+                        contentDescription = tab.label,
+                        tint = iconAndTextColor,
+                        modifier = Modifier.size(24.dp)
                     )
-                    if (isSelected) {
-                        Box(
-                            modifier = Modifier
-                                .padding(top = 2.dp)
-                                .width(24.dp)
-                                .height(2.dp)
-                                .background(iconAndTextColor, RoundedCornerShape(1.dp))
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.height(4.dp))
-                    }
+                }
+                Spacer(modifier = Modifier.height(Dimens.PaddingSmall))
+                Text(
+                    text = tab.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = iconAndTextColor
+                )
+                if (isSelected) {
+                    Box(
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .width(24.dp)
+                            .height(2.dp)
+                            .background(iconAndTextColor, RoundedCornerShape(1.dp))
+                    )
+                } else {
+                    Spacer(modifier = Modifier.height(4.dp))
                 }
             }
         }
@@ -351,7 +350,8 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                 Text(
                     text = "ChickCare",
                     style = MaterialTheme.typography.displaySmall,
-                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
+                    fontWeight = FontWeight.Bold,
                     color = Color(0xFFDA8041),
                     modifier = Modifier.padding(start = 4.dp)
                 )
@@ -476,59 +476,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                     )
                 }
 
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Notifications, contentDescription = null) },
-                        label = { Text("Notifications") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("notifications") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        shape = itemShape,
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Book, contentDescription = null) },
-                        label = { Text("Farm Tips") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("farm_tips") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        shape = itemShape,
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
-
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.Settings, contentDescription = null) },
-                        label = { Text("Settings") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("settings") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        shape = itemShape,
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
 
                 item {
                     NavigationDrawerItem(
@@ -602,23 +549,7 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                     )
                 }
 
-                item {
-                    NavigationDrawerItem(
-                        icon = { Icon(Icons.Default.AttachMoney, contentDescription = null) },
-                        label = { Text("Expense Tracker") },
-                        selected = false,
-                        onClick = {
-                            navController.navigate("expense_tracker") {
-                                popUpTo(navController.graph.startDestinationId) { saveState = true }
-                            }
-                            scope.launch { drawerState.close() }
-                        },
-                        shape = itemShape,
-                        colors = NavigationDrawerItemDefaults.colors(
-                            selectedContainerColor = ThemeColorUtils.beige(Color(0xFFD2B48C)).copy(alpha = 0.3f)
-                        )
-                    )
-                }
+
 
                 item {
                     NavigationDrawerItem(
@@ -686,6 +617,9 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                 label = { Text("About") },
                 selected = false,
                 onClick = {
+                    navController.navigate("app_info") {
+                        popUpTo(navController.graph.startDestinationId) { saveState = true }
+                    }
                     scope.launch { drawerState.close() }
                 },
                 shape = itemShape,

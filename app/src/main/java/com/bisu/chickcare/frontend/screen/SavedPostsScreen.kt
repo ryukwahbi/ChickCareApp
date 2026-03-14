@@ -29,6 +29,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -44,8 +45,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun SavedPostsScreen(navController: NavController) {
     val authViewModel: AuthViewModel = viewModel()
-    val auth = authViewModel.auth
-    val userId = auth.currentUser?.uid ?: ""
+    val context = LocalContext.current
+    val userId = authViewModel.getCurrentUserId(context) ?: ""
     val postRepository = remember { PostRepository() }
     val savedPostsFlow = remember(userId) {
         postRepository.getSavedPosts(userId)
@@ -61,7 +62,7 @@ fun SavedPostsScreen(navController: NavController) {
                         "Saved Posts",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -77,13 +78,13 @@ fun SavedPostsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -92,7 +93,7 @@ fun SavedPostsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             if (savedPosts.isEmpty()) {
                 Box(
@@ -117,7 +118,7 @@ fun SavedPostsScreen(navController: NavController) {
                             color = ThemeColorUtils.lightGray(Color.Gray)
                         )
                         Text(
-                            text = "Save posts from your timeline or from other users to see them here",
+                            text = "Save posts from your timeline or from other users.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = ThemeColorUtils.lightGray(Color.Gray),
                             modifier = Modifier.padding(horizontal = 16.dp)
@@ -167,13 +168,26 @@ fun SavedPostsScreen(navController: NavController) {
                             onSavePost = { postId ->
                                 scope.launch {
                                     try {
-                                        val currentUserId = auth.currentUser?.uid ?: return@launch
+                                        val currentUserId = authViewModel.getCurrentUserId(context) ?: return@launch
                                         // All posts in this screen are saved, so always unsave
                                         postRepository.unsavePost(currentUserId, originalUserId, postId)
                                     } catch (e: Exception) {
                                         Log.e("SavedPostsScreen", "Error unsaving post: ${e.message}")
                                     }
                                 }
+                            },
+                            onReaction = { postId, postOwnerId, reactionType ->
+                                scope.launch {
+                                    try {
+                                        val currentUserId = authViewModel.getCurrentUserId(context) ?: return@launch
+                                        postRepository.toggleReaction(postOwnerId, postId, currentUserId, reactionType)
+                                    } catch (e: Exception) {
+                                        Log.e("SavedPostsScreen", "Error toggling reaction: ${e.message}")
+                                    }
+                                }
+                            },
+                            onCommentClick = { postId, postOwnerId ->
+                                navController.navigate("comments/$postId/$postOwnerId")
                             },
                             userId = userId
                         )

@@ -69,7 +69,7 @@ fun ManageProfilesScreen(navController: NavController) {
     val context = LocalContext.current
     val accountManager = remember { AccountManager(context) }
     val authViewModel: AuthViewModel = viewModel()
-    val auth = FirebaseAuth.getInstance()
+    val currentUserId = authViewModel.getCurrentUserId(context)
     
     var accounts by remember { mutableStateOf<List<SavedAccount>>(emptyList()) }
     var selectedAccountForRemoval by remember { mutableStateOf<SavedAccount?>(null) }
@@ -113,12 +113,12 @@ fun ManageProfilesScreen(navController: NavController) {
                 )
             )
         },
-        containerColor = Color(0xFFE8B88C)
+        containerColor = ThemeColorUtils.beige(Color(0xFFFFF7E6))
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFE8B88C))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
                 .padding(innerPadding)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -126,12 +126,17 @@ fun ManageProfilesScreen(navController: NavController) {
             items(accounts) { account ->
                 ProfileItem(
                     account = account,
-                    isCurrentAccount = account.userId == auth.currentUser?.uid,
+                    isCurrentAccount = account.userId == currentUserId,
                     onClick = {
-                        // Switch to this account
-                        // Note: Firebase Auth doesn't support multiple sessions directly
-                        // This would require signing out and signing in again
-                        // For now, we'll just show it as current account
+                        // Set this account as active for data loading
+                        accountManager.setActiveUser(account.userId)
+                        
+                        // Navigate to login with pre-filled email
+                        // We must re-authenticate to get a valid Firebase token
+                         navController.navigate("login?email=${account.email}") {
+                            popUpTo("login") { inclusive = true } // Clear login from backstack if present
+                            launchSingleTop = true
+                        }
                     },
                     onRemoveClick = {
                         selectedAccountForRemoval = account
@@ -172,7 +177,7 @@ fun ManageProfilesScreen(navController: NavController) {
                 account = selectedAccountForRemoval!!,
                 onConfirm = {
                     val removedUserId = selectedAccountForRemoval!!.userId
-                    val isCurrentAccount = removedUserId == auth.currentUser?.uid
+                    val isCurrentAccount = removedUserId == currentUserId
                     
                     accountManager.removeAccount(removedUserId)
                     accounts = accountManager.getSavedAccounts()
@@ -198,7 +203,7 @@ fun ManageProfilesScreen(navController: NavController) {
             ClearAllAccountsDialog(
                 accountCount = accounts.size,
                 onConfirm = {
-                    val wasCurrentAccountInList = accounts.any { it.userId == auth.currentUser?.uid }
+                    val wasCurrentAccountInList = accounts.any { it.userId == currentUserId }
                     
                     accountManager.clearAllAccounts()
                     accounts = accountManager.getSavedAccounts()
@@ -246,12 +251,14 @@ fun ProfileItem(
             // Profile Picture
             Box {
                 AsyncImage(
-                    model = account.photoUrl ?: R.drawable.chicken_icon,
+                    model = if (account.photoUrl.isNullOrEmpty()) R.drawable.default_avatar else account.photoUrl,
                     contentDescription = "Profile",
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape),
-                    contentScale = ContentScale.Crop
+                    contentScale = ContentScale.Crop,
+                    error = androidx.compose.ui.res.painterResource(R.drawable.default_avatar),
+                    placeholder = androidx.compose.ui.res.painterResource(R.drawable.default_avatar)
                 )
                 if (isCurrentAccount) {
                     Box(

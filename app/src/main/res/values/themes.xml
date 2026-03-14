@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.ChickCare" parent="android:Theme.Material.Light.NoActionBar" />
-    
-    <!-- Theme for UCrop activity - using AppCompat theme from library -->
-    <!-- Note: Theme.AppCompat.Light.NoActionBar is provided by androidx.appcompat library -->
+    <style name="Theme.ChickCare" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">#C68E5F</item>
+        <item name="android:windowIsTranslucent">true</item>
+    </style>
 </resources>

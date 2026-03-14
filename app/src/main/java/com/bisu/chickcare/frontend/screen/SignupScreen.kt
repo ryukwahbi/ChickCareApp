@@ -1,14 +1,18 @@
 package com.bisu.chickcare.frontend.screen
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,7 +24,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -28,13 +31,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
@@ -78,11 +84,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.bisu.chickcare.R
@@ -90,8 +100,7 @@ import com.bisu.chickcare.backend.data.COUNTRIES
 import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.Validators
-import com.phucynwa.profanity.filter.AndroidProfanityFilter
-import com.phucynwa.profanity.filter.dictionary.PlainDictionary
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.LocalDate
@@ -132,23 +141,40 @@ fun SignupScreen(navController: NavController) {
     val scope = rememberCoroutineScope()
     var showPronounSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val dictionary = remember { PlainDictionary(context, "bad_words.txt") }
-    val filter = remember { AndroidProfanityFilter(dictionary) }
-
     val customInvalidWords = remember {
         setOf(
-            "pangalan", "apelyido", "telepono", "bahay", "kalye", "lungsod", "bansa", "halimbawa",
-            "ako", "ikaw", "siya", "tayo", "kami", "kayo", "sila", "ito", "iyan", "iyon", "pagkain", "pagkainan"
+            "pangalan",
+            "apelyido",
+            "telepono",
+            "bahay",
+            "kalye",
+            "lungsod",
+            "bansa",
+            "halimbawa",
+            "ako",
+            "ikaw",
+            "siya",
+            "tayo",
+            "kami",
+            "kayo",
+            "sila",
+            "ito",
+            "iyan",
+            "iyon",
+            "pagkain",
+            "pagkainan"
         )
     }
+
+    var showSuccessToast by remember { mutableStateOf(false) }
 
     // Optimized infinite transition to reduce recompositions
     val infiniteTransition = rememberInfiniteTransition(label = "background_zoom")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f,
-        targetValue = 1.2f, // Reduced from 1.3f to minimize recomposition impact
+        targetValue = 1.2f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 20000, easing = LinearEasing), // Slower animation
+            animation = tween(durationMillis = 20000, easing = LinearEasing),
             repeatMode = RepeatMode.Reverse
         ),
         label = "zoom_scale"
@@ -160,8 +186,6 @@ fun SignupScreen(navController: NavController) {
         if (trimmedName.first().isLowerCase()) return true
         if (trimmedName.length > 15) return true
         if (!trimmedName.matches(Regex("^[a-zA-Z- ]+$"))) return true
-        val censored = filter.censor(trimmedName)
-        if (censored != trimmedName) return true
 
         val words = trimmedName.split(Regex("\\s+"))
         return words.any { word -> customInvalidWords.any { it.equals(word, ignoreCase = true) } }
@@ -185,10 +209,16 @@ fun SignupScreen(navController: NavController) {
             "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
             "icloud.com", "aol.com", "protonmail.com", "zoho.com",
         )
-        return providers.any { domain.equals(it, ignoreCase = true) || domain.endsWith(".$it", ignoreCase = true) }
+        return providers.any {
+            domain.equals(it, ignoreCase = true) || domain.endsWith(
+                ".$it",
+                ignoreCase = true
+            )
+        }
     }
 
-    val fullContact = (if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code) + contactInput
+    val fullContact =
+        (if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code) + contactInput
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = ThemeColorUtils.black(),
         unfocusedTextColor = ThemeColorUtils.black(),
@@ -210,21 +240,21 @@ fun SignupScreen(navController: NavController) {
     )
 
     val title = when (step) {
-        1 -> "What's your name?"
-        2 -> "What's your birth date?"
-        3 -> "What's your gender?"
-        4 -> "What's your contact number?"
-        5 -> "What's your email?"
-        6 -> "Create a password"
+        1 -> stringResource(R.string.signup_step1_title)
+        2 -> stringResource(R.string.signup_step2_title)
+        3 -> stringResource(R.string.signup_step3_title)
+        4 -> stringResource(R.string.signup_step4_title)
+        5 -> stringResource(R.string.signup_step5_title)
+        6 -> stringResource(R.string.signup_step6_title)
         else -> ""
     }
     val subtitle = when (step) {
-        1 -> "Enter the name you use in real life. It cannot contain numbers, symbols, or offensive words."
-        2 -> "Select your date of birth. You must be at least 18 years old above."
-        3 -> "You can change who sees your gender on your profile later."
-        4 -> "Enter your mobile number. We'll use this for verification."
-        5 -> "Enter your email address. We recommend using Gmail, Outlook, Yahoo or any other provider."
-        6 -> "Create a strong password. Include uppercase, lowercase, numbers, and symbols."
+        1 -> stringResource(R.string.signup_step1_subtitle)
+        2 -> stringResource(R.string.signup_step2_subtitle)
+        3 -> stringResource(R.string.signup_step3_subtitle)
+        4 -> stringResource(R.string.signup_step4_subtitle)
+        5 -> stringResource(R.string.signup_step5_subtitle)
+        6 -> stringResource(R.string.signup_step6_subtitle)
         else -> ""
     }
 
@@ -277,7 +307,7 @@ fun SignupScreen(navController: NavController) {
                         }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                                contentDescription = "Back",
+                                contentDescription = stringResource(R.string.back),
                                 tint = ThemeColorUtils.white()
                             )
                         }
@@ -319,25 +349,39 @@ fun SignupScreen(navController: NavController) {
                             OutlinedTextField(
                                 value = firstName,
                                 onValueChange = { firstName = it; isFirstNameError = false },
-                                label = { Text("First Name") },
+                                label = { Text(stringResource(R.string.signup_first_name_label)) },
                                 modifier = Modifier.weight(1f),
                                 isError = isFirstNameError,
                                 shape = RoundedCornerShape(12.dp),
-                                colors = textFieldColors
+                                colors = textFieldColors,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
                             )
                             OutlinedTextField(
                                 value = lastName,
                                 onValueChange = { lastName = it; isLastNameError = false },
-                                label = { Text("Last Name") },
+                                label = { Text(stringResource(R.string.signup_last_name_label)) },
                                 modifier = Modifier.weight(1f),
                                 isError = isLastNameError,
                                 shape = RoundedCornerShape(12.dp),
-                                colors = textFieldColors
+                                colors = textFieldColors,
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        defaultKeyboardAction(ImeAction.Done)
+                                        isFirstNameError = isNameInvalid(firstName)
+                                        isLastNameError = isNameInvalid(lastName)
+                                        if (!isFirstNameError && !isLastNameError) {
+                                            step = 2
+                                        }
+                                    }
+                                )
                             )
                         }
                         if (isFirstNameError || isLastNameError) {
                             Text(
-                                text = "Please use your real name. Names must start with a capital letter, be 15 characters or less, and not contain numbers, symbols (except '-'), or offensive words.",
+                                text = stringResource(R.string.signup_name_error),
                                 color = Color.Red,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -367,31 +411,33 @@ fun SignupScreen(navController: NavController) {
                                 disabledElevation = 4.dp
                             )
                         ) {
-                            Text("Next")
+                            Text(stringResource(R.string.next))
                         }
                     }
+
                     2 -> {
                         OutlinedTextField(
-                            value = birthDate.ifEmpty { "Select date" },
+                            value = birthDate.ifEmpty { stringResource(R.string.signup_select_date) },
                             onValueChange = { /* Read-only */ },
-                            label = { Text("Birth Date (MM/DD/YYYY)") },
+                            label = { Text(stringResource(R.string.signup_date_label)) },
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showDatePicker = true },
-                            enabled = false,
+                                .fillMaxWidth(),
+                            readOnly = true,
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.CalendarToday,
-                                    contentDescription = "Select date",
-                                    tint = ThemeColorUtils.black()
-                                )
+                                IconButton(onClick = { showDatePicker = true }) {
+                                    Icon(
+                                        imageVector = Icons.Default.CalendarToday,
+                                        contentDescription = stringResource(R.string.signup_select_date),
+                                        tint = ThemeColorUtils.black()
+                                    )
+                                }
                             },
                             shape = RoundedCornerShape(12.dp),
                             colors = textFieldColors
                         )
                         if (isBirthDateError) {
                             Text(
-                                text = "You must be at least 18 years old.",
+                                text = stringResource(R.string.signup_age_error),
                                 color = Color.Red,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -421,7 +467,7 @@ fun SignupScreen(navController: NavController) {
                                 disabledElevation = 4.dp
                             )
                         ) {
-                            Text("Next")
+                            Text(stringResource(R.string.next))
                         }
 
                         if (showDatePicker) {
@@ -430,11 +476,15 @@ fun SignupScreen(navController: NavController) {
                                 confirmButton = {
                                     TextButton(
                                         onClick = {
-                                            val selectedDate = datePickerState.selectedDateMillis?.let {
-                                                Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate()
-                                            }
+                                            val selectedDate =
+                                                datePickerState.selectedDateMillis?.let {
+                                                    Instant.ofEpochMilli(it)
+                                                        .atZone(ZoneId.systemDefault())
+                                                        .toLocalDate()
+                                                }
                                             if (selectedDate != null) {
-                                                val formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy")
+                                                val formatter =
+                                                    DateTimeFormatter.ofPattern("MM/dd/yyyy")
                                                 birthDate = selectedDate.format(formatter)
                                                 val age = calculateAge(birthDate)
                                                 isBirthDateError = age < 18
@@ -442,25 +492,36 @@ fun SignupScreen(navController: NavController) {
                                             showDatePicker = false
                                         }
                                     ) {
-                                        Text("OK")
+                                        Text(stringResource(R.string.ok))
                                     }
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { showDatePicker = false }) {
-                                        Text("Cancel")
+                                        Text(stringResource(R.string.cancel))
                                     }
                                 }
                             ) {
-                                DatePicker(state = datePickerState, showModeToggle = false, title = null, headline = null)
+                                DatePicker(
+                                    state = datePickerState,
+                                    showModeToggle = false,
+                                    title = null,
+                                    headline = null
+                                )
                             }
                         }
                     }
+
                     3 -> {
-                        val genderOptions = listOf("Female", "Male", "More options")
+                        val moreOption = stringResource(R.string.signup_gender_more)
+                        val genderOptions = listOf(
+                            stringResource(R.string.signup_gender_female),
+                            stringResource(R.string.signup_gender_male),
+                            moreOption
+                        )
                         val (selectedOption, onOptionSelected) = remember { mutableStateOf(gender) }
 
                         LaunchedEffect(selectedOption) {
-                            if (selectedOption == "More options") {
+                            if (selectedOption == moreOption) {
                                 showPronounSheet = true
                             } else if (selectedOption.isNotEmpty()) {
                                 pronoun = ""
@@ -473,7 +534,7 @@ fun SignupScreen(navController: NavController) {
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.White.copy(alpha = 0.85f)
+                                containerColor = Color.White
                             ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                         ) {
@@ -504,13 +565,21 @@ fun SignupScreen(navController: NavController) {
                                                 )
                                             )
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            if (text != "More options") {
-                                                Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.black())
+                                            if (text != moreOption) {
+                                                Text(
+                                                    text,
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    color = ThemeColorUtils.black()
+                                                )
                                             } else {
                                                 Column {
-                                                    Text(text, style = MaterialTheme.typography.bodyLarge, color = ThemeColorUtils.black())
                                                     Text(
-                                                        "Select More options to choose another gender or if you'd rather not say.",
+                                                        text,
+                                                        style = MaterialTheme.typography.bodyLarge,
+                                                        color = ThemeColorUtils.black()
+                                                    )
+                                                    Text(
+                                                        stringResource(R.string.signup_gender_more_desc),
                                                         style = MaterialTheme.typography.bodySmall,
                                                         color = ThemeColorUtils.darkGray(Color.Gray)
                                                     )
@@ -520,21 +589,22 @@ fun SignupScreen(navController: NavController) {
                                     }
                                 }
 
-                                if (selectedOption == "More options" && pronoun.isNotEmpty()) {
+                                if (selectedOption == moreOption && pronoun.isNotEmpty()) {
                                     Spacer(modifier = Modifier.height(16.dp))
                                     OutlinedTextField(
                                         value = customGender,
                                         onValueChange = { customGender = it },
-                                        label = { Text("Gender (optional)") },
+                                        label = { Text(stringResource(R.string.signup_gender_custom_label)) },
                                         modifier = Modifier.fillMaxWidth(),
                                         shape = RoundedCornerShape(12.dp),
-                                        colors = textFieldColors
+                                        colors = textFieldColors,
+                                        singleLine = true
                                     )
                                 }
 
                                 if (isGenderError) {
                                     Text(
-                                        text = "Please select your gender.",
+                                        text = stringResource(R.string.signup_gender_error),
                                         color = Color.Red,
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.padding(top = 8.dp)
@@ -545,7 +615,7 @@ fun SignupScreen(navController: NavController) {
                                 Button(
                                     onClick = {
                                         val finalGender = when (selectedOption) {
-                                            "More options" -> customGender.ifBlank { pronoun }
+                                            moreOption -> customGender.ifBlank { pronoun }
                                             else -> selectedOption
                                         }
                                         gender = finalGender
@@ -555,14 +625,14 @@ fun SignupScreen(navController: NavController) {
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
-                                    enabled = (selectedOption.isNotEmpty() && selectedOption != "More options") || (selectedOption == "More options" && pronoun.isNotEmpty()),
+                                    enabled = (selectedOption.isNotEmpty() && selectedOption != moreOption) || (selectedOption == moreOption && pronoun.isNotEmpty()),
                                     shape = RoundedCornerShape(12.dp),
                                     colors = ButtonDefaults.buttonColors(
                                         containerColor = Color(0xFFD27D2D),
                                         contentColor = ThemeColorUtils.white()
                                     )
                                 ) {
-                                    Text("Next")
+                                    Text(stringResource(R.string.next))
                                 }
                             }
                         }
@@ -576,9 +646,12 @@ fun SignupScreen(navController: NavController) {
                                 sheetState = sheetState
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
-                                    Text("Select your pronoun", style = MaterialTheme.typography.titleMedium)
                                     Text(
-                                        "Your pronoun is visible to everyone.",
+                                        stringResource(R.string.signup_pronoun_sheet_title),
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        stringResource(R.string.signup_pronoun_sheet_subtitle),
                                         style = MaterialTheme.typography.bodyMedium,
                                         modifier = Modifier.padding(bottom = 16.dp)
                                     )
@@ -615,6 +688,7 @@ fun SignupScreen(navController: NavController) {
                             }
                         }
                     }
+
                     4 -> {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -624,7 +698,7 @@ fun SignupScreen(navController: NavController) {
                                 OutlinedTextField(
                                     value = selectedCountry.name,
                                     onValueChange = { },
-                                    label = { Text("Country") },
+                                    label = { Text(stringResource(R.string.signup_country_label)) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .clickable { showCountryDialog = true },
@@ -633,7 +707,7 @@ fun SignupScreen(navController: NavController) {
                                         IconButton(onClick = { showCountryDialog = true }) {
                                             Icon(
                                                 Icons.Default.ArrowDropDown,
-                                                contentDescription = "Select Country",
+                                                contentDescription = stringResource(R.string.signup_select_country),
                                                 tint = ThemeColorUtils.black()
                                             )
                                         }
@@ -656,12 +730,33 @@ fun SignupScreen(navController: NavController) {
                                     }
                                     isContactError = false
                                 },
-                                label = { Text("Mobile Number") },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                                label = { Text(stringResource(R.string.signup_mobile_label)) },
+                                keyboardOptions = KeyboardOptions(
+                                    keyboardType = KeyboardType.Phone,
+                                    imeAction = ImeAction.Done
+                                ),
                                 modifier = Modifier.weight(2f),
                                 isError = isContactError,
                                 shape = RoundedCornerShape(12.dp),
                                 colors = textFieldColors,
+                                singleLine = true,
+                                keyboardActions = KeyboardActions(
+                                    onDone = {
+                                        defaultKeyboardAction(ImeAction.Done)
+                                        val isValidPhilippineNumber =
+                                            selectedCountry.name == "Philippines" && contactInput.length == 10 && contactInput.startsWith(
+                                                "9"
+                                            )
+                                        val isValidOtherNumber =
+                                            selectedCountry.name != "Philippines" && contactInput.isNotEmpty()
+                                        isContactError =
+                                            !(isValidPhilippineNumber || isValidOtherNumber)
+
+                                        if (!isContactError) {
+                                            step = 5
+                                        }
+                                    }
+                                ),
                                 leadingIcon = {
                                     Text(
                                         text = if (selectedCountry.name == "Philippines") "+63" else selectedCountry.code,
@@ -673,7 +768,7 @@ fun SignupScreen(navController: NavController) {
                         }
                         if (isContactError) {
                             Text(
-                                text = "Invalid mobile number format for the Philippines (should be 10 digits starting with 9).",
+                                text = stringResource(R.string.signup_mobile_error_ph),
                                 color = Color.Red,
                                 style = MaterialTheme.typography.bodyMedium,
                                 modifier = Modifier.padding(top = 4.dp)
@@ -682,8 +777,12 @@ fun SignupScreen(navController: NavController) {
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = {
-                                val isValidPhilippineNumber = selectedCountry.name == "Philippines" && contactInput.length == 10 && contactInput.startsWith("9")
-                                val isValidOtherNumber = selectedCountry.name != "Philippines" && contactInput.isNotEmpty()
+                                val isValidPhilippineNumber =
+                                    selectedCountry.name == "Philippines" && contactInput.length == 10 && contactInput.startsWith(
+                                        "9"
+                                    )
+                                val isValidOtherNumber =
+                                    selectedCountry.name != "Philippines" && contactInput.isNotEmpty()
                                 isContactError = !(isValidPhilippineNumber || isValidOtherNumber)
 
                                 if (!isContactError) {
@@ -698,9 +797,10 @@ fun SignupScreen(navController: NavController) {
                                 contentColor = ThemeColorUtils.white()
                             )
                         ) {
-                            Text("Next")
+                            Text(stringResource(R.string.next))
                         }
                     }
+
                     5 -> {
                         OutlinedTextField(
                             value = email,
@@ -708,22 +808,40 @@ fun SignupScreen(navController: NavController) {
                                 email = it
                                 isEmailError = false
                             },
-                            label = { Text("Email") },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                            label = { Text(stringResource(R.string.signup_email_label)) },
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Email,
+                                imeAction = ImeAction.Next
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onNext = {
+                                    defaultKeyboardAction(ImeAction.Next)
+                                    isEmailError =
+                                        !(Validators.isValidEmail(email) && isValidProvider(email))
+                                    if (!isEmailError) {
+                                        step = 6
+                                    }
+                                }
+                            ),
                             modifier = Modifier.fillMaxWidth(),
                             isError = isEmailError,
                             shape = RoundedCornerShape(12.dp),
                             colors = textFieldColors,
+                            singleLine = true,
                             supportingText = {
                                 if (isEmailError) {
-                                    Text("Please use a valid provider like Gmail or Yahoo.", color = Color.Red)
+                                    Text(
+                                        stringResource(R.string.signup_email_error_provider),
+                                        color = Color.Red
+                                    )
                                 }
                             }
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = {
-                                isEmailError = !(Validators.isValidEmail(email) && isValidProvider(email))
+                                isEmailError =
+                                    !(Validators.isValidEmail(email) && isValidProvider(email))
                                 if (!isEmailError) {
                                     step = 6
                                 }
@@ -736,9 +854,10 @@ fun SignupScreen(navController: NavController) {
                                 contentColor = ThemeColorUtils.white()
                             )
                         ) {
-                            Text("Next")
+                            Text(stringResource(R.string.next))
                         }
                     }
+
                     6 -> {
                         OutlinedTextField(
                             value = password,
@@ -746,165 +865,324 @@ fun SignupScreen(navController: NavController) {
                                 password = it
                                 isPasswordError = false
                             },
-                            label = { Text("Password") },
+                            label = { Text(stringResource(R.string.signup_password_label)) },
                             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                             trailingIcon = {
                                 IconButton(onClick = { showPassword = !showPassword }) {
                                     Icon(
-                                        if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                                        "Toggle password visibility"
+                                        imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                                        contentDescription = stringResource(R.string.password_visibility_toggle),
+                                        tint = ThemeColorUtils.black()
                                     )
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            isError = isPasswordError && password.isNotEmpty(),
                             shape = RoundedCornerShape(12.dp),
                             colors = textFieldColors,
-                            supportingText = {
-                                if (password.isNotEmpty() && !viewModel.isValidSignupPassword(password)) {
-                                    Text("Use 8+ characters with a mix of letters, numbers & symbols.", color = Color.Red)
-                                }
-                            }
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Next
+                            )
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+
                         OutlinedTextField(
                             value = confirmPassword,
                             onValueChange = {
                                 confirmPassword = it
-                                isPasswordError = password != it
                             },
-                            label = { Text("Confirm Password") },
+                            label = { Text(stringResource(R.string.signup_confirm_password_label)) },
                             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                             modifier = Modifier.fillMaxWidth(),
-                            isError = isPasswordError && confirmPassword.isNotEmpty(),
                             shape = RoundedCornerShape(12.dp),
                             colors = textFieldColors,
-                            supportingText = {
-                                if (isPasswordError && confirmPassword.isNotEmpty()) {
-                                    Text("Passwords do not match.", color = Color.Red)
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    defaultKeyboardAction(ImeAction.Done)
+                                    val isPasswordValid = Validators.isValidPassword(password)
+                                    val isMatch = password == confirmPassword
+                                    isPasswordError = !isPasswordValid || !isMatch
+
+                                    if (!isPasswordError) {
+                                        isLoading = true
+                                        viewModel.signup(
+                                            email,
+                                            password,
+                                            "$firstName $lastName",
+                                            birthDate,
+                                            gender,
+                                            fullContact,
+                                            context
+                                        ) { success, msg ->
+                                            isLoading = false
+                                            message = msg
+                                            if (success) {
+                                                showSuccessToast = true
+                                                message = ""
+                                                scope.launch {
+                                                    delay(600)
+                                                    showSuccessToast = false
+                                                    navController.navigate("login") {
+                                                        popUpTo("signup") { inclusive = true }
+                                                    }
+                                                }
+                                            } else {
+                                                message = msg
+                                            }
+                                        }
+                                    }
                                 }
-                            }
+                            )
                         )
+
+                        if (password.isNotEmpty() && confirmPassword.isNotEmpty() && password != confirmPassword) {
+                            Text(
+                                stringResource(R.string.signup_password_mismatch),
+                                color = Color.Red,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(top = 4.dp)
+                            )
+                        }
+
+                        // Password validation checklist
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Validation states
+                            val hasLowercase = password.any { it.isLowerCase() }
+                            val hasUppercase = password.any { it.isUpperCase() }
+                            val hasNumber = password.any { it.isDigit() }
+                            val hasSpecialChar = password.any { !it.isLetterOrDigit() }
+                            val hasMinLength = password.length >= 6
+
+                            PasswordRequirementItem(
+                                text = stringResource(R.string.password_req_lowercase),
+                                isMet = hasLowercase
+                            )
+                            PasswordRequirementItem(
+                                text = stringResource(R.string.password_req_uppercase),
+                                isMet = hasUppercase
+                            )
+                            PasswordRequirementItem(
+                                text = stringResource(R.string.password_req_number),
+                                isMet = hasNumber
+                            )
+                            PasswordRequirementItem(
+                                text = stringResource(R.string.password_req_special),
+                                isMet = hasSpecialChar
+                            )
+                            PasswordRequirementItem(
+                                text = stringResource(R.string.password_req_length),
+                                isMet = hasMinLength
+                            )
+                        }
+
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
                             onClick = {
-                                val isPasswordValid = viewModel.isValidSignupPassword(password)
-                                val doPasswordsMatch = password == confirmPassword
-                                isPasswordError = !isPasswordValid || !doPasswordsMatch
+                                val isPasswordValid = Validators.isValidPassword(password)
+                                val isMatch = password == confirmPassword
+                                isPasswordError = !isPasswordValid || !isMatch
 
                                 if (!isPasswordError) {
                                     isLoading = true
-                                    val finalGender = if (gender == "Custom") customGender else gender
                                     viewModel.signup(
-                                        email = email,
-                                        password = password,
-                                        fullName = "$firstName $lastName",
-                                        birthDate = birthDate,
-                                        gender = finalGender,
-                                        contact = fullContact
+                                        email,
+                                        password,
+                                        "$firstName $lastName",
+                                        birthDate,
+                                        gender,
+                                        fullContact,
+                                        context
                                     ) { success, msg ->
                                         isLoading = false
                                         message = msg
                                         if (success) {
-                                            navController.navigate("login") {
-                                                popUpTo("welcome") { inclusive = true }
+                                            showSuccessToast = true
+                                            message = ""
+                                            scope.launch {
+                                                delay(600)
+                                                showSuccessToast = false
+                                                navController.navigate("login") {
+                                                    popUpTo("signup") { inclusive = true }
+                                                }
                                             }
+                                        } else {
+                                            message = msg
                                         }
                                     }
                                 }
                             },
                             modifier = Modifier.fillMaxWidth(),
-                            enabled = password.isNotEmpty() && confirmPassword.isNotEmpty() && !isLoading,
+                            enabled = password.isNotEmpty() && confirmPassword.isNotEmpty(),
                             shape = CircleShape,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color(0xFFD27D2D),
-                                contentColor = ThemeColorUtils.white()
+                                contentColor = ThemeColorUtils.white(),
+                                disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
+                                disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
+                            ),
+                            elevation = ButtonDefaults.buttonElevation(
+                                defaultElevation = 8.dp,
+                                pressedElevation = 12.dp,
+                                disabledElevation = 4.dp
                             )
                         ) {
                             if (isLoading) {
-                                CircularProgressIndicator(modifier = Modifier.size(24.dp), color = ThemeColorUtils.white())
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp),
+                                    color = ThemeColorUtils.white()
+                                )
                             } else {
-                                Text("Sign Up")
+                                Text(stringResource(R.string.signup_button))
                             }
+                        }
+
+                        if (message.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = message,
+                                color = Color.Red
+                            )
                         }
                     }
                 }
+            }
 
-                if (message.isNotEmpty() && !message.contains("successful")) {
+            }
+
+            // --- SUCCESS TOAST ---
+            AnimatedVisibility(
+                visible = showSuccessToast,
+                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
+                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 60.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp)
+                        .background(Color(0xFF4CAF50), RoundedCornerShape(8.dp))
+                        .padding(vertical = 16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = message,
-                        modifier = Modifier.padding(top = 16.dp),
-                        color = Color.Red
+                        text = "Sign up successful!",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
                 }
             }
         }
 
-        // Country Selection Dialog
         if (showCountryDialog) {
+            val searchQuery = remember { mutableStateOf("") }
+            val filteredCountries = COUNTRIES.filter {
+                it.name.contains(searchQuery.value, ignoreCase = true) ||
+                        it.code.contains(searchQuery.value)
+            }
+
             AlertDialog(
-                modifier = Modifier
-                    .border(2.dp, ThemeColorUtils.black(), RoundedCornerShape(16.dp))
-                    .sizeIn(maxHeight = 400.dp),
                 onDismissRequest = { showCountryDialog = false },
-                title = {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Select Country",
-                            style = MaterialTheme.typography.titleLarge,
-                            color = ThemeColorUtils.black(),
-                            modifier = Modifier.padding(start = 16.dp)
-                        )
-                        IconButton(
-                            onClick = { showCountryDialog = false },
-                            modifier = Modifier.padding(end = 4.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Close,
-                                contentDescription = "Close",
-                                tint = ThemeColorUtils.black()
-                            )
-                        }
-                    }
-                },
+                title = { Text(stringResource(R.string.signup_select_country)) },
                 text = {
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 8.dp, bottom = 8.dp)
-                    ) {
-                        items(COUNTRIES) { country ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        selectedCountry = country
-                                        showCountryDialog = false
-                                        contactInput =
-                                            "" // Reset contact input when country changes
+                    Column {
+                        OutlinedTextField(
+                            value = searchQuery.value,
+                            onValueChange = { searchQuery.value = it },
+                            label = { Text("Search") },
+                            leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                            trailingIcon = {
+                                if (searchQuery.value.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery.value = "" }) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear")
                                     }
-                                    .padding(vertical = 12.dp, horizontal = 16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = country.name,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = ThemeColorUtils.black()
-                                )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LazyColumn(
+                            modifier = Modifier
+                                .height(300.dp)
+                                .fillMaxWidth()
+                        ) {
+                            items(filteredCountries) { country ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            selectedCountry = country
+                                            showCountryDialog = false
+                                            // Reset contact input if switching to/from PH to re-validate length if needed,
+                                            // or just let the user edit.
+                                        }
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "${country.name} (${country.code})",
+                                        style = MaterialTheme.typography.bodyLarge
+                                    )
+                                }
                             }
                         }
                     }
                 },
                 confirmButton = {},
-                dismissButton = {},
-                containerColor = ThemeColorUtils.white(),
-                shape = RoundedCornerShape(16.dp)
+                dismissButton = {
+                    TextButton(onClick = { showCountryDialog = false }) {
+                        Text(stringResource(R.string.common_cancel))
+                    }
+                }
             )
         }
     }
-}
+
+    @Composable
+    fun PasswordRequirementItem(
+        text: String,
+        isMet: Boolean
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (isMet) {
+                Icon(
+                    imageVector = androidx.compose.material.icons.Icons.Default.Check,
+                    contentDescription = "Requirement met",
+                    tint = Color(0xFF78DE34),
+                    modifier = Modifier.size(18.dp)
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .background(
+                            color = ThemeColorUtils.darkGray(Color.Gray),
+                            shape = CircleShape
+                        )
+                )
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (isMet) Color(0xFF78DE34) else ThemeColorUtils.black(),
+                fontWeight = if (isMet) FontWeight.Bold else FontWeight.Normal
+            )
+        }
+    }
+

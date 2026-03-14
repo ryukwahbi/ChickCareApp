@@ -85,10 +85,12 @@ import java.util.Locale
 fun ReportsAnalyticsScreen(navController: NavController) {
     val viewModel: ReportsViewModel = viewModel()
     val dashboardViewModel: DashboardViewModel = viewModel()
+    val authViewModel: com.bisu.chickcare.backend.viewmodels.AuthViewModel = viewModel()
     val reports by viewModel.reports.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
     val context = LocalContext.current
+    val currentUserId = authViewModel.getCurrentUserId(context)
     val scope = rememberCoroutineScope()
     var showDialog by remember { mutableStateOf(false) }
     var editingReport by remember { mutableStateOf<ReportEntry?>(null) }
@@ -106,7 +108,7 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         "Reports & Analytics",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
@@ -122,7 +124,7 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
@@ -131,13 +133,13 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                         Icon(
                             Icons.Default.Download,
                             contentDescription = "Export",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         },
@@ -190,39 +192,131 @@ fun ReportsAnalyticsScreen(navController: NavController) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
 
-                Text(
-                    text = "Available Reports",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
 
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (reports.isEmpty()) {
-                        item {
-                            EmptyStateCard(
-                                title = "No reports configured",
-                                icon = Icons.Default.BarChart
-                            )
-                        }
-                    } else {
+                    if (reports.isNotEmpty()) {
                         items(reports, key = { it.id }) { report ->
                             ReportCard(
                                 entry = report,
                                 onGenerate = {
-                                    viewModel.markGenerated(report.id)
+                                    isExporting = true
+                                    scope.launch {
+                                        try {
+                                            val userId = currentUserId
+                                            if (userId != null) {
+                                                val reportData = viewModel.getAllReportData(userId)
+                                                
+                                                // Export as PDF by default
+                                                ExportUtils.exportReportAsPDF(
+                                                    context = context,
+                                                    reportTitle = report.title,
+                                                    reportCategory = report.type,
+                                                    reportData = reportData,
+                                                    onSuccess = { uri ->
+                                                        isExporting = false
+                                                        viewModel.markGenerated(report.id)
+                                                        ExportUtils.shareFile(
+                                                            context = context,
+                                                            uri = uri,
+                                                            mimeType = "application/pdf",
+                                                            fileName = "chickcare_${report.title.lowercase().replace(" ", "_")}.pdf"
+                                                        )
+                                                        Toast.makeText(context, "Report generated and saved to Downloads", Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onError = { error ->
+                                                        isExporting = false
+                                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            } else {
+                                                isExporting = false
+                                                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            isExporting = false
+                                            Toast.makeText(context, "Error generating report: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 },
                                 onShare = {
-                                Toast.makeText(context, "Share feature coming soon", Toast.LENGTH_SHORT).show()
+                                    isExporting = true
+                                    scope.launch {
+                                        try {
+                                            val userId = currentUserId
+                                            if (userId != null) {
+                                                val reportData = viewModel.getAllReportData(userId)
+                                                
+                                                ExportUtils.exportReportAsPDF(
+                                                    context = context,
+                                                    reportTitle = report.title,
+                                                    reportCategory = report.type,
+                                                    reportData = reportData,
+                                                    onSuccess = { uri ->
+                                                        isExporting = false
+                                                        ExportUtils.shareFile(
+                                                            context = context,
+                                                            uri = uri,
+                                                            mimeType = "application/pdf",
+                                                            fileName = "chickcare_${report.title.lowercase().replace(" ", "_")}.pdf"
+                                                        )
+                                                        Toast.makeText(context, "Report ready to share", Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onError = { error ->
+                                                        isExporting = false
+                                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            } else {
+                                                isExporting = false
+                                                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            isExporting = false
+                                            Toast.makeText(context, "Error sharing report: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 },
                                 onDownload = {
-                                Toast.makeText(context, "Download feature coming soon", Toast.LENGTH_SHORT).show()
+                                    isExporting = true
+                                    scope.launch {
+                                        try {
+                                            val userId = currentUserId
+                                            if (userId != null) {
+                                                val reportData = viewModel.getAllReportData(userId)
+                                                
+                                                ExportUtils.exportReportAsCSV(
+                                                    context = context,
+                                                    reportTitle = report.title,
+                                                    reportCategory = report.type,
+                                                    reportData = reportData,
+                                                    onSuccess = { uri ->
+                                                        isExporting = false
+                                                        ExportUtils.shareFile(
+                                                            context = context,
+                                                            uri = uri,
+                                                            mimeType = "text/csv",
+                                                            fileName = "chickcare_${report.title.lowercase().replace(" ", "_")}.csv"
+                                                        )
+                                                        Toast.makeText(context, "Report downloaded to Downloads folder", Toast.LENGTH_SHORT).show()
+                                                    },
+                                                    onError = { error ->
+                                                        isExporting = false
+                                                        Toast.makeText(context, "Error: $error", Toast.LENGTH_SHORT).show()
+                                                    }
+                                                )
+                                            } else {
+                                                isExporting = false
+                                                Toast.makeText(context, "User not logged in", Toast.LENGTH_SHORT).show()
+                                            }
+                                        } catch (e: Exception) {
+                                            isExporting = false
+                                            Toast.makeText(context, "Error downloading report: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
                                 },
                                 onEdit = {
                                     editingReport = report

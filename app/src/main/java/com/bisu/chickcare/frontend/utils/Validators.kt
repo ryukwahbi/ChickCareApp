@@ -9,6 +9,20 @@ object Validators {
         val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$"
         return email.matches(emailRegex.toRegex())
     }
+
+    /**
+     * Check if phone number format is valid
+     * Accepts:
+     * - 10 to 15 digits
+     * - Optional leading +
+     * - Optional spaces, dashes, or parentheses
+     */
+    fun isValidPhoneNumber(phone: String): Boolean {
+        // Remove common separators for length check
+        val cleanPhone = phone.replace(Regex("[\\s\\-\\(\\)]"), "")
+        val phoneRegex = "^\\+?[0-9]{10,15}\$"
+        return cleanPhone.matches(phoneRegex.toRegex())
+    }
     
     /**
      * Check if password meets requirements

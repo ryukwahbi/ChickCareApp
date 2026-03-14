@@ -4,8 +4,6 @@ import android.app.Application
 import android.location.Geocoder
 import android.location.Location
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.Priority
-import com.google.android.gms.tasks.CancellationTokenSource
 import androidx.core.net.toUri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -15,9 +13,15 @@ import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.repository.DetectionRepository
 import com.bisu.chickcare.backend.repository.NotificationEntry
 import com.bisu.chickcare.backend.repository.NotificationRepository
+import com.bisu.chickcare.backend.repository.NotificationType
+import com.bisu.chickcare.backend.repository.AlertRepository
+import com.bisu.chickcare.backend.data.UserProfile
 import com.bisu.chickcare.backend.service.DetectionService
+import com.bisu.chickcare.backend.service.NetworkConnectivityHelper
 import com.bisu.chickcare.backend.service.NotificationService
 import com.bisu.chickcare.frontend.utils.DateFormatters
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -25,21 +29,39 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.Job
 
 class DashboardViewModel(application: Application) : AndroidViewModel(application) {
     private val detectionRepository = DetectionRepository()
     private val notificationRepository = NotificationRepository()
     private val detectionService = DetectionService(detectionRepository, application)
     private val notificationService = NotificationService(notificationRepository)
+    private val alertRepository = AlertRepository()
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
+    
+    // Global exception handler to prevent crashes from Firestore errors
+    private val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+        android.util.Log.e("DashboardViewModel", "Coroutine exception caught: ${throwable.message}", throwable)
+        // Don't crash - just log the error
+    }
+    
+    // Store listener jobs for cleanup
+    private val listenerJobs = mutableMapOf<String, Job>()
+    
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
     private val _detectionHistory = MutableStateFlow<List<DetectionEntry>>(emptyList())
@@ -47,31 +69,137 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     private val _newHistoryCount = MutableStateFlow(0)
     val newHistoryCount: StateFlow<Int> = _newHistoryCount.asStateFlow()
     private val _notifications = MutableStateFlow<List<NotificationEntry>>(emptyList())
-    val notifications: StateFlow<List<NotificationEntry>> = _notifications.asStateFlow()
+    private val _alerts = MutableStateFlow<List<NotificationEntry>>(emptyList())
+    
+    // Combine standard notifications and disease alerts
+    val notifications: StateFlow<List<NotificationEntry>> = combine(_notifications, _alerts) { notifs, alerts ->
+        (notifs + alerts).sortedByDescending { it.timestamp }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+        initialValue = emptyList()
+    )
     private val _newNotificationCount = MutableStateFlow(0)
     val newNotificationCount: StateFlow<Int> = _newNotificationCount.asStateFlow()
     private val _recentlyDeleted = MutableStateFlow<List<DetectionEntry>>(emptyList())
+    
+    // Track notification IDs that have been locally marked as read (to prevent Firestore overwriting)
+    private val locallyMarkedAsReadIds = mutableSetOf<String>()
+    private val locallyDeletedNotificationIds = mutableSetOf<String>()
     val recentlyDeleted: StateFlow<List<DetectionEntry>> = _recentlyDeleted.asStateFlow()
     private val _favoriteDetections = MutableStateFlow<List<DetectionEntry>>(emptyList())
     val favoriteDetections: StateFlow<List<DetectionEntry>> = _favoriteDetections.asStateFlow()
     private val _archivedDetections = MutableStateFlow<List<DetectionEntry>>(emptyList())
     val archivedDetections: StateFlow<List<DetectionEntry>> = _archivedDetections.asStateFlow()
-
-    init {
-        auth.addAuthStateListener {
-            initializeListeners()
-            loadInitialData()
-            updateActiveStatus()
-        }
-        if (auth.currentUser != null) {
-            initializeListeners()
-            loadInitialData()
-            updateActiveStatus()
+    
+    // Sync status for offline operations
+    private val _syncStatus = MutableStateFlow<SyncStatus>(SyncStatus.Idle)
+    val syncStatus: StateFlow<SyncStatus> = _syncStatus.asStateFlow()
+    
+    // Track timestamps of queued detections to detect when they sync
+    private val queuedDetectionTimestamps = mutableListOf<Long>()
+    
+    data class SyncStatus(
+        val isQueued: Boolean = false,
+        val queuedCount: Int = 0,
+        val lastSyncTime: Long? = null,
+        val isSyncing: Boolean = false
+    ) {
+        companion object {
+            val Idle = SyncStatus()
         }
     }
 
+
+    // Track AuthStateListener for proper cleanup
+    private val authStateListener = FirebaseAuth.AuthStateListener {
+        initializeListeners()
+        loadInitialData()
+        updateActiveStatus()
+    }
+
+
+    init {
+        auth.addAuthStateListener(authStateListener)
+        
+        // Monitor network connectivity to update sync status
+        monitorNetworkConnectivity()
+    }
+
+    
+    override fun onCleared() {
+        super.onCleared()
+        auth.removeAuthStateListener(authStateListener)
+        listenerJobs.values.forEach { it.cancel() }
+    }
+
+    
+    /**
+     * Monitor network connectivity and update sync status accordingly
+     */
+    private fun monitorNetworkConnectivity() {
+        viewModelScope.launch(exceptionHandler) {
+            val context = getApplication<Application>()
+            NetworkConnectivityHelper.connectivityFlow(context).collect { isOnline ->
+                val currentStatus = _syncStatus.value
+                
+                if (isOnline && currentStatus.isQueued && currentStatus.queuedCount > 0) {
+                    // Device came back online with queued items - start syncing
+                    android.util.Log.d("DashboardViewModel", "Device is online, syncing ${currentStatus.queuedCount} queued items...")
+                    _syncStatus.update { it.copy(isSyncing = true) }
+                    
+                    // Firestore will automatically sync, but we'll clear the syncing flag after a delay
+                    // The actual sync completion will be detected when items appear in history
+                    kotlinx.coroutines.delay(2000) // Give Firestore time to start syncing
+                    
+                    // If still syncing after delay, keep the flag (sync might take longer)
+                    // The flag will be cleared when we detect items in history
+                } else if (!isOnline && currentStatus.isSyncing) {
+                    // Device went offline while syncing
+                    android.util.Log.d("DashboardViewModel", "Device went offline during sync")
+                    _syncStatus.update { it.copy(isSyncing = false) }
+                }
+            }
+        }
+    }
+
+    /**
+     * Get current user ID for Firestore operations.
+     * IMPORTANT: Must use Firebase Auth UID because Firestore security rules
+     * validate against request.auth.uid. Using a different ID (e.g., from
+     * AccountManager) will cause PERMISSION_DENIED errors.
+     */
+    private fun getCurrentUserId(): String? {
+        // Always prioritize Firebase Auth UID for Firestore operations
+        // Security rules check request.auth.uid, so we MUST use the authenticated user's ID
+        val firebaseUserId = auth.currentUser?.uid
+        if (!firebaseUserId.isNullOrEmpty()) {
+            return firebaseUserId
+        }
+        
+        // Fallback to offline auth only when Firebase is not available
+        val context = getApplication<Application>()
+        return com.bisu.chickcare.backend.utils.OfflineAuthHelper.getCurrentLocalUserId(context)
+    }
+    
     private fun initializeListeners() {
-        val userId = auth.currentUser?.uid
+        // Get userId from either Firebase or local auth
+        val userId = getCurrentUserId()
+        val context = getApplication<Application>()
+        val isOnline = NetworkConnectivityHelper.isOnline(context)
+        val isFirebaseUserReady = auth.currentUser != null
+
+        // Prevent PERMISSION_DENIED errors when using a local Offline ID while Online.
+        // Instead of skipping, we force Firestore to OFFLINE mode so it reads from cache.
+        if (isOnline && !isFirebaseUserReady) {
+            android.util.Log.w("DashboardViewModel", "Device is online but Firebase Auth is not ready. Enabling offline mode to view cached data.")
+            firestore.disableNetwork()
+            _uiState.update { it.copy(isLoading = false) }
+        } else {
+            // Ensure network is enabled if we are properly authenticated or truly offline (standard behavior)
+            firestore.enableNetwork()
+        }
+
         if (userId != null) {
             listenToDetectionHistory(userId)
             listenToNotifications(userId)
@@ -82,30 +210,59 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     private fun listenToFavoriteDetections(userId: String) {
-        viewModelScope.launch {
-            detectionRepository.getFavoriteDetections(userId).collect { favorites ->
-                _favoriteDetections.value = favorites
+        listenerJobs["favorites"]?.cancel()
+        listenerJobs["favorites"] = viewModelScope.launch(exceptionHandler) {
+            try {
+                detectionRepository.getFavoriteDetections(userId).collect { favorites ->
+                    _favoriteDetections.value = favorites
+                }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED (Favorites): Please deploy Firestore Security Rules.")
+                } else {
+                    android.util.Log.e("DashboardViewModel", "Error listening to favorites: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to favorites: ${e.message}")
+                // Don't crash - just log and continue with empty list
             }
         }
     }
     
     private fun listenToArchivedDetections(userId: String) {
-        viewModelScope.launch {
-            detectionRepository.getArchivedDetections(userId).collect { archived ->
-                _archivedDetections.value = archived
+        listenerJobs["archived"]?.cancel()
+        listenerJobs["archived"] = viewModelScope.launch(exceptionHandler) {
+            try {
+                detectionRepository.getArchivedDetections(userId).collect { archived ->
+                    _archivedDetections.value = archived
+                }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED (Archived): Please deploy Firestore Security Rules.")
+                } else {
+                    android.util.Log.e("DashboardViewModel", "Error listening to archived: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to archived: ${e.message}")
+                // Don't crash - just log and continue with empty list
             }
         }
     }
 
     fun loadInitialData() {
-        val userId = auth.currentUser?.uid ?: run {
+        // Get userId from either Firebase or local auth
+        val userId = getCurrentUserId() ?: run {
             _uiState.value = DashboardUiState(isLoading = false)
             return
         }
 
         _uiState.update { it.copy(isLoading = true) }
 
-        viewModelScope.launch(Dispatchers.Default) {
+        viewModelScope.launch(exceptionHandler + Dispatchers.Default) {
             val profileJob = async { auth.fetchUserProfile() }
             val statsJob = async { detectionService.fetchUserStats(userId) }
 
@@ -150,7 +307,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun onScanNowClicked(imageUri: String?, audioUri: String?) {
-        val userId = auth.currentUser?.uid ?: run {
+        val userId = getCurrentUserId() ?: run {
             android.util.Log.e("DashboardViewModel", "User not logged in, cannot perform detection")
             return
         }
@@ -205,7 +362,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                 
                 // Send notification in background (non-blocking, won't cancel if it fails)
                 try {
-                    notificationService.sendDetectionNotification(userId, status)
+                    notificationService.sendDetectionNotification(userId, status, imageUri, audioUri)
                     android.util.Log.d("DashboardViewModel", "Notification sent")
                 } catch (e: Exception) {
                     android.util.Log.w("DashboardViewModel", "Failed to send notification: ${e.message}")
@@ -264,213 +421,195 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun listenToDetectionHistory(userId: String) {
-        viewModelScope.launch {
-            detectionRepository.getDetectionHistory(userId).collect { history ->
-                // Automatic cleanup: Delete old detections when exceeding 300 limit
-                if (history.size > 300) {
-                    val sortedHistory = history.sortedByDescending { it.timestamp }
-                    val detectionsToDelete = sortedHistory.drop(300) // Keep only the 300 most recent
-                    
-                    // Delete old detections in background
-                    viewModelScope.launch(Dispatchers.IO) {
-                        detectionsToDelete.forEach { entry ->
-                            try {
-                                detectionRepository.permanentlyDeleteDetection(userId, entry.id)
-                            } catch (e: Exception) {
-                                android.util.Log.e("DashboardViewModel", "Error deleting old detection ${entry.id}: ${e.message}")
+        listenerJobs["history"]?.cancel()
+        listenerJobs["history"] = viewModelScope.launch(exceptionHandler) {
+            try {
+                detectionRepository.getDetectionHistory(userId).collect { history ->
+                    // Check if any queued detections have been synced by matching timestamps
+                    // Firestore preserves timestamps when syncing, so we can match them
+                    if (queuedDetectionTimestamps.isNotEmpty() && history.isNotEmpty()) {
+                        val historyTimestamps = history.map { it.timestamp }.toSet()
+                        val syncedTimestamps = queuedDetectionTimestamps.filter { queuedTimestamp ->
+                            // Match if timestamp is within 5 seconds (allowing for slight differences)
+                            historyTimestamps.any { historyTimestamp ->
+                                kotlin.math.abs(historyTimestamp - queuedTimestamp) < 5000
                             }
                         }
-                        android.util.Log.d("DashboardViewModel", "Cleaned up ${detectionsToDelete.size} old detections (kept 300 most recent)")
+                        
+                        if (syncedTimestamps.isNotEmpty()) {
+                            // Some queued items have been synced
+                            queuedDetectionTimestamps.removeAll(syncedTimestamps)
+                            
+                            // Calculate new queued count before updating status
+                            val currentQueuedCount = _syncStatus.value.queuedCount
+                            val newQueuedCount = (currentQueuedCount - syncedTimestamps.size).coerceAtLeast(0)
+                            
+                            _syncStatus.update { currentStatus ->
+                                currentStatus.copy(
+                                    queuedCount = newQueuedCount,
+                                    isQueued = newQueuedCount > 0,
+                                    isSyncing = newQueuedCount > 0,
+                                    lastSyncTime = System.currentTimeMillis()
+                                )
+                            }
+                            android.util.Log.d("DashboardViewModel", "Detected ${syncedTimestamps.size} queued detections have been synced. Remaining: $newQueuedCount")
+                            
+                            // If all items synced, clear syncing flag after a short delay
+                            if (newQueuedCount == 0) {
+                                kotlinx.coroutines.delay(1000)
+                                _syncStatus.update { it.copy(isSyncing = false) }
+                            }
+                        }
                     }
                     
-                    // Use only the 300 most recent for display
-                    val limitedHistory = sortedHistory.take(300)
-                    _detectionHistory.value = limitedHistory
-                    _newHistoryCount.value = limitedHistory.count { !it.isRead }
-                    
-                    // Update trend data with limited history
-                    val imageTrendData = calculateTrendData(limitedHistory.filter { !it.imageUri.isNullOrEmpty() })
-                    val audioTrendData = calculateTrendData(limitedHistory.filter { !it.audioUri.isNullOrEmpty() })
-                    
-                    // Calculate healthy and unhealthy rates independently
-                    val healthyRate = calculateStableHealthyRate(limitedHistory)
-                    val unhealthyRate = calculateUnhealthyRate(limitedHistory)
-                    
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            totalDetections = limitedHistory.size,
-                            healthyRate = healthyRate,
-                            unhealthyRate = unhealthyRate,
-                            imageDetections = limitedHistory.count { !it.imageUri.isNullOrEmpty() },
-                            audioDetections = limitedHistory.count { !it.audioUri.isNullOrEmpty() },
-                            imageTrendData = imageTrendData,
-                            audioTrendData = audioTrendData
-                        )
-                    }
-                } else {
-                    // Normal flow when under 300 detections
-                    _detectionHistory.value = history
-                    _newHistoryCount.value = history.count { !it.isRead }
-                    
-                    // Update trend data when history changes
-                    val imageTrendData = calculateTrendData(history.filter { !it.imageUri.isNullOrEmpty() })
-                    val audioTrendData = calculateTrendData(history.filter { !it.audioUri.isNullOrEmpty() })
-                    
-                    // Calculate healthy and unhealthy rates independently
-                    val healthyRate = calculateStableHealthyRate(history)
-                    val unhealthyRate = calculateUnhealthyRate(history)
-                    
-                    _uiState.update { currentState ->
-                        currentState.copy(
-                            totalDetections = history.size,
-                            healthyRate = healthyRate,
-                            unhealthyRate = unhealthyRate,
-                            imageDetections = history.count { !it.imageUri.isNullOrEmpty() },
-                            audioDetections = history.count { !it.audioUri.isNullOrEmpty() },
-                            imageTrendData = imageTrendData,
-                            audioTrendData = audioTrendData
-                        )
+                    // Automatic cleanup: Delete old detections when exceeding 300 limit
+                    if (history.size > 300) {
+                        val sortedHistory = history.sortedByDescending { it.timestamp }
+                        val detectionsToDelete = sortedHistory.drop(300) // Keep only the 300 most recent
+                        
+                        // Delete old detections in background
+                        viewModelScope.launch(Dispatchers.IO) {
+                            detectionsToDelete.forEach { entry ->
+                                try {
+                                    detectionRepository.permanentlyDeleteDetection(userId, entry.id)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("DashboardViewModel", "Error deleting old detection ${entry.id}: ${e.message}")
+                                }
+                            }
+                            android.util.Log.d("DashboardViewModel", "Cleaned up ${detectionsToDelete.size} old detections (kept 300 most recent)")
+                        }
+                        
+                        // Use only the 300 most recent for display
+                        val limitedHistory = sortedHistory.take(300)
+                        _detectionHistory.value = limitedHistory
+                        _newHistoryCount.value = limitedHistory.count { !it.isRead }
+                        
+                        // Update trend data with limited history
+                        val imageTrendData = calculateTrendData(limitedHistory.filter { !it.imageUri.isNullOrEmpty() })
+                        val audioTrendData = calculateTrendData(limitedHistory.filter { !it.audioUri.isNullOrEmpty() })
+                        
+                        // Calculate healthy and unhealthy rates independently
+                        val healthyRate = calculateStableHealthyRate(limitedHistory)
+                        val unhealthyRate = calculateUnhealthyRate(limitedHistory)
+                        
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                totalDetections = limitedHistory.size,
+                                healthyRate = healthyRate,
+                                unhealthyRate = unhealthyRate,
+                                imageDetections = limitedHistory.count { !it.imageUri.isNullOrEmpty() },
+                                audioDetections = limitedHistory.count { !it.audioUri.isNullOrEmpty() },
+                                imageTrendData = imageTrendData,
+                                audioTrendData = audioTrendData,
+                                combinedTrendData = calculateTrendData(limitedHistory)
+                            )
+                        }
+                    } else {
+                        // Normal flow when under 300 detections
+                        _detectionHistory.value = history
+                        _newHistoryCount.value = history.count { !it.isRead }
+                        
+                        // Update trend data when history changes
+                        val imageTrendData = calculateTrendData(history.filter { !it.imageUri.isNullOrEmpty() })
+                        val audioTrendData = calculateTrendData(history.filter { !it.audioUri.isNullOrEmpty() })
+                        
+                        // Calculate healthy and unhealthy rates independently
+                        val healthyRate = calculateStableHealthyRate(history)
+                        val unhealthyRate = calculateUnhealthyRate(history)
+                        
+                        _uiState.update { currentState ->
+                            currentState.copy(
+                                totalDetections = history.size,
+                                healthyRate = healthyRate,
+                                unhealthyRate = unhealthyRate,
+                                imageDetections = history.count { !it.imageUri.isNullOrEmpty() },
+                                audioDetections = history.count { !it.audioUri.isNullOrEmpty() },
+                                imageTrendData = imageTrendData,
+                                audioTrendData = audioTrendData,
+                                combinedTrendData = calculateTrendData(history)
+                            )
+                        }
                     }
                 }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED (History): Please deploy Firestore Security Rules.")
+                } else {
+                    android.util.Log.e("DashboardViewModel", "Error listening to detection history: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to detection history: ${e.message}")
+                // Don't crash - just log and continue with empty list
             }
         }
     }
     
     /**
      * Calculate trend data for line graphs.
-     * Groups detections by 12-hour periods (AM/PM) per day.
-     * Each day has 2 data points: AM (0-12 hours) and PM (12-24 hours).
-     * Calculates average healthy and unhealthy percentages for each 12-hour period.
-     * Always shows last 2 days, starting from 0% on the left.
+     * Modified to show individual detections interacting with a "drop to zero" logic.
+     * If there is a gap of > 12 hours between detections, the line drops to 0%
+     * shortly after the previous detection, effectively resetting the visual trend.
      */
     private fun calculateTrendData(entries: List<DetectionEntry>): List<TrendDataPoint> {
-        val now = System.currentTimeMillis()
-        val twoDaysAgo = now - (2 * 24 * 60 * 60 * 1000L) // 2 days window
+        if (entries.isEmpty()) {
+            return emptyList()
+        }
 
-        // Keep only the detections within the last 2 days and order chronologically
+        val now = System.currentTimeMillis()
+        val twoDaysAgo = now - (48 * 60 * 60 * 1000L)
+
+        // Keep only the detections within the last 48 hours and sort by timestamp ascending
         val recentEntries = entries
             .filter { it.timestamp >= twoDaysAgo }
             .sortedBy { it.timestamp }
 
-        if (recentEntries.isEmpty()) {
-            // Return empty list if no detections
-            return emptyList()
-        }
+        if (recentEntries.isEmpty()) return emptyList()
 
-        val calendar = java.util.Calendar.getInstance()
-        val labelFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
-
-        // Group detections by day and 12-hour period (AM/PM)
-        // Key: "YYYY-MM-DD-AM" or "YYYY-MM-DD-PM"
-        val groupedData = mutableMapOf<String, MutableList<DetectionEntry>>()
-
-        recentEntries.forEach { entry ->
-            calendar.timeInMillis = entry.timestamp
-            
-            val year = calendar.get(java.util.Calendar.YEAR)
-            val month = calendar.get(java.util.Calendar.MONTH) + 1 // Calendar.MONTH is 0-based
-            val day = calendar.get(java.util.Calendar.DAY_OF_MONTH)
-            val hour = calendar.get(java.util.Calendar.HOUR_OF_DAY)
-            
-            // Determine AM (0-11) or PM (12-23)
-            val period = if (hour < 12) "AM" else "PM"
-            val key = "$year-$month-$day-$period"
-            
-            groupedData.getOrPut(key) { mutableListOf() }.add(entry)
-        }
-
-        val dataPoints = mutableListOf<TrendDataPoint>()
-
-        // Generate all 12-hour periods for the last 2 days (4 periods total: 2 days × 2 periods/day)
-        val allPeriods = mutableListOf<Pair<String, Long>>() // (key, timestamp)
-        val tempCalendar = java.util.Calendar.getInstance()
-        tempCalendar.timeInMillis = twoDaysAgo
-        tempCalendar.set(java.util.Calendar.HOUR_OF_DAY, 0)
-        tempCalendar.set(java.util.Calendar.MINUTE, 0)
-        tempCalendar.set(java.util.Calendar.SECOND, 0)
-        tempCalendar.set(java.util.Calendar.MILLISECOND, 0)
+        // Added space after day: "Jan 22 6:53 PM" (newline replaced with space for better single-line fit or consistent multi-line)
+        val labelFormatter = SimpleDateFormat("MMM dd HH:mm", Locale.getDefault())
+        val resultPoints = mutableListOf<TrendDataPoint>()
         
-        // Generate all periods from 2 days ago to now
-        while (tempCalendar.timeInMillis <= now) {
-            val year = tempCalendar.get(java.util.Calendar.YEAR)
-            val month = tempCalendar.get(java.util.Calendar.MONTH) + 1
-            val day = tempCalendar.get(java.util.Calendar.DAY_OF_MONTH)
-            
-            // Add AM period (0-12 hours)
-            val amKey = "$year-$month-$day-AM"
-            val amTimestamp = tempCalendar.timeInMillis
-            allPeriods.add(Pair(amKey, amTimestamp))
-            
-            // Add PM period (12-24 hours)
-            val pmKey = "$year-$month-$day-PM"
-            tempCalendar.add(java.util.Calendar.HOUR_OF_DAY, 12)
-            val pmTimestamp = tempCalendar.timeInMillis
-            allPeriods.add(Pair(pmKey, pmTimestamp))
-            
-            // Move to next day
-            tempCalendar.add(java.util.Calendar.HOUR_OF_DAY, 12)
-        }
+        // Threshold for dropping to zero (12 hours in milliseconds)
+        val gapThreshold = 12 * 60 * 60 * 1000L
 
-        // Create data points for all periods, but only show periods with actual detections
-        // This prevents showing 0% for periods with no data, which creates confusing drops
-        var lastHealthyValue = 0.0
-        var lastUnhealthyValue = 0.0
-        
-        allPeriods.forEach { (key, timestamp) ->
-            val entriesInPeriod = groupedData[key] ?: emptyList()
+        recentEntries.forEachIndexed { index, entry ->
+            val confidencePercent = (entry.confidence * 100.0).coerceIn(0.0, 100.0)
             
-            tempCalendar.timeInMillis = timestamp
-            val hour = tempCalendar.get(java.util.Calendar.HOUR_OF_DAY)
-            val period = if (hour < 12) "AM" else "PM"
+            // Map current entry to data point
+            val healthyVal = if (entry.isHealthy) confidencePercent else 0.0
+            val unhealthyVal = if (!entry.isHealthy) confidencePercent else 0.0
             
-            // Calculate average healthy and unhealthy percentages for this period
-            val avgHealthy: Double
-            val avgUnhealthy: Double
-            
-            if (entriesInPeriod.isNotEmpty()) {
-                var totalHealthy = 0.0
-                var totalUnhealthy = 0.0
-                var healthyCount = 0
-                var unhealthyCount = 0
-                
-                entriesInPeriod.forEach { entry ->
-                    val confidencePercent = (entry.confidence * 100.0).coerceIn(0.0, 100.0)
-                    if (entry.isHealthy) {
-                        totalHealthy += confidencePercent
-                        healthyCount++
-                    } else {
-                        totalUnhealthy += confidencePercent
-                        unhealthyCount++
-                    }
-                }
-                
-                // Calculate averages
-                avgHealthy = if (healthyCount > 0) totalHealthy / healthyCount else 0.0
-                avgUnhealthy = if (unhealthyCount > 0) totalUnhealthy / unhealthyCount else 0.0
-                
-                // Update last known values
-                if (avgHealthy > 0.0) lastHealthyValue = avgHealthy
-                if (avgUnhealthy > 0.0) lastUnhealthyValue = avgUnhealthy
-            } else {
-                // For periods with no detections, use last known value (carry forward)
-                // This prevents confusing drops to 0% when there's simply no data in that period
-                avgHealthy = lastHealthyValue
-                avgUnhealthy = lastUnhealthyValue
-            }
-            
-            // Format label: "MMM dd\nAM" or "MMM dd\nPM"
-            val dateLabel = labelFormatter.format(tempCalendar.time)
-            
-            dataPoints.add(
-                TrendDataPoint(
-                    label = "$dateLabel\n$period",
-                    healthyAverage = avgHealthy,
-                    unhealthyAverage = avgUnhealthy
-                )
+            val currentPoint = TrendDataPoint(
+                label = labelFormatter.format(java.util.Date(entry.timestamp)),
+                healthyAverage = healthyVal,
+                unhealthyAverage = unhealthyVal
             )
+
+            // Check gap from previous point
+            if (index > 0) {
+                val prevTimestamp = recentEntries[index - 1].timestamp
+                val timeDiff = entry.timestamp - prevTimestamp
+
+                if (timeDiff > gapThreshold) {
+                    // Gap > 12 hours detected. Insert a "zero" point to force the drop.
+                    // We place this "drop point" slightly after the previous point to make it look like
+                    // it dropped after that session ended.
+                    
+                    // Note: We don't add a label to this intermediate point to avoid clutter
+                    resultPoints.add(TrendDataPoint(
+                        label = "", 
+                        healthyAverage = 0.0, 
+                        unhealthyAverage = 0.0
+                    ))
+                }
+            }
+
+            resultPoints.add(currentPoint)
         }
 
-        return dataPoints
+        return resultPoints
     }
     
     /**
@@ -534,37 +673,140 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     private fun listenToNotifications(userId: String) {
-        viewModelScope.launch {
-            notificationRepository.getNotifications(userId).collect { notifs ->
-                _notifications.value = notifs
-                _newNotificationCount.value = notifs.count { !it.isRead }
+        listenerJobs["notifications"]?.cancel()
+        listenerJobs["notifications"] = viewModelScope.launch(exceptionHandler) {
+            try {
+                notificationRepository.getNotifications(userId).collect { notifs ->
+                    // Filter out locally deleted notifications and preserve locally-marked read states
+                    val mergedNotifs = notifs
+                        .filter { it.id !in locallyDeletedNotificationIds }
+                        .map { notification ->
+                            if (notification.id in locallyMarkedAsReadIds) {
+                                notification.copy(isRead = true)
+                            } else {
+                                notification
+                            }
+                        }
+                    _notifications.value = mergedNotifs
+                    _newNotificationCount.value = mergedNotifs.count { !it.isRead }
+                }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED: Please deploy Firestore Security Rules. See firestore_rules.txt.")
+                } else {
+                    android.util.Log.e("DashboardViewModel", "Error listening to notifications: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to notifications: ${e.message}")
+            }
+        }
+        listenToAlerts(userId)
+    }
+
+    private fun listenToAlerts(userId: String) {
+        listenerJobs["alerts"]?.cancel()
+        listenerJobs["alerts"] = viewModelScope.launch(exceptionHandler) {
+            try {
+                // Fetch user profile to get location
+                val userDoc = firestore.collection("users").document(userId).get().await()
+                val userProfile = userDoc.toObject(UserProfile::class.java)
+                val location = userProfile?.farmLocation ?: ""
+                
+                if (location.isNotEmpty()) {
+                    alertRepository.getAlerts(location).collect { alerts ->
+                        val alertEntries = alerts.map { alert ->
+                            NotificationEntry(
+                                id = alert.id,
+                                type = NotificationType.DISEASE_ALERT.name,
+                                title = "Disease Alert: ${alert.disease}",
+                                message = "${alert.count} cases of ${alert.disease} detected in $location recently.",
+                                timestamp = alert.timestamp,
+                                isRead = false // Alerts are always fresh for now
+                            )
+                        }
+                        _alerts.value = alertEntries
+                    }
+                }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED (Alerts): Please deploy Firestore Security Rules.")
+                } else {
+                    android.util.Log.e("DashboardViewModel", "Error listening to alerts: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to alerts: ${e.message}")
             }
         }
     }
     
     private fun listenToRecentlyDeleted(userId: String) {
-        viewModelScope.launch {
+        listenerJobs["recentlyDeleted"]?.cancel()
+        listenerJobs["recentlyDeleted"] = viewModelScope.launch(exceptionHandler) {
             try {
                 detectionRepository.cleanupOldDeletedItems(userId)
             } catch (e: Exception) {
                 android.util.Log.e("DashboardViewModel", "Error cleaning up old deleted items", e)
             }
             
-            detectionRepository.getRecentlyDeleted(userId).collect { deleted ->
-                _recentlyDeleted.value = deleted
+            try {
+                detectionRepository.getRecentlyDeleted(userId).collect { deleted ->
+                    _recentlyDeleted.value = deleted
+                }
+            } catch (e: com.google.firebase.firestore.FirebaseFirestoreException) {
+                if (e.code == com.google.firebase.firestore.FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    android.util.Log.e("DashboardViewModel", "PERMISSION DENIED (Deleted): Please deploy Firestore Security Rules.")
+                } else {
+                     android.util.Log.e("DashboardViewModel", "Error listening to recently deleted: ${e.message}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                // Ignore cancellations
+            } catch (e: Exception) {
+                android.util.Log.e("DashboardViewModel", "Error listening to recently deleted: ${e.message}")
+                // Don't crash - just log and continue with empty list
             }
         }
     }
 
     fun markNotificationAsRead(notificationId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
+        
+        // Track this ID as locally marked to prevent Firestore from resetting it
+        locallyMarkedAsReadIds.add(notificationId)
+        
+        // Optimistically update local state immediately (for UI responsiveness)
+        _notifications.update { currentList ->
+            currentList.map { notification ->
+                if (notification.id == notificationId) {
+                    notification.copy(isRead = true)
+                } else {
+                    notification
+                }
+            }
+        }
+        _newNotificationCount.value = _notifications.value.count { !it.isRead }
+        
+        // Then update Firestore (may fail if permissions denied)
         viewModelScope.launch {
             notificationRepository.markAsRead(userId, notificationId)
         }
     }
     
     fun deleteNotification(notificationId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
+        
+        // Track this ID as locally deleted to prevent Firestore from adding it back
+        locallyDeletedNotificationIds.add(notificationId)
+        
+        // Optimistically remove from local state immediately
+        _notifications.update { currentList ->
+            currentList.filter { it.id != notificationId }
+        }
+        _newNotificationCount.value = _notifications.value.count { !it.isRead }
+        
         viewModelScope.launch {
             try {
                 notificationRepository.deleteNotification(userId, notificationId)
@@ -575,14 +817,25 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun markAllNotificationsAsRead() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
+        
+        // Track all current notification IDs as locally marked
+        _notifications.value.forEach { locallyMarkedAsReadIds.add(it.id) }
+        
+        // Optimistically update local state immediately (for UI responsiveness)
+        _notifications.update { currentList ->
+            currentList.map { it.copy(isRead = true) }
+        }
+        _newNotificationCount.value = 0
+        
+        // Then update Firestore (may fail if permissions denied)
         viewModelScope.launch {
             notificationRepository.markAllAsRead(userId)
         }
     }
     
     fun updateActiveStatus() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 FirebaseFirestore.getInstance()
@@ -600,7 +853,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun deleteDetection(detectionId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.deleteDetection(userId, detectionId)
@@ -612,7 +865,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun markAllDetectionsAsRead() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 // Get unread detection IDs from current history
@@ -659,7 +912,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun restoreDetection(detectionId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.restoreDetection(userId, detectionId)
@@ -671,7 +924,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun permanentlyDeleteDetection(detectionId: String) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.permanentlyDeleteDetection(userId, detectionId)
@@ -689,7 +942,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun restoreAllDetections() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.restoreAllDetections(userId)
@@ -701,7 +954,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun permanentlyDeleteAllTrash() {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.permanentlyDeleteAllTrash(userId)
@@ -719,7 +972,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun toggleFavorite(detectionId: String, isFavorite: Boolean) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.toggleFavorite(userId, detectionId, isFavorite)
@@ -731,7 +984,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     }
     
     fun toggleArchive(detectionId: String, isArchived: Boolean) {
-        val userId = auth.currentUser?.uid ?: return
+        val userId = getCurrentUserId() ?: return
         viewModelScope.launch {
             try {
                 detectionRepository.toggleArchive(userId, detectionId, isArchived)
@@ -756,7 +1009,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
         location: String? = null,
         recommendations: List<String> = emptyList()
     ) {
-        val userId = auth.currentUser?.uid ?: run {
+        val userId = getCurrentUserId() ?: run {
             android.util.Log.e("DashboardViewModel", "User not logged in, cannot save detection")
             return
         }
@@ -795,7 +1048,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     }
                 }
                 
-                detectionRepository.saveDetection(
+                val saveResult = detectionRepository.saveDetection(
                     userId = userId,
                     result = resultString,
                     isHealthy = isHealthy,
@@ -805,10 +1058,45 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     location = finalLocation,
                     recommendations = finalRecommendations
                 )
-                android.util.Log.d("DashboardViewModel", "Detection result saved successfully to Firestore")
+                
+                val currentTimestamp = System.currentTimeMillis()
+                
+                when (saveResult) {
+                    is DetectionRepository.SaveResult.Success -> {
+                        android.util.Log.d("DashboardViewModel", "Detection result saved successfully to Firestore with ID: ${saveResult.documentId}")
+                        // Remove from queued timestamps if it was there
+                        queuedDetectionTimestamps.remove(currentTimestamp)
+                        _syncStatus.update { currentStatus ->
+                            val newQueuedCount = (currentStatus.queuedCount - 1).coerceAtLeast(0)
+                            currentStatus.copy(
+                                isQueued = newQueuedCount > 0,
+                                queuedCount = newQueuedCount,
+                                isSyncing = false
+                            )
+                        }
+                    }
+                    is DetectionRepository.SaveResult.Queued -> {
+                        android.util.Log.d("DashboardViewModel", "Detection result queued for sync when online")
+                        // Track the timestamp so we can detect when it syncs
+                        queuedDetectionTimestamps.add(currentTimestamp)
+                        _syncStatus.update { 
+                            it.copy(
+                                isQueued = true, 
+                                queuedCount = it.queuedCount + 1,
+                                isSyncing = false
+                            ) 
+                        }
+                    }
+                    is DetectionRepository.SaveResult.Error -> {
+                        android.util.Log.e("DashboardViewModel", "Error saving detection result: ${saveResult.message}")
+                        // Still update sync status to show error
+                        _syncStatus.update { it.copy(isQueued = true, queuedCount = it.queuedCount + 1, isSyncing = false) }
+                    }
+                }
             } catch (e: Exception) {
-                android.util.Log.e("DashboardViewModel", "Error saving detection result: ${e.message}", e)
-                throw e // Re-throw so caller can handle it
+                android.util.Log.e("DashboardViewModel", "Unexpected error saving detection result: ${e.message}", e)
+                // Treat as queued since Firestore persistence should handle it
+                _syncStatus.update { it.copy(isQueued = true, queuedCount = it.queuedCount + 1) }
             }
         }
     }
@@ -816,8 +1104,8 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
     /**
      * Get current location as a string address
      */
-    private suspend fun getCurrentLocation(context: android.content.Context): String? {
-        return try {
+    private suspend fun getCurrentLocation(context: android.content.Context): String? = withContext(Dispatchers.IO) {
+        try {
             val fusedLocationClient = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
             
             // Check location permissions
@@ -828,7 +1116,7 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
             
             if (!hasLocationPermission) {
                 android.util.Log.w("DashboardViewModel", "Location permission not granted")
-                return null
+                return@withContext null
             }
             
             // Try to get fresh current location first (more accurate)
@@ -854,10 +1142,10 @@ class DashboardViewModel(application: Application) : AndroidViewModel(applicatio
                     android.util.Log.d("DashboardViewModel", "Got last known location: ${location?.latitude}, ${location?.longitude}")
                 } catch (e: SecurityException) {
                     android.util.Log.w("DashboardViewModel", "SecurityException getting last location: ${e.message}")
-                    return null
+                    return@withContext null
                 } catch (e: Exception) {
                     android.util.Log.w("DashboardViewModel", "Error getting last location: ${e.message}")
-                    return null
+                    return@withContext null
                 }
             }
             

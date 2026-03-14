@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -34,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
@@ -52,6 +55,7 @@ import com.bisu.chickcare.frontend.components.HealthTrendLineGraph
 import com.bisu.chickcare.frontend.components.NavigationDrawerContent
 import com.bisu.chickcare.frontend.components.OfflineIndicator
 import com.bisu.chickcare.frontend.components.StatsSummaryCard
+import com.bisu.chickcare.frontend.components.SyncStatusIndicator
 import com.bisu.chickcare.frontend.components.WeatherUpdateCard
 import com.bisu.chickcare.frontend.utils.Dimens
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
@@ -60,20 +64,46 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(navController: NavController) {
-    val dashboardViewModel: DashboardViewModel = viewModel()
+fun DashboardScreen(
+    navController: NavController,
+    dashboardViewModel: DashboardViewModel = viewModel()
+) {
+
     val context = LocalContext.current
     val uiState by dashboardViewModel.uiState.collectAsState()
     val notificationCount by dashboardViewModel.newNotificationCount.collectAsState()
     val detectionHistory by dashboardViewModel.detectionHistory.collectAsState()
+    val syncStatus by dashboardViewModel.syncStatus.collectAsState()
     var expandedDropdown by rememberSaveable { mutableStateOf(false) }
     val drawerState = androidx.compose.material3.rememberDrawerState(initialValue = androidx.compose.material3.DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val isOnline by NetworkConnectivityHelper.connectivityFlow(context).collectAsState(initial = NetworkConnectivityHelper.isOnline(context))
     val isOffline = !isOnline
 
+    // Update active status immediately and refresh data on screen load
     LaunchedEffect(Unit) {
         dashboardViewModel.updateActiveStatus()
+        dashboardViewModel.refreshData()
+    }
+
+    // Periodically update active status every 30 seconds while on dashboard
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(30_000) // 30 seconds
+            dashboardViewModel.updateActiveStatus()
+        }
+    }
+
+    // Login Success Popup Logic - only show once after actual login
+    // Use previousBackStackEntry to check if we came from login screen
+    val previousRoute = navController.previousBackStackEntry?.destination?.route
+    val cameFromLogin = previousRoute == "login"
+    var showLoginSuccess by rememberSaveable { mutableStateOf(cameFromLogin) }
+    LaunchedEffect(showLoginSuccess) {
+        if (showLoginSuccess) {
+            delay(2000)
+            showLoginSuccess = false
+        }
     }
 
     ModalNavigationDrawer(
@@ -107,60 +137,105 @@ fun DashboardScreen(navController: NavController) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .background(Color(0xFFFAE7C8)) // Warm beige to prevent gray showing through
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.background_app),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
+                // Main content layer
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .blur(50.dp)
-                )
-
-                // Offline indicator
-                Column(
-                    modifier = Modifier.fillMaxSize()
                 ) {
-                    OfflineIndicator(
-                        isOffline = isOffline,
-                        modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
+                    Image(
+                        painter = painterResource(id = R.drawable.background_app),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(50.dp)
                     )
-                    
-                    if (uiState.isLoading) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(color = Color(0xFFD27D2D))
-                        }
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(innerPadding)
-                        ) {
-                            DashboardScreenContent(
-                                uiState = uiState,
-                                detectionHistory = detectionHistory,
-                                navController = navController,
-                                dashboardViewModel = dashboardViewModel,
-                                onViewHistoryClicked = { navController.navigate("detection_history") }
-                            )
+
+                    // Warm highlight overlay
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color(0xFFFAE7C8).copy(alpha = 0.25f))
+                    )
+
+                    // Offline indicator
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    ) {
+                        OfflineIndicator(
+                            isOffline = isOffline,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        // Sync status indicator - shows when operations are queued
+                        SyncStatusIndicator(
+                            isQueued = syncStatus.isQueued,
+                            queuedCount = syncStatus.queuedCount,
+                            isSyncing = syncStatus.isSyncing,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+
+                        if (uiState.isLoading) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator(color = Color(0xFFD27D2D))
+                            }
+                        } else {
+                            Box(
+                                modifier = Modifier.fillMaxSize()
+                            ) {
+                                DashboardScreenContent(
+                                    uiState = uiState,
+                                    detectionHistory = detectionHistory,
+                                    navController = navController,
+                                    dashboardViewModel = dashboardViewModel,
+                                    onViewHistoryClicked = { navController.navigate("detection_history") }
+                                )
+                            }
                         }
                     }
-                }
-            }
+                } // End inner content Box
 
+                // Login Success Popup
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showLoginSuccess,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = Dimens.BottomBarHeight + 16.dp)
+                ) {
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = Color(0xFF4CAF50)
+                        ),
+                        shape = RoundedCornerShape(6.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
+                    ) {
+                        Text(
+                            text = androidx.compose.ui.res.stringResource(R.string.dashboard_login_success),
+                            color = Color.White,
+                            style = androidx.compose.material3.MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            } // End outer Box
             if (uiState.isDetecting) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                            .background(ThemeColorUtils.black(alpha = 0.5f)),
+                        .background(ThemeColorUtils.black(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
-                        Card(colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)))) {
+                    Card(colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)))) {
                         Column(
                             modifier = Modifier.padding(32.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -168,7 +243,7 @@ fun DashboardScreen(navController: NavController) {
                             CircularProgressIndicator(color = Color(0xFFD27D2D))
                             Spacer(modifier = Modifier.height(Dimens.PaddingLarge))
                             Text(
-                                "Analyzing chicken health...",
+                                text = androidx.compose.ui.res.stringResource(R.string.dashboard_analyzing),
                                 style = androidx.compose.material3.MaterialTheme.typography.titleMedium,
                                 color = ThemeColorUtils.black()
                             )
@@ -195,7 +270,7 @@ fun DashboardScreenContent(
         verticalArrangement = Arrangement.spacedBy(Dimens.PaddingLarge),
         contentPadding = PaddingValues(
             top = Dimens.PaddingLarge,
-            bottom = Dimens.BottomBarHeight
+            bottom = Dimens.PaddingLarge
         )
     ) {
         item { ChickenGalleryCard() }
@@ -211,7 +286,7 @@ fun DashboardScreenContent(
                 cal.set(java.util.Calendar.MILLISECOND, 0)
                 val delayMs = cal.timeInMillis - now
                 delay(delayMs)
-                midnightTick = System.currentTimeMillis()
+                System.currentTimeMillis()
             }
 
             val calendar = java.util.Calendar.getInstance()
@@ -225,10 +300,10 @@ fun DashboardScreenContent(
             StatsSummaryCard(
                 totalDetections = uiState.totalDetections,
                 healthyRate = uiState.healthyRate,
-                unhealthyRate = uiState.unhealthyRate, // Pass independent unhealthy rate
+                unhealthyRate = uiState.unhealthyRate,
                 imageDetections = uiState.imageDetections,
                 audioDetections = uiState.audioDetections,
-                detectionHistory = detectionHistory // Pass detectionHistory to calculate average confidence
+                detectionHistory = detectionHistory
             )
         }
         item {
@@ -237,12 +312,8 @@ fun DashboardScreenContent(
                 verticalArrangement = Arrangement.spacedBy(Dimens.PaddingLarge)
             ) {
                 HealthTrendLineGraph(
-                    title = "Image Detection Trends",
-                    dataPoints = uiState.imageTrendData
-                )
-                HealthTrendLineGraph(
-                    title = "Audio Detection Trends",
-                    dataPoints = uiState.audioTrendData
+                    title = "Image and Audio Trends",
+                    dataPoints = uiState.combinedTrendData
                 )
             }
         }

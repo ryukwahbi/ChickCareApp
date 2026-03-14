@@ -218,12 +218,10 @@ class FusionClassifier(
 
             android.util.Log.d("FusionClassifier", "Raw probabilities - Index 0: $prob0, Index 1: $prob1")
             
-            // According to the exported model metadata, output order is [Unhealthy, Healthy]
-            // However, earlier revisions mistakenly assumed the opposite which caused healthy
-            // samples to be flagged as infected. To keep behaviour consistent with the trained
-            // model, map index 1 → Healthy, index 0 → Unhealthy.
-            val unhealthyProb = prob0  // Index 0 corresponds to the unhealthy class
-            val healthyProb = prob1    // Index 1 corresponds to the healthy class
+            // According to the model signature, output order is [Unhealthy, Healthy]
+            // Model output: Index 0 = Unhealthy, Index 1 = Healthy
+            val unhealthyProb = prob0   // Index 0 corresponds to Unhealthy
+            val healthyProb = prob1      // Index 1 corresponds to Healthy
             
             android.util.Log.d("FusionClassifier", "Interpreted probabilities - Healthy (index1): $healthyProb, Unhealthy (index0): $unhealthyProb")
 
@@ -277,11 +275,12 @@ class FusionClassifier(
 
             // Extract probabilities
             outputBuffer.rewind()
-            val prob0 = outputBuffer.float  // Unhealthy probability
-            val prob1 = outputBuffer.float  // Healthy probability
+            val prob0 = outputBuffer.float  // Unhealthy probability (Index 0)
+            val prob1 = outputBuffer.float  // Healthy probability (Index 1)
 
-            val unhealthyProb = prob0
-            val healthyProb = prob1
+            // Model output order is [Unhealthy, Healthy]
+            val unhealthyProb = prob0    // Index 0 = Unhealthy
+            val healthyProb = prob1      // Index 1 = Healthy
             
             android.util.Log.d("FusionClassifier", "Probabilities - Healthy: $healthyProb, Unhealthy: $unhealthyProb")
 

@@ -36,6 +36,7 @@ fun HealthTrendLineGraph(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
             .background(ThemeColorUtils.white(alpha = 0.9f))
             .padding(16.dp)
     ) {
@@ -46,7 +47,7 @@ fun HealthTrendLineGraph(
                 color = ThemeColorUtils.black(),
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             if (dataPoints.isEmpty()) {
                 Box(
                     modifier = Modifier
@@ -86,7 +87,7 @@ fun HealthTrendLineGraph(
                             strokeWidth = 1f
                         )
                     }
-                    
+
                     for (i in 0..gridLines) {
                         val value = 100 * (1 - i.toFloat() / gridLines)
                         val y = padding + (graphHeight * i / gridLines)
@@ -109,25 +110,28 @@ fun HealthTrendLineGraph(
                             )
                         }
                     }
-                    
-                    // Calculate X positions for all points (evenly spaced)
-                    val xStep = if (dataPoints.size > 1) {
-                        graphWidth / (dataPoints.size - 1)
+
+                    // Calculate X positions for all points
+                    // We effectively have dataPoints.size + 1 points (including the 0,0 start)
+                    val effectiveCount = dataPoints.size + 1
+                    val xStep = if (effectiveCount > 1) {
+                        graphWidth / (effectiveCount - 1)
                     } else {
                         0f
                     }
-                    
+
+                    // X positions for the REAL data points (shifted by 1 step to make room for start point)
                     val xPositions = FloatArray(dataPoints.size) { index ->
-                        padding + (xStep * index)
+                        padding + (xStep * (index + 1))
                     }
 
                     // Show labels but skip some if there are too many to avoid overlap
                     val labelInterval = if (dataPoints.size > 4) {
-                        (dataPoints.size / 2).coerceAtLeast(1) // Show ~2 labels max for 2 days
+                        (dataPoints.size / 2).coerceAtLeast(1) 
                     } else {
-                        1 // Show all labels if 4 or fewer
+                        1 
                     }
-                    
+
                     dataPoints.forEachIndexed { index, _ ->
                         val x = xPositions[index]
                         // Only draw label if it's at the interval or if it's the first/last point
@@ -141,11 +145,11 @@ fun HealthTrendLineGraph(
                                 }
                                 drawText(
                                     text,
-                                    x - 25f,
-                                    size.height - padding + 20f,
+                                    x, // Centered on the point
+                                    size.height - padding + 35f, // Moved down slightly for better clearance
                                     android.graphics.Paint().apply {
                                         color = textColor
-                                        textSize = 9f
+                                        textSize = 20f // increased size slightly
                                         textAlign = android.graphics.Paint.Align.CENTER
                                     }
                                 )
@@ -153,64 +157,81 @@ fun HealthTrendLineGraph(
                         }
                     }
 
-                    // Collect all points (including 0% start) for both lines
+                    // Collect all points for both lines
+                    // START from (0,0) visual coordinates (bottom-left of graph area)
+                    val originOffset = Offset(padding, padding + graphHeight)
+                    
                     val allHealthyOffsets = mutableListOf<Offset>()
                     val allUnhealthyOffsets = mutableListOf<Offset>()
+
+                    // Add the starting point at 0,0
+                    allHealthyOffsets.add(originOffset)
+                    allUnhealthyOffsets.add(originOffset)
 
                     dataPoints.forEachIndexed { index, point ->
                         val x = xPositions[index]
                         val healthyY = padding + graphHeight - ((point.healthyAverage.toFloat() / maxValue) * graphHeight)
                         val unhealthyY = padding + graphHeight - ((point.unhealthyAverage.toFloat() / maxValue) * graphHeight)
 
-                        // Always add point (even if 0%) to maintain line continuity
                         allHealthyOffsets.add(Offset(x, healthyY))
                         allUnhealthyOffsets.add(Offset(x, unhealthyY))
                     }
 
-                    // Draw healthy line (green) - connects all points including 0% start
-                    allHealthyOffsets.forEachIndexed { index, offset ->
-                        if (index < allHealthyOffsets.size - 1) {
-                            drawLine(
-                                start = offset,
-                                end = allHealthyOffsets[index + 1],
-                                color = Color(0xFF4CAF50),
-                                strokeWidth = 2.5f
-                            )
+                    // Helper to draw path (straight lines)
+                    fun drawStraightPath(offsets: List<Offset>, color: Color) {
+                        if (offsets.size < 2) return
+
+                        val path = androidx.compose.ui.graphics.Path()
+                        path.moveTo(offsets.first().x, offsets.first().y)
+
+                        for (i in 1 until offsets.size) {
+                            path.lineTo(offsets[i].x, offsets[i].y)
                         }
-                        // Draw dot only if value > 0 (skip the starting 0% dot)
+
+                        drawPath(
+                            path = path,
+                            color = color,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = 3.dp.toPx(),
+                                cap = androidx.compose.ui.graphics.StrokeCap.Round,
+                                join = androidx.compose.ui.graphics.StrokeJoin.Round
+                            )
+                        )
+                    }
+
+                    // Draw healthy line (green)
+                    drawStraightPath(allHealthyOffsets, Color(0xFF4CAF50))
+
+                    // Draw unhealthy line (red)
+                    drawStraightPath(allUnhealthyOffsets, Color(0xFFF44336))
+
+                    // Draw dots on TOP of the lines (only for actual data points)
+                    dataPoints.forEachIndexed { index, _ ->
+                        // Use index + 1 because offsets list has the extra start point at index 0
+                        
+                        // Draw healthy dot if value > 0
                         if (dataPoints[index].healthyAverage > 0) {
+                            val offset = allHealthyOffsets[index + 1]
                             drawCircle(
                                 color = Color(0xFF4CAF50),
                                 radius = 6f,
                                 center = offset
                             )
-                            // Draw white inner circle for better visibility
                             drawCircle(
                                 color = Color.White,
                                 radius = 3f,
                                 center = offset
                             )
                         }
-                    }
 
-                    // Draw unhealthy line (red) - connects all points including 0% start
-                    allUnhealthyOffsets.forEachIndexed { index, offset ->
-                        if (index < allUnhealthyOffsets.size - 1) {
-                            drawLine(
-                                start = offset,
-                                end = allUnhealthyOffsets[index + 1],
-                                color = Color(0xFFF44336),
-                                strokeWidth = 2.5f
-                            )
-                        }
-                        // Draw dot only if value > 0 (skip the starting 0% dot)
+                        // Draw unhealthy dot if value > 0
                         if (dataPoints[index].unhealthyAverage > 0) {
+                            val offset = allUnhealthyOffsets[index + 1]
                             drawCircle(
                                 color = Color(0xFFF44336),
                                 radius = 6f,
                                 center = offset
                             )
-                            // Draw white inner circle for better visibility
                             drawCircle(
                                 color = Color.White,
                                 radius = 3f,
@@ -219,8 +240,8 @@ fun HealthTrendLineGraph(
                         }
                     }
                 }
-                
-                Row(modifier = Modifier.padding(top = 8.dp)) {
+
+                Row(modifier = Modifier.padding(top = 16.dp)) {
                     LegendItem("Healthy", Color(0xFF4CAF50))
                     Spacer(modifier = Modifier.width(16.dp))
                     LegendItem("Unhealthy", Color(0xFFF44336))

@@ -23,48 +23,10 @@ class ReportsRepository {
     private val firestore = FirebaseFirestore.getInstance()
     private val usersCollection = firestore.collection("users")
 
-    private val defaultReports = listOf(
-        ReportEntry(
-            title = "Health Summary Report",
-            description = "Comprehensive health records, vaccination history, and medication logs for the selected period",
-            type = ReportCategory.HEALTH
-        ),
-        ReportEntry(
-            title = "Egg Production Report",
-            description = "Daily, weekly, and monthly egg production statistics with trends and analysis",
-            type = ReportCategory.PRODUCTION
-        ),
-        ReportEntry(
-            title = "Financial Report",
-            description = "Expense tracking, cost analysis, and revenue calculations by category",
-            type = ReportCategory.FINANCIAL
-        ),
-        ReportEntry(
-            title = "Comprehensive Farm Report",
-            description = "Complete overview including all metrics, health, production, and financial data",
-            type = ReportCategory.COMPREHENSIVE
-        )
-    )
+    private val defaultReports = emptyList<ReportEntry>()
 
     suspend fun seedDefaultReports(userId: String) {
-        try {
-            val collection = usersCollection.document(userId).collection("reports")
-            val snapshot = collection.limit(1).get().await()
-            if (snapshot.isEmpty) {
-                defaultReports.forEach { report ->
-                    val data = mapOf(
-                        "title" to report.title,
-                        "description" to report.description,
-                        "type" to report.type.name,
-                        "lastGenerated" to 0L,
-                        "createdAt" to System.currentTimeMillis()
-                    )
-                    collection.add(data).await()
-                }
-            }
-        } catch (e: Exception) {
-            Log.e("ReportsRepository", "Error seeding default reports: ${e.message}", e)
-        }
+        // Placeholder data seeding removed
     }
 
     fun getReports(userId: String): Flow<List<ReportEntry>> = callbackFlow {

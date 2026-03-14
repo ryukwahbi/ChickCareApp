@@ -4,7 +4,6 @@ import android.content.Intent
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Cancel
 import androidx.compose.material.icons.filled.CheckCircle
@@ -33,11 +33,11 @@ import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -78,11 +78,13 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import coil.request.ImageRequest
 import com.bisu.chickcare.backend.repository.DetectionEntry
 import com.bisu.chickcare.backend.service.NetworkConnectivityHelper
@@ -105,7 +107,7 @@ enum class DetectionTypeFilter {
 }
 
 @Composable
-fun TopBarMenu(navController: NavController) {
+fun TopBarMenu(navController: NavController, onShowFilters: () -> Unit) {
     var showMenu by remember { mutableStateOf(false) }
 
     Box {
@@ -121,6 +123,24 @@ fun TopBarMenu(navController: NavController) {
             onDismissRequest = { showMenu = false },
             modifier = Modifier.background(ThemeColorUtils.white())
         ) {
+            DropdownMenuItem(
+                text = { Text("Filters", color = ThemeColorUtils.black()) },
+                onClick = {
+                    showMenu = false
+                    onShowFilters()
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.FilterList,
+                        contentDescription = "Filters",
+                        tint = ThemeColorUtils.black()
+                    )
+                }
+            )
+            HorizontalDivider(
+                color = ThemeColorUtils.black(),
+                thickness = 1.dp
+            )
             DropdownMenuItem(
                 text = { Text("Favorites", color = ThemeColorUtils.black()) },
                 onClick = {
@@ -261,7 +281,7 @@ fun FilterPanel(
                             else DetectionTypeFilter.IMAGE_ONLY
                         )
                     },
-                    label = { Text("Image Only") },
+                    label = { Text("Image") },
                     modifier = Modifier.weight(1f),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFF2196F3).copy(alpha = 0.2f),
@@ -276,7 +296,7 @@ fun FilterPanel(
                             else DetectionTypeFilter.AUDIO_ONLY
                         )
                     },
-                    label = { Text("Audio Only") },
+                    label = { Text("Audio") },
                     modifier = Modifier.weight(1f),
                     colors = FilterChipDefaults.filterChipColors(
                         selectedContainerColor = Color(0xFF9C27B0).copy(alpha = 0.2f),
@@ -309,7 +329,7 @@ fun FilterPanel(
                 )
             ) {
                 Text(
-                    "Clear All Filters",
+                    "Clear Filters",
                     color = if (ThemeViewModel.isDarkMode) Color.White else Color.Unspecified
                 )
             }
@@ -346,67 +366,52 @@ fun DetectionHistoryItemLastDetection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Circular image with actual captured or uploaded image, or fallback icon
+            // Circular image with actual captured or uploaded image, or fallback icon
             val imageUriString = entry.imageUri
-            if (!imageUriString.isNullOrEmpty()) {
-                val context = LocalContext.current
-                val sanitizedString =
-                    sanitizeUriString(imageUriString, "DetectionHistoryScreen")
-                val imageUri = sanitizeToUri(imageUriString, "DetectionHistoryScreen")
-                if (sanitizedString != null && imageUri != null) {
-                    val uriType = when (imageUri.scheme) {
-                        "file" -> "captured"
-                        "content" -> "uploaded"
-                        else -> "unknown"
-                    }
-                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $sanitizedString")
+            val context = LocalContext.current
+            val imageModel = com.bisu.chickcare.frontend.utils.getAccessibleUri(context, imageUriString, entry.cloudUrl)
 
-                    val imageRequest = ImageRequest.Builder(context)
-                        .data(imageUri)
+            if (imageModel != null) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageModel)
                         .crossfade(true)
-                        .build()
-
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = "Detection Image",
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
-                            .padding(2.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        onError = {
-                            Log.w(
-                                "DetectionHistoryScreen",
-                                "Failed to load image ($uriType): $sanitizedString - ${it.result.throwable.message}"
-                            )
-                        },
-                        onSuccess = {
-                            Log.d(
-                                "DetectionHistoryScreen",
-                                "Successfully loaded $uriType image: $sanitizedString"
+                        .build(),
+                    contentDescription = "Detection Image",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
+                        .padding(2.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = ThemeColorUtils.black()
                             )
                         }
-                    )
-                } else {
-                    Log.w("DetectionHistoryScreen", "Image URI invalid: $imageUriString")
-                    Box(
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFF9D7A5A)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.CameraAlt,
-                            contentDescription = "No Image",
-                            tint = ThemeColorUtils.white(),
-                            modifier = Modifier.size(28.dp)
-                        )
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BrokenImage,
+                                contentDescription = "Image Deleted",
+                                tint = ThemeColorUtils.darkGray(Color.DarkGray).copy(alpha = 0.6f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
                     }
-                }
+                )
             } else {
-                // Fallback: Camera icon if no image available
                 Box(
                     modifier = Modifier
                         .size(56.dp)
@@ -486,6 +491,10 @@ fun DetectionHistoryItemLastDetection(
                         }
                     )
                     HorizontalDivider(
+                        thickness = 1.dp
+                    )
+
+                    HorizontalDivider(
                         color = ThemeColorUtils.lightGray(Color(0xFF7E7C7C)),
                         thickness = 1.dp
                     )
@@ -531,36 +540,112 @@ fun DetectionHistoryItemLastDetection(
         }
     }
 
-    // Move to trash confirmation dialog
     if (showMoveToTrashDialog) {
-        AlertDialog(
+        Dialog(
             onDismissRequest = { showMoveToTrashDialog = false },
-            title = { Text("Move to Trash") },
-            text = { Text("Are you sure you want to move this item to trash?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        dashboardViewModel.deleteDetection(entry.id)
-                        showMoveToTrashDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false,
+                dismissOnBackPress = true,
+                dismissOnClickOutside = true
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { showMoveToTrashDialog = false },
+                contentAlignment = Alignment.BottomCenter
+            ) {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 24.dp)
+                        .clickable(
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                            indication = null
+                        ) { }, // Prevent clicks from dismissing
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = ThemeColorUtils.white()
+                    ),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
                 ) {
-                    Text("Move to Trash", color = ThemeColorUtils.white())
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { showMoveToTrashDialog = false },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ThemeColorUtils.lightGray(
-                            Color.Gray
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(24.dp),
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        // Title
+                        Text(
+                            text = "Move to Trash",
+                            style = MaterialTheme.typography.headlineLarge.copy(
+                                fontFamily = com.bisu.chickcare.ui.theme.FiraSans,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 28.sp
+                            ),
+                            color = ThemeColorUtils.black()
                         )
-                    )
-                ) {
-                    Text("Cancel", color = ThemeColorUtils.white())
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        // Confirmation message
+                        Text(
+                            text = "Are you sure you want to move this item to trash?",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = ThemeColorUtils.darkGray(Color(0xFF666666))
+                        )
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Move to Trash Button (Red)
+                        Button(
+                            onClick = {
+                                dashboardViewModel.deleteDetection(entry.id)
+                                showMoveToTrashDialog = false
+                            },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFDC2626), // Crimson Red
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Move to Trash",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Cancel Button (White with Border)
+                        Button(
+                            onClick = { showMoveToTrashDialog = false },
+                            modifier = Modifier.fillMaxWidth().height(50.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = ThemeColorUtils.black()
+                            ),
+                            border = BorderStroke(1.dp, Color(0xFFE0E0E0)),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp, 0.dp, 0.dp, 0.dp)
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
                 }
             }
-        )
+        }
     }
 }
 
@@ -590,63 +675,48 @@ fun DetectionHistoryItemResult(
         ) {
             val imageUriString = entry.imageUri
             val context = LocalContext.current
-            if (!imageUriString.isNullOrEmpty()) {
-                val sanitizedString =
-                    sanitizeUriString(imageUriString, "DetectionHistoryScreen")
-                val imageUri = sanitizeToUri(imageUriString, "DetectionHistoryScreen")
-                if (sanitizedString != null && imageUri != null) {
-                    val uriType = when (imageUri.scheme) {
-                        "file" -> "captured"
-                        "content" -> "uploaded"
-                        else -> "unknown"
-                    }
-                    Log.d("DetectionHistoryScreen", "Loading $uriType image: $sanitizedString")
+            val imageModel = com.bisu.chickcare.frontend.utils.getAccessibleUri(context, imageUriString, entry.cloudUrl)
 
-                    val imageRequest = ImageRequest.Builder(context)
-                        .data(imageUri)
+            if (imageModel != null) {
+                SubcomposeAsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(imageModel)
                         .crossfade(true)
-                        .build()
-
-                    AsyncImage(
-                        model = imageRequest,
-                        contentDescription = "Detection Image",
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
-                            .padding(2.dp)
-                            .clip(CircleShape),
-                        contentScale = ContentScale.Crop,
-                        onError = {
-                            Log.w(
-                                "DetectionHistoryScreen",
-                                "Failed to load image ($uriType): $sanitizedString - ${it.result.throwable.message}"
-                            )
-                        },
-                        onSuccess = {
-                            Log.d(
-                                "DetectionHistoryScreen",
-                                "Successfully loaded $uriType image: $sanitizedString"
+                        .build(),
+                    contentDescription = "Detection Image",
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
+                        .padding(2.dp)
+                        .clip(CircleShape),
+                    contentScale = ContentScale.Crop,
+                    loading = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp,
+                                color = ThemeColorUtils.black()
                             )
                         }
-                    )
-                } else {
-                    Log.w(
-                        "DetectionHistoryScreen",
-                        "Image URI invalid for result card: $imageUriString"
-                    )
-                    Icon(
-                        imageVector = if (entry.isHealthy) Icons.Default.CheckCircle else Icons.Default.Cancel,
-                        contentDescription = "Status Icon",
-                        tint = if (entry.isHealthy) Color(0xFF4CAF50) else Color(0xFFF44336),
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(CircleShape)
-                            .background(ThemeColorUtils.beige(Color(0xFFE3B386)), CircleShape)
-                            .padding(2.dp)
-                            .clip(CircleShape)
-                    )
-                }
+                    },
+                    error = {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BrokenImage,
+                                contentDescription = "Image Deleted",
+                                tint = ThemeColorUtils.darkGray(Color.DarkGray).copy(alpha = 0.6f),
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                )
             } else {
                 Icon(
                     imageVector = if (entry.isHealthy) Icons.Default.CheckCircle else Icons.Default.Cancel,
@@ -691,8 +761,12 @@ fun DetectionHistoryItemResult(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingValues) {
-    val dashboardViewModel: DashboardViewModel = viewModel()
+fun DetectionHistoryScreen(
+    navController: NavController,
+    paddingValues: PaddingValues,
+    dashboardViewModel: DashboardViewModel = viewModel()
+) {
+
     val history by dashboardViewModel.detectionHistory.collectAsState()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val route = navBackStackEntry?.destination?.route
@@ -749,7 +823,7 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
             // Confidence filter
             val confidencePercent = entry.confidence * 100f
             val matchesConfidence =
-                confidencePercent >= minConfidence && confidencePercent <= maxConfidence
+                confidencePercent in minConfidence..maxConfidence
 
             // Detection type filter
             val matchesType = filterByType == null || when (filterByType) {
@@ -808,12 +882,13 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
     }
 
     val view = LocalView.current
-    DisposableEffect(Unit) {
+    val isDarkMode = ThemeViewModel.isDarkMode
+    DisposableEffect(isDarkMode) {
         val window = (view.context as? android.app.Activity)?.window
         window?.let {
             WindowCompat.setDecorFitsSystemWindows(it, false)
             val insetsController = WindowCompat.getInsetsController(it, view)
-            insetsController.isAppearanceLightStatusBars = true
+            insetsController.isAppearanceLightStatusBars = !isDarkMode
             @Suppress("DEPRECATION")
             it.statusBarColor = android.graphics.Color.TRANSPARENT
         }
@@ -821,150 +896,104 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
     }
 
     Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Text(
-                            text = "Detection History",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = ThemeColorUtils.darkGray(Color(0xFF231C16))
-                        )
-                    },
-                    actions = {
-                        TopBarMenu(navController = navController)
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = ThemeColorUtils.white(),
-                        titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
-                    ),
-                    modifier = Modifier.clickable {
-                        // Dismiss keyboard when clicking on top bar
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    }
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "Detection History",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    )
+                },
+                actions = {
+                    TopBarMenu(
+                        navController = navController,
+                        onShowFilters = { showFilters = true }
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = ThemeColorUtils.white(),
+                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
                 )
-            }
-        ) { innerPadding ->
-            Box(
+            )
+        }
+    ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                ) {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                }
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
-                    .padding(paddingValues)
-                    .clickable {
-                        // Dismiss keyboard when clicking outside input box
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                    }
+                    .padding(
+                        top = innerPadding.calculateTopPadding()
+                    )
             ) {
+                // Offline indicator
+                OfflineIndicator(
+                    isOffline = isOffline,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
                 Column(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier
+                        .fillMaxSize()
                 ) {
-                    // Offline indicator
-                    OfflineIndicator(
-                        isOffline = isOffline,
-                        modifier = Modifier.padding(top = innerPadding.calculateTopPadding())
+                    // Search bar
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        placeholder = {
+                            Text(
+                                "Search by result or location...",
+                                color = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(Icons.Default.Search, contentDescription = "Search")
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = {
+                                    searchQuery = ""
+                                    keyboardController?.hide()
+                                    focusManager.clearFocus()
+                                }) {
+                                    Icon(Icons.Default.Cancel, contentDescription = "Clear")
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedContainerColor = Color.White,
+                            unfocusedContainerColor = Color.White,
+                            unfocusedBorderColor = Color.Black,
+                            focusedBorderColor = Color.Black,
+                            focusedLeadingIconColor = Color.Black,
+                            unfocusedLeadingIconColor = Color.Black,
+                            unfocusedPlaceholderColor = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified,
+                            focusedPlaceholderColor = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified
+                        )
                     )
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                    ) {
-                        // Search bar
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp),
-                            placeholder = { 
-                                Text(
-                                    "Search by result or location...",
-                                    color = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified
-                                ) 
-                            },
-                            leadingIcon = {
-                                Icon(Icons.Default.Search, contentDescription = "Search")
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = {
-                                        searchQuery = ""
-                                        keyboardController?.hide()
-                                        focusManager.clearFocus()
-                                    }) {
-                                        Icon(Icons.Default.Cancel, contentDescription = "Clear")
-                                    }
-                                }
-                            },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = Color.White,
-                                unfocusedContainerColor = Color.White,
-                                unfocusedBorderColor = Color.Black,
-                                focusedBorderColor = Color.Black,
-                                focusedLeadingIconColor = Color.Black,
-                                unfocusedLeadingIconColor = Color.Black,
-                                unfocusedPlaceholderColor = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified,
-                                focusedPlaceholderColor = if (ThemeViewModel.isDarkMode) Color(0xFF8D94A0) else Color.Unspecified
-                            )
-                        )
+                    // Filter chips row - REMOVED
 
-                        // Filter chips row
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 4.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .clickable { showFilters = !showFilters }
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(
-                                        if (showFilters) Color(0xFFF0BD7F) else Color.White,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .border(
-                                        1.dp,
-                                        Color.Black,
-                                        RoundedCornerShape(8.dp)
-                                    )
-                                    .padding(horizontal = 12.dp, vertical = 8.dp)
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    Icon(
-                                        Icons.Default.FilterList,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
-                                        tint = Color.Black
-                                    )
-                                    Text(
-                                        "Filters",
-                                        color = Color.Black,
-                                        style = MaterialTheme.typography.labelLarge
-                                    )
-                                }
-                            }
-                            if (selectedHealthStatus != null || filterByType != null ||
-                                minConfidence > 0f || maxConfidence < 100f ||
-                                startDate != null || endDate != null
-                            ) {
-                                Text(
-                                    text = "${filteredHistory.size} results",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = ThemeColorUtils.lightGray(Color.Gray),
-                                    modifier = Modifier.padding(vertical = 8.dp)
-                                )
-                            }
-                        }
 
-                        // Filter panel
-                        if (showFilters) {
+                    // Filter Dialog
+                    if (showFilters) {
+                        Dialog(onDismissRequest = { showFilters = false }) {
                             FilterPanel(
                                 selectedHealthStatus = selectedHealthStatus,
                                 onHealthStatusChanged = { selectedHealthStatus = it },
@@ -980,167 +1009,138 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
                                 }
                             )
                         }
+                    }
 
-                        // Segmented Button Row for Tabs
-                        SingleChoiceSegmentedButtonRow(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                    // Segmented Button Row for Tabs
+                    SingleChoiceSegmentedButtonRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        SegmentedButton(
+                            selected = selectedTab == 0,
+                            onClick = { selectedTab = 0 },
+                            shape = RoundedCornerShape(topStart = 8.dp, bottomStart = 8.dp),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = Color(0xFFF0BD7F)
+                            )
                         ) {
-                            SegmentedButton(
-                                selected = selectedTab == 0,
-                                onClick = { selectedTab = 0 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = Color(0xFFF0BD7F)
-                                )
-                            ) {
-                                Text("Last Detection")
-                            }
-                            SegmentedButton(
-                                selected = selectedTab == 1,
-                                onClick = { selectedTab = 1 },
-                                shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-                                colors = SegmentedButtonDefaults.colors(
-                                    activeContainerColor = Color(0xFFF0BD7F)
-                                )
-                            ) {
-                                Text("Result")
-                            }
+                            Text("Last Detection")
                         }
-
-                        // Content based on selected tab
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        SegmentedButton(
+                            selected = selectedTab == 1,
+                            onClick = { selectedTab = 1 },
+                            shape = RoundedCornerShape(topEnd = 8.dp, bottomEnd = 8.dp),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = Color(0xFFF0BD7F)
+                            )
                         ) {
-                            if (filteredHistory.isEmpty() && history.isNotEmpty()) {
-                                item {
-                                    Text(
-                                        text = "No detections match your filters.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.lightGray(Color.Gray)
-                                    )
-                                }
-                            } else if (history.isEmpty()) {
-                                item {
-                                    Text(
-                                        text = "No detection history found.",
-                                        style = MaterialTheme.typography.bodyMedium,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(16.dp),
-                                        color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.lightGray(Color.Gray)
+                            Text("Result")
+                        }
+                    }
+
+                    // Content based on selected tab
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 100.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (filteredHistory.isEmpty() && history.isNotEmpty()) {
+                            item {
+                                Text(
+                                    text = "No detections match your filters.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.lightGray(Color.Gray)
+                                )
+                            }
+                        } else if (history.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "No detection history found.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    color = if (ThemeViewModel.isDarkMode) ThemeColorUtils.white() else ThemeColorUtils.lightGray(Color.Gray)
+                                )
+                            }
+                        } else {
+                            if (selectedTab == 0) {
+                                // Last Detection Tab - Show Date, Time, and Location only
+                                items(filteredHistory, key = { it.id }) { entry ->
+                                    DetectionHistoryItemLastDetection(
+                                        entry = entry,
+                                        dashboardViewModel = dashboardViewModel,
+                                        onClick = {
+                                            // Navigate to LastDetectionDetailScreen
+                                            navController.navigate("last_detection_detail/${entry.id}")
+                                        }
                                     )
                                 }
                             } else {
-                                if (selectedTab == 0) {
-                                    // Last Detection Tab - Show Date, Time, and Location only
-                                    items(filteredHistory, key = { it.id }) { entry ->
-                                        DetectionHistoryItemLastDetection(
-                                            entry = entry,
-                                            dashboardViewModel = dashboardViewModel,
-                                            onClick = {
-                                                // Navigate to LastDetectionDetailScreen
-                                                val entryId = entry.id
-                                                val timestamp = entry.timestamp
-                                                val location = entry.location?.let {
-                                                    URLEncoder.encode(
-                                                        it,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                } ?: ""
-                                                val imageUri = entry.imageUri?.let {
-                                                    URLEncoder.encode(
-                                                        it,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                } ?: ""
-                                                val result = URLEncoder.encode(
-                                                    entry.result,
+                                // Result Tab - White card style with Result and Confidence
+                                items(filteredHistory, key = { it.id }) { entry ->
+                                    DetectionHistoryItemResult(
+                                        entry = entry,
+                                        onClick = {
+                                            // Save that we're navigating from Result tab
+                                            // This will be used to restore the Result tab when coming back
+                                            navBackStackEntry?.savedStateHandle?.set(
+                                                "showResultTab",
+                                                true
+                                            )
+
+                                            // Navigate to HistoryResultScreen
+                                            val entryId = entry.id
+                                            val timestamp = entry.timestamp
+                                            val location = entry.location?.let {
+                                                URLEncoder.encode(
+                                                    it,
                                                     StandardCharsets.UTF_8.toString()
                                                 )
-                                                val isHealthy = entry.isHealthy
-                                                val confidence = entry.confidence
-
-                                                navController.navigate(
-                                                    "last_detection_detail?entryId=$entryId" +
-                                                            "&timestamp=$timestamp" +
-                                                            "&location=$location" +
-                                                            "&imageUri=$imageUri" +
-                                                            "&result=$result" +
-                                                            "&isHealthy=$isHealthy" +
-                                                            "&confidence=$confidence"
-                                                )
-                                            }
-                                        )
-                                    }
-                                } else {
-                                    // Result Tab - White card style with Result and Confidence
-                                    items(filteredHistory, key = { it.id }) { entry ->
-                                        DetectionHistoryItemResult(
-                                            entry = entry,
-                                            onClick = {
-                                                // Save that we're navigating from Result tab
-                                                // This will be used to restore the Result tab when coming back
-                                                navBackStackEntry?.savedStateHandle?.set(
-                                                    "showResultTab",
-                                                    true
-                                                )
-
-                                                // Navigate to HistoryResultScreen
-                                                val entryId = entry.id
-                                                val timestamp = entry.timestamp
-                                                val location = entry.location?.let {
-                                                    URLEncoder.encode(
-                                                        it,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                } ?: ""
-                                                val imageUri = entry.imageUri?.let {
-                                                    URLEncoder.encode(
-                                                        it,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                } ?: ""
-                                                val audioUri = entry.audioUri?.let {
-                                                    URLEncoder.encode(
-                                                        it,
-                                                        StandardCharsets.UTF_8.toString()
-                                                    )
-                                                } ?: ""
-                                                val result = URLEncoder.encode(
-                                                    entry.result,
+                                            } ?: ""
+                                            val imageUri = entry.imageUri?.let {
+                                                URLEncoder.encode(
+                                                    it,
                                                     StandardCharsets.UTF_8.toString()
                                                 )
-                                                val isHealthy = entry.isHealthy
-                                                val confidence = entry.confidence
-                                                val recommendations =
-                                                    entry.recommendations.joinToString("|") {
-                                                        URLEncoder.encode(
-                                                            it,
-                                                            StandardCharsets.UTF_8.toString()
-                                                        )
-                                                    }
-
-                                                navController.navigate(
-                                                    "history_result_detail?entryId=$entryId" +
-                                                            "&timestamp=$timestamp" +
-                                                            "&location=$location" +
-                                                            "&imageUri=$imageUri" +
-                                                            "&audioUri=$audioUri" +
-                                                            "&result=$result" +
-                                                            "&isHealthy=$isHealthy" +
-                                                            "&confidence=$confidence" +
-                                                            "&recommendations=$recommendations"
+                                            } ?: ""
+                                            val audioUri = entry.audioUri?.let {
+                                                URLEncoder.encode(
+                                                    it,
+                                                    StandardCharsets.UTF_8.toString()
                                                 )
-                                            }
-                                        )
-                                    }
+                                            } ?: ""
+                                            val result = URLEncoder.encode(
+                                                entry.result,
+                                                StandardCharsets.UTF_8.toString()
+                                            )
+                                            val isHealthy = entry.isHealthy
+                                            val confidence = entry.confidence
+                                            val recommendations =
+                                                entry.recommendations.joinToString("|") {
+                                                    URLEncoder.encode(
+                                                        it,
+                                                        StandardCharsets.UTF_8.toString()
+                                                    )
+                                                }
+
+                                            navController.navigate(
+                                                "history_result_detail?entryId=$entryId" +
+                                                        "&timestamp=$timestamp" +
+                                                        "&location=$location" +
+                                                        "&imageUri=$imageUri" +
+                                                        "&audioUri=$audioUri" +
+                                                        "&result=$result" +
+                                                        "&isHealthy=$isHealthy" +
+                                                        "&confidence=$confidence" +
+                                                        "&recommendations=$recommendations"
+                                            )
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -1149,3 +1149,4 @@ fun DetectionHistoryScreen(navController: NavController, paddingValues: PaddingV
             }
         }
     }
+}

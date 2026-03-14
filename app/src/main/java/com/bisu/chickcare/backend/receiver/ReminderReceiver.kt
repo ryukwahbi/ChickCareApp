@@ -16,9 +16,18 @@ import com.bisu.chickcare.backend.service.ReminderType
 
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        // Handle boot completed - reschedule all reminders
+        // Handle boot completed - reschedule all reminders and restart notification service
         if (intent.action == Intent.ACTION_BOOT_COMPLETED) {
             rescheduleAllReminders(context)
+            
+            // Restart foreground notification service if user is logged in
+            try {
+                if (com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null) {
+                    com.bisu.chickcare.backend.service.NotificationForegroundService.start(context)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("ReminderReceiver", "Failed to start NotificationForegroundService on boot", e)
+            }
             return
         }
 
@@ -39,6 +48,8 @@ class ReminderReceiver : BroadcastReceiver() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val soundUri = android.net.Uri.parse("android.resource://${context.packageName}/${com.bisu.chickcare.R.raw.notify_sound}")
+        
         // Build notification
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
@@ -46,7 +57,8 @@ class ReminderReceiver : BroadcastReceiver() {
             .setContentText(reminderDescription)
             .setStyle(NotificationCompat.BigTextStyle().bigText(reminderDescription))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setDefaults(NotificationCompat.DEFAULT_LIGHTS or NotificationCompat.DEFAULT_VIBRATE) // Don't use DEFAULT_SOUND or DEFAULT_ALL
+            .setSound(soundUri)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
@@ -59,6 +71,13 @@ class ReminderReceiver : BroadcastReceiver() {
 
     private fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                .build()
+                
+            val soundUri = android.net.Uri.parse("android.resource://${context.packageName}/${com.bisu.chickcare.R.raw.notify_sound}")
+
             val channel = NotificationChannel(
                 CHANNEL_ID,
                 CHANNEL_NAME,
@@ -67,6 +86,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 description = CHANNEL_DESCRIPTION
                 enableVibration(true)
                 enableLights(true)
+                setSound(soundUri, audioAttributes)
             }
 
             val notificationManager = context.getSystemService(NotificationManager::class.java)
@@ -91,7 +111,7 @@ class ReminderReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        private const val CHANNEL_ID = "daily_reminders_channel"
+        private const val CHANNEL_ID = "daily_reminders_channel_v2"
         private const val CHANNEL_NAME = "Daily Reminders"
         private const val CHANNEL_DESCRIPTION = "Notifications for daily chicken care reminders"
     }

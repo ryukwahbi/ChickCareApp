@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
@@ -226,8 +229,13 @@ fun DailyRemindersCard() {
             },
             onDelete = {
                 if (editingReminder?.type == null && editingReminder?.id != null) {
+                    // Delete custom reminder
                     reminderViewModel.deleteCustomReminder(editingReminder!!.id)
+                } else if (editingReminder?.type != null) {
+                    // Delete/disable predefined reminder
+                    reminderViewModel.deleteReminder(editingReminder!!.type!!)
                 }
+
                 showDialog = false
             }
         )
@@ -372,6 +380,7 @@ fun ReminderDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = ThemeColorUtils.surface(Color(0xFFE5E2DE)),
+        shape = RoundedCornerShape(10.dp),
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -380,7 +389,8 @@ fun ReminderDialog(
             ) {
                 Text(
                     if (isEditMode) "Edit Reminder" else "Add Reminder",
-                    color = ThemeColorUtils.black()
+                    color = ThemeColorUtils.black(),
+                    fontWeight = FontWeight.Bold
                 )
                 IconButton(
                     onClick = onDismiss,
@@ -397,11 +407,14 @@ fun ReminderDialog(
         },
         text = {
             Box(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(350.dp)
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
                         .clickable(
                             indication = null,
                             interactionSource = remember { MutableInteractionSource() }
@@ -409,7 +422,7 @@ fun ReminderDialog(
                             focusManager.clearFocus()
                             keyboardController?.hide()
                         },
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                 if (isCustomReminder) {
                     OutlinedTextField(
@@ -442,7 +455,7 @@ fun ReminderDialog(
                         )
                     )
                     
-                    Text("Select Icon:", style = MaterialTheme.typography.bodySmall, color = ThemeColorUtils.black())
+                    Text("Select Icon:", style = MaterialTheme.typography.bodySmall, fontWeight = FontWeight.Bold, color = ThemeColorUtils.black())
                     LazyRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -484,13 +497,13 @@ fun ReminderDialog(
                         color = ThemeColorUtils.darkGray(Color(0xFF666666))
                     )
                 }
-                
+                                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Time:", style = MaterialTheme.typography.bodyMedium, color = ThemeColorUtils.black())
+                    Text("Time:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = ThemeColorUtils.black())
                     TextButton(onClick = { showTimePicker = true }) {
                         Text(
                             reminderViewModel.formatTime(timePickerState.hour, timePickerState.minute),
@@ -498,13 +511,13 @@ fun ReminderDialog(
                         )
                     }
                 }
-                
+                                
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Enable notification:", style = MaterialTheme.typography.bodyMedium, color = ThemeColorUtils.black())
+                    Text("Enable notification:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = ThemeColorUtils.black())
                     Switch(
                         checked = enabled,
                         onCheckedChange = { enabled = it },
@@ -515,7 +528,7 @@ fun ReminderDialog(
                     )
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 
                 // Day Selection
                 Text("Select Days:", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = ThemeColorUtils.black())
@@ -540,8 +553,7 @@ fun ReminderDialog(
                                 .weight(1f)
                                 .height(36.dp)
                                 .background(
-                                    if (isSelected) Color(0xFF4CAF50) else Color(0xFFE0E0E0),
-                                    RoundedCornerShape(8.dp)
+                                    if (isSelected) Color(0xFF4CAF50) else Color(0xFFE0E0E0)
                                 )
                                 .clickable {
                                     selectedDays = if (isSelected) {
@@ -568,13 +580,14 @@ fun ReminderDialog(
             TextButton(
                 onClick = {
                     onSave(title, description, icon, timePickerState.hour, timePickerState.minute, enabled, selectedDays)
-                }
+                },
+                modifier = Modifier.offset(x = 1.dp)
             ) {
-                Text("Save", color = Color(0xFF0C5C0F))
+                Text("Save", color = Color(0xFF0C5C0F), fontWeight = FontWeight.ExtraBold)
             }
         },
         dismissButton = {
-            if (isEditMode && isCustomReminder) {
+            if (isEditMode) {
                 TextButton(onClick = onDelete) {
                     Text("Delete", color = Color.Red)
                 }
@@ -584,8 +597,8 @@ fun ReminderDialog(
     
     if (showTimePicker) {
         TimePickerDialog(
-            onConfirm = { 
-                showTimePicker = false 
+            onConfirm = {
+                showTimePicker = false
             },
             onDismiss = { showTimePicker = false },
             initialTime = timePickerState

@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
@@ -139,14 +141,15 @@ fun ResetPasswordScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 16.dp)
                 .padding(top = 72.dp),
             horizontalAlignment = Alignment.Start,
             verticalArrangement = Arrangement.Top
         ) {
             IconButton(
                 onClick = { navController.popBackStack() },
-                modifier = Modifier.align(Alignment.Start)
+                modifier = Modifier
+                    .align(Alignment.Start)
+                    .padding(start = 8.dp) // Little bit of padding from the very left
             ) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
@@ -155,131 +158,171 @@ fun ResetPasswordScreen(navController: NavController) {
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Spacer(modifier = Modifier.height(24.dp))
 
-            Text(
-                text = "Reset Password",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.ExtraBold,
-                color = ThemeColorUtils.white()
-            )
+                Text(
+                    text = "Reset Password",
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    color = ThemeColorUtils.white()
+                )
 
-            Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "Enter your email address and we'll send you a link to reset your password.",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Normal,
-                color = ThemeColorUtils.white(alpha = 0.8f),
-                textAlign = TextAlign.Start
-            )
+                Text(
+                    text = "Enter your email address and we'll send you a link to reset your password.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Normal,
+                    color = ThemeColorUtils.white(alpha = 0.8f),
+                    textAlign = TextAlign.Start
+                )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
-            OutlinedTextField(
-                value = email,
-                onValueChange = {
-                    email = it
-                    isEmailError = false
-                    message = ""
-                    messageType = MessageType.NONE
-                },
-                label = { Text("Email Address") },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                isError = isEmailError,
-                colors = textFieldColors,
-                enabled = !isSuccess,
-                supportingText = {
-                    if (isEmailError) {
-                        Text("Please enter a valid email address", color = Color.Red)
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = {
-                    val trimmedEmail = email.trim()
-                    if (!Validators.isValidEmail(trimmedEmail)) {
-                        isEmailError = true
-                        message = "Please enter a valid email address"
-                        messageType = MessageType.ERROR
-                        return@Button
-                    }
-                    
-                    isLoading = true
-                    message = ""
-                    messageType = MessageType.NONE
-                    isEmailError = false
-                    
-                    viewModel.resetPassword(trimmedEmail) { success, msg ->
-                        isLoading = false
-                        message = msg
-                        messageType = if (success) MessageType.SUCCESS else MessageType.ERROR
-                        if (success) {
+                OutlinedTextField(
+                    value = email,
+                    onValueChange = {
+                        email = it
+                        isEmailError = false
+                        message = ""
+                        messageType = MessageType.NONE
+                    },
+                    label = { Text("Email Address") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Done
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    isError = isEmailError,
+                    colors = textFieldColors,
+                    enabled = !isSuccess,
+                    singleLine = true,
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            defaultKeyboardAction(ImeAction.Done)
+                            val trimmedEmail = email.trim()
+                            if (!Validators.isValidEmail(trimmedEmail)) {
+                                isEmailError = true
+                                message = "Please enter a valid email address"
+                                messageType = MessageType.ERROR
+                                return@KeyboardActions
+                            }
+                            
+                            isLoading = true
+                            message = ""
+                            messageType = MessageType.NONE
                             isEmailError = false
-                            isSuccess = true
-                        } else {
-                            isEmailError = true
+                            
+                            viewModel.resetPassword(trimmedEmail) { success, msg ->
+                                isLoading = false
+                                message = msg
+                                messageType = if (success) MessageType.SUCCESS else MessageType.ERROR
+                                if (success) {
+                                    isEmailError = false
+                                    isSuccess = true
+                                } else {
+                                    isEmailError = true
+                                }
+                            }
+                        }
+                    ),
+                    supportingText = {
+                        if (isEmailError) {
+                            Text("Please enter a valid email address", color = Color.Red)
                         }
                     }
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !isLoading && !isSuccess && email.trim().isNotEmpty(),
-                shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFD27D2D),
-                    contentColor = ThemeColorUtils.white(),
-                    disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
-                    disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
-                ),
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 8.dp,
-                    pressedElevation = 12.dp,
-                    disabledElevation = 4.dp
                 )
-            ) {
-                if (isLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = ThemeColorUtils.white(),
-                        strokeWidth = 2.dp
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Button(
+                    onClick = {
+                        val trimmedEmail = email.trim()
+                        if (!Validators.isValidEmail(trimmedEmail)) {
+                            isEmailError = true
+                            message = "Please enter a valid email address"
+                            messageType = MessageType.ERROR
+                            return@Button
+                        }
+                        
+                        isLoading = true
+                        message = ""
+                        messageType = MessageType.NONE
+                        isEmailError = false
+                        
+                        viewModel.resetPassword(trimmedEmail) { success, msg ->
+                            isLoading = false
+                            message = msg
+                            messageType = if (success) MessageType.SUCCESS else MessageType.ERROR
+                            if (success) {
+                                isEmailError = false
+                                isSuccess = true
+                            } else {
+                                isEmailError = true
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !isLoading && !isSuccess && email.trim().isNotEmpty(),
+                    shape = CircleShape,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFD27D2D),
+                        contentColor = ThemeColorUtils.white(),
+                        disabledContainerColor = Color(0xFFD27D2D).copy(alpha = 0.7f),
+                        disabledContentColor = ThemeColorUtils.white(alpha = 0.8f)
+                    ),
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 8.dp,
+                        pressedElevation = 12.dp,
+                        disabledElevation = 4.dp
                     )
-                } else {
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = ThemeColorUtils.white(),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Text(
+                            text = if (isSuccess) "Reset Link Sent!" else "Send Reset Link",
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (message.isNotEmpty() && messageType != MessageType.NONE) {
                     Text(
-                        text = if (isSuccess) "Reset Link Sent!" else "Send Reset Link",
-                        fontWeight = FontWeight.SemiBold
+                        text = message,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                        color = when (messageType) {
+                            MessageType.SUCCESS -> Color(0xFF4CAF50)
+                            MessageType.ERROR -> Color(0xFFEF5350)
+                            MessageType.NONE -> Color.Transparent
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.Start,
+                        fontWeight = FontWeight.Medium
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            if (message.isNotEmpty() && messageType != MessageType.NONE) {
-                Text(
-                    text = message,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 8.dp),
-                    color = when (messageType) {
-                        MessageType.SUCCESS -> Color(0xFF4CAF50)
-                        MessageType.ERROR -> Color(0xFFEF5350)
-                        MessageType.NONE -> Color.Transparent
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    textAlign = TextAlign.Start,
-                    fontWeight = FontWeight.Medium
-                )
-            }
-            
-            // Auto-navigate back after successful reset (optional)
-            if (isSuccess) {
-                LaunchedEffect(Unit) {
-                    delay(3000) // Wait 3 seconds
-                    navController.popBackStack()
+                
+                // Auto-navigate back after successful reset (optional)
+                if (isSuccess) {
+                    LaunchedEffect(Unit) {
+                        delay(3000) // Wait 3 seconds
+                        navController.popBackStack()
+                    }
                 }
             }
         }

@@ -105,5 +105,13 @@ class AccountManager(context: Context) {
             // Silent fail
         }
     }
+    
+    fun setActiveUser(userId: String) {
+        prefs.edit { putString("active_user_id", userId) }
+    }
+    
+    fun getActiveUserId(): String? {
+        return prefs.getString("active_user_id", null)
+    }
 }
 

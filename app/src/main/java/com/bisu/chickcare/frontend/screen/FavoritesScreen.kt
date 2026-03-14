@@ -63,29 +63,25 @@ fun FavoritesScreen(navController: NavController) {
                         "Favorites",
                         fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo("dashboard") { inclusive = false }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            navController.popBackStack()
                         }
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
-                            tint = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                            tint = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                         )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFFFFFFFF),
-                    titleContentColor = ThemeColorUtils.darkGray(Color(0xFF231C16))
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                 )
             )
         }
@@ -94,7 +90,7 @@ fun FavoritesScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(Color(0xFFFFF0DB))
+                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
         ) {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -141,23 +137,8 @@ fun FavoriteItemCard(
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable {
-                val entryId = entry.id
-                val timestamp = entry.timestamp
-                val location = entry.location?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
-                val imageUri = entry.imageUri?.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) } ?: ""
-                val result = entry.result.let { URLEncoder.encode(it, StandardCharsets.UTF_8.toString()) }
-                val isHealthy = entry.isHealthy
-                val confidence = entry.confidence
-
-                navController.navigate(
-                    "last_detection_detail?entryId=$entryId" +
-                            "&timestamp=$timestamp" +
-                            "&location=$location" +
-                            "&imageUri=$imageUri" +
-                            "&result=$result" +
-                            "&isHealthy=$isHealthy" +
-                            "&confidence=$confidence"
-                )
+                // Navigate with path parameter to match route: last_detection_detail/{detectionId}
+                navController.navigate("last_detection_detail/${entry.id}")
             },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White))

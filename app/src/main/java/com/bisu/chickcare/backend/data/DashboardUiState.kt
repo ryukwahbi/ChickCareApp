@@ -18,6 +18,7 @@ data class DashboardUiState(
     val audioDetections: Int = 0,
     val imageTrendData: List<TrendDataPoint> = emptyList(),
     val audioTrendData: List<TrendDataPoint> = emptyList(),
+    val combinedTrendData: List<TrendDataPoint> = emptyList(),
     val isDetecting: Boolean = false,
     val detectionResult: Pair<Boolean, String>? = null,
     val remedySuggestions: List<String> = emptyList()
