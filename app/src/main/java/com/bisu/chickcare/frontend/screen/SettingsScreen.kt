@@ -47,6 +47,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,6 +73,7 @@ import com.bisu.chickcare.backend.viewmodels.AuthViewModel
 import com.bisu.chickcare.backend.viewmodels.ThemeViewModel
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils.NeutralRole
+import com.bisu.chickcare.backend.viewmodels.SubscriptionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -83,6 +85,8 @@ fun SettingsScreen(navController: NavController) {
     var searchQuery by remember { mutableStateOf("") }
     var showLogoutDialog by remember { mutableStateOf(false) }
     var showDataStorageDialog by remember { mutableStateOf(false) }
+    val subscriptionViewModel: SubscriptionViewModel = viewModel()
+    val isPremium by subscriptionViewModel.isPremium.collectAsState()
 
     // Helper function to get icon resource with fallback for missing resources
     fun getSettingIcon(title: String): Int {
@@ -112,6 +116,7 @@ fun SettingsScreen(navController: NavController) {
     val aboutTitle = stringResource(R.string.settings_about_title)
     val dataStorageTitle = stringResource(R.string.settings_data_storage_title)
     val logoutTitle = stringResource(R.string.settings_logout_title)
+    val subscriptionTitle = stringResource(R.string.settings_subscription_title)
 
     val allSettingsOptions = listOf(
         SettingOption(
@@ -125,6 +130,17 @@ fun SettingsScreen(navController: NavController) {
                 "personal information", "edit profile", "update profile", "change name", "change email",
                 "farm location", "location", "address", "farm name", "bio", "about me",
                 "delete account", "remove account", "deactivate account"
+            )
+        ),
+        SettingOption(
+            title = subscriptionTitle,
+            subtitle = if (isPremium) stringResource(R.string.settings_subscription_subtitle_premium)
+                       else stringResource(R.string.settings_subscription_subtitle_free),
+            icon = getSettingIcon("Account"),
+            keywords = listOf(
+                "subscription", "premium", "upgrade", "plan", "pricing",
+                "free", "pro", "paid", "subscribe", "membership",
+                "billing", "payment", "unlock", "features"
             )
         ),
         SettingOption(
@@ -388,6 +404,7 @@ fun SettingsScreen(navController: NavController) {
                                     // Use the title string resource logic by comparing with the resolved string
                                     when (option.title) {
                                         accountTitle -> navController.navigate("account_settings")
+                                        subscriptionTitle -> navController.navigate("subscription")
                                         securityTitle -> navController.navigate("security_privacy_settings")
                                         emergencyTitle -> navController.navigate("emergency_contacts")
                                         notificationsTitle -> navController.navigate("notification_settings")

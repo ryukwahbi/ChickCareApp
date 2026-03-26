@@ -34,5 +34,9 @@ data class UserProfile(
         "numberOfBirds" to "public",
         "yearsExperience" to "public"
     ),
+    // Subscription fields
+    val subscriptionPlan: String = "FREE",
+    val subscriptionStartDate: Long = 0L,
+    val subscriptionEndDate: Long = 0L,
     val showActiveStatus: Boolean = true
 )

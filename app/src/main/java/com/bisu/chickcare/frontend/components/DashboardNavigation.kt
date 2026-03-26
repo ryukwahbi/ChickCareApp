@@ -377,7 +377,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("friends") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -395,7 +394,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("messages") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -413,7 +411,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("favorites") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -431,7 +428,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("saved_posts") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -449,7 +445,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("archives") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -467,7 +462,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("trash") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -486,7 +480,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("health_records") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -504,7 +497,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("vaccination_schedule") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -522,7 +514,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("feeding_schedule") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -540,7 +531,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("egg_production") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -560,7 +550,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("disease_database") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -578,7 +567,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("medications_log") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -596,7 +584,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                             navController.navigate("reports_analytics") {
                                 popUpTo(navController.graph.startDestinationId) { saveState = true }
                             }
-                            scope.launch { drawerState.close() }
                         },
                         shape = itemShape,
                         colors = NavigationDrawerItemDefaults.colors(
@@ -620,7 +607,6 @@ fun NavigationDrawerContent(navController: NavController, drawerState: DrawerSta
                     navController.navigate("app_info") {
                         popUpTo(navController.graph.startDestinationId) { saveState = true }
                     }
-                    scope.launch { drawerState.close() }
                 },
                 shape = itemShape,
                 colors = NavigationDrawerItemDefaults.colors(

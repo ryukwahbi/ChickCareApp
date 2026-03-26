@@ -84,6 +84,9 @@ import com.bisu.chickcare.frontend.screen.VaccinationScheduleScreen
 import com.bisu.chickcare.frontend.screen.VetContactsScreen
 import com.bisu.chickcare.frontend.screen.WelcomeScreen
 import com.bisu.chickcare.frontend.screen.YourFriendsScreen
+import com.bisu.chickcare.frontend.screen.SubscriptionScreen
+import com.bisu.chickcare.frontend.components.PremiumFeatureGate
+import com.bisu.chickcare.backend.viewmodels.SubscriptionViewModel
 import com.bisu.chickcare.ui.theme.ChickCareAppTheme
 
 class MainActivity : ComponentActivity() {
@@ -137,6 +140,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     val authViewModel: AuthViewModel = viewModel()
                     val dashboardViewModel: com.bisu.chickcare.backend.viewmodels.DashboardViewModel = viewModel()
+                    val subscriptionViewModel: SubscriptionViewModel = viewModel()
 
                     val context = LocalContext.current
                     
@@ -149,9 +153,11 @@ class MainActivity : ComponentActivity() {
                         if (currentUserProfile != null) {
                             realtimeNotificationManager.startListening()
                             com.bisu.chickcare.backend.service.NotificationForegroundService.start(context)
+                            authViewModel.observeCurrentSession(context)
                         } else {
                             realtimeNotificationManager.stopListening()
                             com.bisu.chickcare.backend.service.NotificationForegroundService.stop(context)
+                            authViewModel.stopObservingCurrentSession()
                         }
                     }
 
@@ -232,6 +238,7 @@ class MainActivity : ComponentActivity() {
                         composable("security_privacy_settings") { SecurityPrivacyScreen(navController) }
                         composable("notification_settings") { NotificationSettingsScreen(navController) }
                         composable("about_settings") { AboutScreen(navController) }
+                        composable("subscription") { SubscriptionScreen(navController, subscriptionViewModel) }
                         composable("app_info") { AppInfoScreen(navController) }
                         composable("language_settings") { LanguageSettingsScreen(navController) }
                         composable("privacy_policy") { PrivacyPolicyScreen(navController) }
@@ -391,11 +398,43 @@ class MainActivity : ComponentActivity() {
                         composable("health_records") { HealthRecordsScreen(navController) }
                         composable("vaccination_schedule") { VaccinationScheduleScreen(navController) }
                         composable("feeding_schedule") { FeedingScheduleScreen(navController) }
-                        composable("egg_production") { EggProductionTrackerScreen(navController) }
-                        composable("expense_tracker") { ExpenseTrackerScreen(navController) }
+                        composable("egg_production") {
+                            PremiumFeatureGate(
+                                featureName = "Egg Production Tracker",
+                                navController = navController,
+                                subscriptionViewModel = subscriptionViewModel
+                            ) {
+                                EggProductionTrackerScreen(navController)
+                            }
+                        }
+                        composable("expense_tracker") {
+                            PremiumFeatureGate(
+                                featureName = "Expense Tracker",
+                                navController = navController,
+                                subscriptionViewModel = subscriptionViewModel
+                            ) {
+                                ExpenseTrackerScreen(navController)
+                            }
+                        }
                         composable("disease_database") { DiseaseDatabaseScreen(navController) }
-                        composable("medications_log") { MedicationsLogScreen(navController) }
-                        composable("reports_analytics") { ReportsAnalyticsScreen(navController) }
+                        composable("medications_log") {
+                            PremiumFeatureGate(
+                                featureName = "Medications Log",
+                                navController = navController,
+                                subscriptionViewModel = subscriptionViewModel
+                            ) {
+                                MedicationsLogScreen(navController)
+                            }
+                        }
+                        composable("reports_analytics") {
+                            PremiumFeatureGate(
+                                featureName = "Reports & Analytics",
+                                navController = navController,
+                                subscriptionViewModel = subscriptionViewModel
+                            ) {
+                                ReportsAnalyticsScreen(navController)
+                            }
+                        }
                         composable("emergency_contacts") { EmergencyContactsScreen(navController) }
                         composable("vet_contacts") { VetContactsScreen(navController) }
 
@@ -421,7 +460,15 @@ class MainActivity : ComponentActivity() {
                             val postOwnerId = backStackEntry.arguments?.getString("postOwnerId") ?: ""
                             CommentsScreen(navController, postId, postOwnerId)
                         }
-                        composable("farm_insights") { FarmInsightsScreen(navController) }
+                        composable("farm_insights") {
+                            PremiumFeatureGate(
+                                featureName = "Farm Insights",
+                                navController = navController,
+                                subscriptionViewModel = subscriptionViewModel
+                            ) {
+                                FarmInsightsScreen(navController)
+                            }
+                        }
                         composable("announcements") { AnnouncementsScreen(navController) }
 
                         composable(

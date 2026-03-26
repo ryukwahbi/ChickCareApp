@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.DropdownMenu
@@ -69,6 +70,7 @@ import com.bisu.chickcare.backend.service.NetworkConnectivityHelper
 import com.bisu.chickcare.backend.viewmodels.ChatViewModel
 import com.bisu.chickcare.frontend.components.OfflineIndicator
 import com.bisu.chickcare.frontend.utils.ThemeColorUtils
+import com.bisu.chickcare.backend.viewmodels.SubscriptionViewModel
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -82,8 +84,11 @@ fun ChatScreen(
     userName: String? = null
 ) {
     val viewModel: ChatViewModel = viewModel()
+    val subscriptionViewModel: SubscriptionViewModel = viewModel()
+    
     val messages by viewModel.messages.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val isPremium by subscriptionViewModel.isPremium.collectAsState()
 
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
@@ -186,19 +191,27 @@ fun ChatScreen(
                         }
                     }
 
-                    // Input bar
-                    ChatInputBar(
-                        messageText = messageText,
-                        onMessageTextChange = { messageText = it },
-                        onSendClick = {
-                            if (messageText.isNotBlank() && userId != null) {
-                                viewModel.sendMessage(messageText, userId)
-                                messageText = ""
-                            }
-                        },
-                        enabled = isOnline,
-                        modifier = Modifier.padding(8.dp)
-                    )
+                    // Input bar or Premium Lock
+                    val MESSAGE_LIMIT = 50
+                    if (!isPremium && messages.size >= MESSAGE_LIMIT) {
+                        ChatLimitReachedOverlay(
+                            onUpgradeClick = { navController.navigate("subscription") },
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    } else {
+                        ChatInputBar(
+                            messageText = messageText,
+                            onMessageTextChange = { messageText = it },
+                            onSendClick = {
+                                if (messageText.isNotBlank() && userId != null) {
+                                    viewModel.sendMessage(messageText, userId)
+                                    messageText = ""
+                                }
+                            },
+                            enabled = isOnline,
+                            modifier = Modifier.padding(8.dp)
+                        )
+                    }
                 }
             }
         }
@@ -593,3 +606,63 @@ fun ChatInputBar(
     }
 }
 
+@Composable
+fun ChatLimitReachedOverlay(
+    onUpgradeClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFFFF0E0)) // Light orange background
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Lock,
+                contentDescription = null,
+                tint = Color(0xFFD27D2D),
+                modifier = Modifier.size(24.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = "Premium Feature",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFD27D2D)
+            )
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Text(
+            text = "Conversation limit reached (50 messages). Upgrade to Premium to send unlimited messages.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = Color.Black,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        androidx.compose.material3.Button(
+            onClick = onUpgradeClick,
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFD27D2D)
+            ),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.fillMaxWidth(0.8f)
+        ) {
+            Text(
+                text = "Upgrade to Premium",
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+    }
+}

@@ -641,34 +641,7 @@ private fun AudioPlayerItem(
 
 @Composable
 fun MoreTabContent(userId: String) {
-    var selectedSection by remember { mutableStateOf<String?>(null) } // "favorites" or "guides"
-    var showComingSoonDialog by remember { mutableStateOf(false) }
-    
-    // Coming Soon Dialog
-    if (showComingSoonDialog) {
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { showComingSoonDialog = false },
-            title = {
-                Text(
-                    "Login Session",
-                    fontWeight = FontWeight.Bold
-                )
-            },
-            text = {
-                Text("This will be implement soon, stay tuned!")
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(
-                    onClick = { showComingSoonDialog = false }
-                ) {
-                    Text("OK", color = ThemeColorUtils.primary())
-                }
-            },
-            containerColor = ThemeColorUtils.white(),
-            titleContentColor = ThemeColorUtils.black(),
-            textContentColor = ThemeColorUtils.black()
-        )
-    }
+    var selectedSection by remember { mutableStateOf<String?>(null) } // "favorites" or "guides" or "login_session"
 
     Column(
         modifier = Modifier
@@ -702,7 +675,7 @@ fun MoreTabContent(userId: String) {
                     icon = Icons.Default.LocationOn,
                     title = "Login Session",
                     subtitle = "View the location of where you logged in",
-                    onClick = { showComingSoonDialog = true }
+                    onClick = { selectedSection = "login_session" }
                 )
             }
         } else {
@@ -725,16 +698,20 @@ fun MoreTabContent(userId: String) {
                 }
                 Spacer(modifier = Modifier.padding(start = 8.dp))
                 Text(
-                    text = if (selectedSection == "favorites") "Favorites / Saved" else "Guides & Resources",
+                    text = when (selectedSection) {
+                        "favorites" -> "Favorites / Saved"
+                        "login_session" -> "Login Session"
+                        else -> "Guides & Resources"
+                    },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
             
-            if (selectedSection == "favorites") {
-                FavoritesSection(userId = userId)
-            } else {
-                GuidesSection()
+            when (selectedSection) {
+                "favorites" -> FavoritesSection(userId = userId)
+                "login_session" -> LoginSessionSection()
+                else -> GuidesSection()
             }
         }
     }

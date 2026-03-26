@@ -170,6 +170,13 @@ class AuthViewModel : ViewModel() {
                     // Save credentials for offline login
                     OfflineAuthHelper.setLastCredentials(it, emailToUse, OfflineAuthHelper.hashPassword(password), userId)
                     OfflineAuthHelper.setCurrentLocalUserId(it, userId)
+                    
+                    // Record Login Session
+                    try {
+                        com.bisu.chickcare.backend.repository.LoginSessionRepository().recordSession(it, userId)
+                    } catch (e: Exception) {
+                        Log.e("AuthViewModel", "Failed to record session", e)
+                    }
                 }
                 saveFCMToken()
                 // ... rest of logic
@@ -210,6 +217,22 @@ class AuthViewModel : ViewModel() {
     }
 
     fun logout(context: Context? = null) {
+        val userId = auth.currentUser?.uid
+        if (userId != null && context != null) {
+            viewModelScope.launch {
+                try {
+                    com.bisu.chickcare.backend.repository.LoginSessionRepository().markSessionInactiveLocally(context, userId)
+                } catch (e: Exception) {
+                    Log.e("AuthViewModel", "Error removing session locally", e)
+                }
+                performLocalLogout(context)
+            }
+        } else {
+            performLocalLogout(context)
+        }
+    }
+
+    private fun performLocalLogout(context: Context?) {
         auth.signOut()
         _userProfile.value = null
         context?.let { OfflineAuthHelper.clearCurrentLocalUserId(it) }
@@ -344,6 +367,31 @@ class AuthViewModel : ViewModel() {
         } else {
             _userProfile.value = null
         }
+    }
+
+    private var sessionListenerRegistration: com.google.firebase.firestore.ListenerRegistration? = null
+
+    fun observeCurrentSession(context: Context) {
+        val userId = auth.currentUser?.uid ?: return
+        val deviceId = android.provider.Settings.Secure.getString(context.contentResolver, android.provider.Settings.Secure.ANDROID_ID) ?: return
+        
+        sessionListenerRegistration?.remove()
+        sessionListenerRegistration = firestore.collection("users").document(userId)
+            .collection("sessions").document(deviceId)
+            .addSnapshotListener { snapshot, _ ->
+                if (snapshot != null && snapshot.exists()) {
+                    val isActive = snapshot.getBoolean("isActive") ?: true
+                    if (!isActive) {
+                        Log.w("AuthViewModel", "Session flagged as inactive remotely! Forcing logout.")
+                        logout(context)
+                    }
+                }
+            }
+    }
+
+    fun stopObservingCurrentSession() {
+        sessionListenerRegistration?.remove()
+        sessionListenerRegistration = null
     }
 
     suspend fun fetchUserProfileById(userId: String): UserProfile? {
@@ -755,5 +803,6 @@ class AuthViewModel : ViewModel() {
     override fun onCleared() {
         super.onCleared()
         profileListenerRegistration?.remove()
+        stopObservingCurrentSession()
     }
 }

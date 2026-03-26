@@ -408,4 +408,9 @@
     <string name="active_status_weeks_fmt">Aktibo %1$d linggo nakalipas</string>
     <string name="active_status_month_fmt">Aktibo %1$d buwan nakalipas</string>
     <string name="active_status_months_fmt">Aktibo %1$d buwan nakalipas</string>
+
+    <!-- Subscription -->
+    <string name="settings_subscription_title">Subscription</string>
+    <string name="settings_subscription_subtitle_free">Libreng Plano — Mag-upgrade para sa iba pa</string>
+    <string name="settings_subscription_subtitle_premium">Premium na Plano — Lahat ng feature ay naka-unlock</string>
 </resources>

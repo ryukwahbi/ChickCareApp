@@ -348,4 +348,9 @@
     <string name="active_status_weeks_fmt">Active %1$d weeks ago</string>
     <string name="active_status_month_fmt">Active %1$d month ago</string>
     <string name="active_status_months_fmt">Active %1$d months ago</string>
+
+    <!-- Subscription -->
+    <string name="settings_subscription_title">Subscription</string>
+    <string name="settings_subscription_subtitle_free">Free Plan — Upgrade to unlock more</string>
+    <string name="settings_subscription_subtitle_premium">Premium Plan — All features unlocked</string>
 </resources>
