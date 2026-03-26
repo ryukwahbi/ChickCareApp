@@ -1,19 +1,7 @@
 package com.bisu.chickcare.frontend.screen
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -29,30 +17,14 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Egg
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
@@ -78,7 +50,7 @@ fun EggProductionTrackerScreen(navController: NavController) {
     var showAddDialog by remember { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<EggProductionRecord?>(null) }
 
-    // Today's record (if exists)
+    // Today's record calculations
     val today = System.currentTimeMillis()
     val startOfDay = Calendar.getInstance().apply {
         timeInMillis = today
@@ -113,21 +85,19 @@ fun EggProductionTrackerScreen(navController: NavController) {
                 title = {
                     Text(
                         "Egg Production",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
                         color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
                 },
                 navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            navController.navigate("dashboard") {
-                                popUpTo("dashboard") { inclusive = false }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                    IconButton(onClick = {
+                        navController.navigate("dashboard") {
+                            popUpTo("dashboard") { inclusive = false }
+                            launchSingleTop = true
+                            restoreState = true
                         }
-                    ) {
+                    }) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -136,9 +106,10 @@ fun EggProductionTrackerScreen(navController: NavController) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color.White,
+                    containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color(0xFFFDFBF7),
                     titleContentColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
-                )
+                ),
+                windowInsets = WindowInsets(0, 0, 0, 0)
             )
         },
         floatingActionButton = {
@@ -147,10 +118,12 @@ fun EggProductionTrackerScreen(navController: NavController) {
                     editingRecord = null
                     showAddDialog = true
                 },
-                containerColor = Color(0xFF8F8C8A),
-                contentColor = ThemeColorUtils.white()
+                containerColor = ThemeColorUtils.primary(), // Main brand color
+                contentColor = ThemeColorUtils.white(),
+                shape = CircleShape,
+                elevation = FloatingActionButtonDefaults.elevation(6.dp)
             ) {
-                Icon(Icons.Default.Add, contentDescription = "Add Record")
+                Icon(Icons.Default.Add, contentDescription = "Add Record", modifier = Modifier.size(28.dp))
             }
         }
     ) { innerPadding ->
@@ -158,180 +131,191 @@ fun EggProductionTrackerScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(ThemeColorUtils.beige(Color(0xFFFFF7E6)))
+                .background(if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF141617) else Color(0xFFFDFBF7))
         ) {
-            Column {
-                // Summary Cards
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    SummaryCard(
-                        title = "Today",
-                        count = todayRecord?.totalEggs ?: 0,
-                        color = Color(0xFF2196F3),
-                        modifier = Modifier.weight(1f)
-                    )
-                    SummaryCard(
-                        title = "Weekly Avg",
-                        count = weeklyAverage.toInt(),
-                        color = Color(0xFF4CAF50),
-                        modifier = Modifier.weight(1f)
-                    )
-                    SummaryCard(
-                        title = "Monthly",
-                        count = monthlyTotal,
-                        color = Color(0xFFDA8041),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Today's Details Card
-                if (todayRecord != null) {
-                    Card(
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(bottom = 80.dp) // Space for FAB
+            ) {
+                // Header Gradient Section
+                item {
+                    Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFDA8041)),
-                        elevation = CardDefaults.cardElevation(4.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
-                        ) {
-                            Text(
-                                text = "Today's Production",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = ThemeColorUtils.white()
+                            .padding(16.dp)
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                brush = Brush.linearGradient(
+                                    colors = listOf(
+                                        Color(0xFFDA8041), // Vibrant brand orange
+                                        Color(0xFFE89A64) 
+                                    )
+                                )
                             )
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                ProductionStat("Total Eggs", todayRecord.totalEggs.toString(), ThemeColorUtils.white())
-                                ProductionStat("Healthy", todayRecord.healthyEggs.toString(), Color(0xFF4CAF50))
-                                ProductionStat("Broken", todayRecord.brokenEggs.toString(), Color(0xFFFF9800))
-                            }
-                            if (todayRecord.notes.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(8.dp))
+                            .padding(24.dp)
+                    ) {
+                        Column {
+                            Text(
+                                "Total Monthly Yield",
+                                color = Color.White.copy(alpha = 0.8f),
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.Bottom) {
                                 Text(
-                                    text = "📝 ${todayRecord.notes}",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = ThemeColorUtils.white(alpha = 0.9f)
+                                    text = "$monthlyTotal",
+                                    color = Color.White,
+                                    fontSize = 44.sp,
+                                    fontWeight = FontWeight.Black
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "eggs",
+                                    color = Color.White.copy(alpha = 0.9f),
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.padding(bottom = 8.dp)
                                 )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // Production Rate Card
-                if (monthlyRecords.isNotEmpty()) {
-                    Card(
+                // Top Stats Row
+                item {
+                    Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp),
-                        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-                        elevation = CardDefaults.cardElevation(2.dp)
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        Row(
+                        StatCard(
+                            title = "Collected Today",
+                            value = todayRecord?.totalEggs?.toString() ?: "0",
+                            icon = Icons.Default.Egg,
+                            color = Color(0xFF4CAF50),
+                            modifier = Modifier.weight(1f)
+                        )
+                        StatCard(
+                            title = "Weekly Average",
+                            value = "${weeklyAverage.toInt()}",
+                            icon = Icons.AutoMirrored.Filled.TrendingUp,
+                            color = Color(0xFF2196F3),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                // Health Insights Card
+                if (monthlyRecords.isNotEmpty()) {
+                    item {
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                                .padding(horizontal = 16.dp, vertical = 12.dp),
+                            colors = CardDefaults.cardColors(
+                                containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF1C1E20) else Color.White
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            elevation = CardDefaults.cardElevation(2.dp)
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.TrendingUp,
-                                contentDescription = null,
-                                tint = Color(0xFF4CAF50),
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text(
-                                    text = "Production Rate",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = ThemeColorUtils.lightGray(Color.Gray)
-                                )
-                                Text(
-                                    text = "$healthyPercentage% Healthy Eggs",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF4CAF50)
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
-                }
-
-                // Historical Records
-                Text(
-                    text = "Recent Records",
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (records.isEmpty()) {
-                        item {
-                            Box(
+                            Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(
-                                    horizontalAlignment = Alignment.CenterHorizontally
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(0xFF4CAF50).copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
                                     Icon(
-                                        Icons.Default.Egg,
+                                        Icons.Rounded.Info,
                                         contentDescription = null,
-                                        modifier = Modifier.size(64.dp),
-                                        tint = ThemeColorUtils.lightGray(Color.Gray)
+                                        tint = Color(0xFF4CAF50),
+                                        modifier = Modifier.size(24.dp)
                                     )
-                                    Spacer(modifier = Modifier.height(16.dp))
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                                Column {
                                     Text(
-                                        "No egg production records found",
-                                        style = MaterialTheme.typography.bodyLarge,
+                                        text = "Production Quality",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "$healthyPercentage% of this month's eggs were healthy.",
+                                        style = MaterialTheme.typography.bodyMedium,
                                         color = ThemeColorUtils.lightGray(Color.Gray)
                                     )
                                 }
                             }
                         }
-                    } else {
-                        items(records, key = { it.id }) { record ->
-                            EggProductionCard(
-                                record = record,
-                                onEdit = {
-                                    editingRecord = record
-                                    showAddDialog = true
-                                },
-                                onDelete = {
-                                    viewModel.deleteEggProductionRecord(record.id)
-                                }
-                            )
+                    }
+                }
+
+                // Header for List
+                item {
+                    Text(
+                        text = "Recent Logs",
+                        modifier = Modifier.padding(start = 20.dp, top = 16.dp, bottom = 12.dp),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
+                    )
+                }
+
+                if (records.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    Icons.Default.Egg,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(72.dp),
+                                    tint = ThemeColorUtils.lightGray(Color.Gray).copy(alpha = 0.5f)
+                                )
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text(
+                                    "No logs found",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = ThemeColorUtils.lightGray(Color.Gray),
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
+                    }
+                } else {
+                    items(records, key = { it.id }) { record ->
+                        PremiumEggProductionCard(
+                            record = record,
+                            onEdit = {
+                                editingRecord = record
+                                showAddDialog = true
+                            },
+                            onDelete = {
+                                viewModel.deleteEggProductionRecord(record.id)
+                            }
+                        )
                     }
                 }
             }
         }
 
-        // Add/Edit Dialog
+        // Add/Edit Dialog BottomSheet/Modal style
         if (showAddDialog) {
-            EggProductionInputDialog(
+            PremiumEggProductionInputDialog(
                 record = editingRecord,
                 onDismiss = {
                     showAddDialog = false
@@ -348,7 +332,172 @@ fun EggProductionTrackerScreen(navController: NavController) {
 }
 
 @Composable
-fun EggProductionInputDialog(
+private fun StatCard(title: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, color: Color, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF1C1E20) else Color.White
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(color.copy(alpha = 0.15f), CircleShape)
+                        .padding(8.dp)
+                ) {
+                    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(20.dp))
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = value,
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodySmall,
+                color = ThemeColorUtils.lightGray(Color.Gray),
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+@Composable
+fun PremiumEggProductionCard(
+    record: EggProductionRecord,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF1C1E20) else Color.White
+        ),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(2.dp)
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Yield Box
+                Box(
+                    modifier = Modifier
+                        .size(60.dp)
+                        .background(Color(0xFFDA8041).copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "${record.totalEggs}",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFFDA8041)
+                        )
+                        Text(
+                            text = "eggs",
+                            fontSize = 10.sp,
+                            color = Color(0xFFDA8041)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(16.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = record.coopLocation,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            Icons.Rounded.CalendarToday,
+                            contentDescription = null,
+                            tint = ThemeColorUtils.lightGray(Color.Gray),
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = dateFormat.format(Date(record.date)),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = ThemeColorUtils.lightGray(Color.Gray)
+                        )
+                    }
+                    if (record.brokenEggs > 0) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = "${record.brokenEggs} broken",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color(0xFFFF9800),
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Column(horizontalAlignment = Alignment.End) {
+                    IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Edit",
+                            tint = Color(0xFF2196F3),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = Color(0xFFF44336),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+
+            if (record.notes.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF2A2D30) else Color(0xFFF5F5F5))
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = record.notes,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = ThemeColorUtils.lightGray(Color.Gray)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PremiumEggProductionInputDialog(
     record: EggProductionRecord?,
     onDismiss: () -> Unit,
     onSave: (EggProductionRecord) -> Unit
@@ -365,9 +514,13 @@ fun EggProductionInputDialog(
     ) {
         Card(
             modifier = Modifier
-                .width(370.dp)
-                .heightIn(max = 580.dp),
-            shape = RoundedCornerShape(10.dp)
+                .width(360.dp)
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(24.dp),
+            colors = CardDefaults.cardColors(
+                containerColor = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color(0xFF1C1E20) else Color.White
+            ),
+            elevation = CardDefaults.cardElevation(8.dp)
         ) {
             Column(
                 modifier = Modifier
@@ -375,60 +528,66 @@ fun EggProductionInputDialog(
                     .padding(24.dp)
                     .verticalScroll(rememberScrollState())
             ) {
+                // Header
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = if (record == null) "Add Egg Production" else "Edit Egg Production",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
+                        text = if (record == null) "Log Production" else "Edit Log",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (com.bisu.chickcare.backend.viewmodels.ThemeViewModel.isDarkMode) Color.White else Color(0xFF231C16)
                     )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Close")
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Close",
+                            tint = ThemeColorUtils.lightGray(Color.Gray)
+                        )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
                 OutlinedTextField(
                     value = totalEggs,
                     onValueChange = {
                         totalEggs = it
-                        // Auto-calculate broken eggs if not set
                         val total = it.toIntOrNull() ?: 0
                         val healthy = healthyEggs.toIntOrNull() ?: 0
                         if (total > 0 && healthy >= 0 && total >= healthy) {
                             brokenEggs = (total - healthy).toString()
                         }
                     },
-                    label = { Text("Total Eggs *") },
+                    label = { Text("Total Eggs") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = healthyEggs,
                     onValueChange = {
                         healthyEggs = it
-                        // Auto-calculate broken eggs
                         val total = totalEggs.toIntOrNull() ?: 0
                         val healthy = it.toIntOrNull() ?: 0
                         if (total > 0 && healthy >= 0 && total >= healthy) {
                             brokenEggs = (total - healthy).toString()
                         }
                     },
-                    label = { Text("Healthy Eggs *") },
+                    label = { Text("Healthy Eggs") },
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = brokenEggs,
@@ -437,31 +596,39 @@ fun EggProductionInputDialog(
                     modifier = Modifier.fillMaxWidth(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
-                    enabled = false // Auto-calculated
+                    enabled = false,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        disabledTextColor = Color(0xFFFF9800),
+                        disabledBorderColor = Color(0xFFFF9800).copy(alpha = 0.5f),
+                        disabledLabelColor = Color(0xFFFF9800)
+                    )
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = coopLocation,
                     onValueChange = { coopLocation = it },
-                    label = { Text("Coop Location *") },
+                    label = { Text("Coop/Pen Location") },
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes (Optional)") },
+                    label = { Text("Remarks (Optional)") },
                     modifier = Modifier.fillMaxWidth(),
-                    minLines = 2,
-                    maxLines = 4
+                    minLines = 3,
+                    maxLines = 5,
+                    shape = RoundedCornerShape(12.dp)
                 )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
                     onClick = {
@@ -470,7 +637,8 @@ fun EggProductionInputDialog(
                         val broken = brokenEggs.toIntOrNull() ?: 0
 
                         if (total > 0 && healthy >= 0 && broken >= 0 &&
-                            (healthy + broken) <= total && coopLocation.isNotBlank()) {
+                            (healthy + broken) <= total && coopLocation.isNotBlank()
+                        ) {
                             val newRecord = EggProductionRecord(
                                 id = record?.id ?: "",
                                 date = record?.date ?: System.currentTimeMillis(),
@@ -483,174 +651,22 @@ fun EggProductionInputDialog(
                             onSave(newRecord)
                         }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp),
                     enabled = ((totalEggs.toIntOrNull() ?: 0) > 0) &&
-                              ((healthyEggs.toIntOrNull() ?: 0) >= 0) &&
-                              coopLocation.isNotBlank(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF66BB1F)),
-                    shape = RoundedCornerShape(6.dp)
-                ) {
-                    Text("Save", modifier = Modifier.padding(vertical = 8.dp))
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun ProductionStat(label: String, value: String, textColor: Color) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = textColor
-        )
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = textColor.copy(alpha = 0.8f)
-        )
-    }
-}
-
-@Composable
-fun EggProductionCard(
-    record: EggProductionRecord,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    val dateFormat = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-        elevation = CardDefaults.cardElevation(2.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .background(Color(0xFFDA8041).copy(alpha = 0.2f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    Icons.Default.Egg,
-                    contentDescription = null,
-                    tint = Color(0xFFDA8041),
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.width(16.dp))
-
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = dateFormat.format(Date(record.date)),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = record.coopLocation,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.lightGray(Color.Gray)
-                )
-                if (record.brokenEggs > 0) {
-                    Text(
-                        text = "${record.brokenEggs} broken",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Color(0xFFFF9800)
-                    )
-                }
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.End
+                            ((healthyEggs.toIntOrNull() ?: 0) >= 0) &&
+                            coopLocation.isNotBlank(),
+                    colors = ButtonDefaults.buttonColors(containerColor = ThemeColorUtils.primary()),
+                    shape = RoundedCornerShape(16.dp)
                 ) {
                     Text(
-                        text = "${record.totalEggs}",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2196F3)
-                    )
-                    Text(
-                        text = "eggs",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = ThemeColorUtils.lightGray(Color.Gray)
+                        "Save Record",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
                     )
                 }
-                Spacer(modifier = Modifier.width(8.dp))
-                Column {
-                    IconButton(onClick = onEdit, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            Icons.Default.Edit,
-                            contentDescription = "Edit",
-                            tint = Color(0xFF7EC6E3),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(40.dp)) {
-                        Icon(
-                            Icons.Default.Delete,
-                            contentDescription = "Delete",
-                            tint = Color(0xFFEA7B76),
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
             }
-        }
-
-        if (record.notes.isNotEmpty()) {
-            Surface(
-                color = ThemeColorUtils.surface(Color.White),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "📝 ${record.notes}",
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = ThemeColorUtils.darkGray(Color(0xFF231C16))
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun SummaryCard(title: String, count: Int, color: Color, modifier: Modifier = Modifier) {
-    Card(
-        modifier = modifier,
-        colors = CardDefaults.cardColors(containerColor = ThemeColorUtils.surface(Color.White)),
-        elevation = CardDefaults.cardElevation(4.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.Start
-        ) {
-            Text(
-                text = count.toString(),
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = color
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodySmall,
-                color = ThemeColorUtils.lightGray(Color.Gray)
-            )
         }
     }
 }
